@@ -23,6 +23,16 @@ code stayed home.)
 
 ---
 
+## Screenshots
+
+Running on an iPhone — the base view, the living galaxy of 249 rivals, and
+the supernova at its heart:
+
+| Your planet | The galaxy | The core |
+|---|---|---|
+| ![Base view](Screenshots/base-view.jpeg) | ![Rival planets](Screenshots/galaxy-rivals.jpeg) | ![Galaxy core](Screenshots/galaxy-core.jpeg) |
+| ![Commander profile](Screenshots/commander-profile.jpeg) | ![Galaxy map](Screenshots/galaxy-map.jpeg) | ![More rivals](Screenshots/galaxy-map-2.jpeg) |
+
 ## The game
 
 Portrait-mode mobile 4X, built in **Unity 6** (URP + UI Toolkit, pure-C# UI):
