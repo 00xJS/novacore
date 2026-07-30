@@ -1,0 +1,21 @@
+{
+    "name": "GalaxyRoyale.Game",
+    "rootNamespace": "GalaxyRoyale.Game",
+    "references": [
+        "GalaxyRoyale.Data",
+        "GalaxyRoyale.Sim",
+        "GalaxyRoyale.Local",
+        "Unity.InputSystem",
+        "Unity.Notifications.iOS",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
