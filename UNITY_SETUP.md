@@ -35,7 +35,7 @@ this file is the "what do I set/click once the project is open" reference.
 - **Signing Team:** `YOUR_TEAM_ID` — placeholder. Replace with your Apple
   Developer team id (Xcode → Signing & Capabilities shows it), or just let
   Xcode pick your team after opening the generated project.
-- **Target minimum iOS Version:** `15`
+- **Target minimum iOS Version:** `13`
 
 ## Player Settings — Android
 
