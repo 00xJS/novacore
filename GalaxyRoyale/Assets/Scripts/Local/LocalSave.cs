@@ -71,14 +71,30 @@ namespace GalaxyRoyale.Local
             }
         }
 
-        /// <summary>Full wipe — main, backup, and temp. Used by RESET EMPIRE only.</summary>
+        /// <summary>
+        /// Wipe for RESET EMPIRE / NEW GAME. A save that still DECODES is deleted
+        /// (the player double-confirmed). One that doesn't — corrupt, or written by
+        /// a newer build before a downgrade — is renamed aside instead: the title
+        /// screen can't see it, so NEW GAME used to erase it with no confirmation.
+        /// </summary>
         public static void Delete()
         {
-            foreach (var p in new[] { PathMain, PathBackup, PathTemp })
+            string stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            foreach (var p in new[] { PathMain, PathBackup })
             {
-                try { if (File.Exists(p)) File.Delete(p); }
+                try
+                {
+                    if (!File.Exists(p)) continue;
+                    if (TryLoad(p) != null) { File.Delete(p); continue; }
+                    string kept = Path.Combine(Dir,
+                        $"{Path.GetFileNameWithoutExtension(p)}.unreadable-{stamp}.json");
+                    File.Move(p, kept);
+                    Debug.LogWarning($"[Save] Unreadable save kept as {Path.GetFileName(kept)}");
+                }
                 catch (Exception) { /* nothing sensible to do */ }
             }
+            try { if (File.Exists(PathTemp)) File.Delete(PathTemp); }
+            catch (Exception) { }
         }
     }
 }

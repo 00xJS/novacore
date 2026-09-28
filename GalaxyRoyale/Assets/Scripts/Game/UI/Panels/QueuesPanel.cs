@@ -339,7 +339,7 @@ namespace GalaxyRoyale.Game.UI
                     var march = m;
                     var card = Widgets.Row();
                     var head = Widgets.HBox(Justify.SpaceBetween);
-                    head.Add(Widgets.Text($"{march.Mission} → {march.Node.X},{march.Node.Y}", 13, UiTheme.Text, bold: true));
+                    head.Add(Widgets.Text($"{MarchCallout.MissionLabel(march)} → {march.Node.X},{march.Node.Y}", 13, UiTheme.Text, bold: true));
                     var btns = Widgets.HBox();
                     // Spy probes can be redirected mid-flight (not while gathering intel) — v1 parity with FleetPanel.
                     if (march.Mission == MarchMission.Spy && march.Phase != MarchPhase.Gathering)

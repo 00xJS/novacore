@@ -238,6 +238,19 @@ namespace GalaxyRoyale.Game
                     + (int)(Sim.Rng.Hash2d((uint)bot.Id, state.Tick, 977) * 1200);
         }
 
+        /// <summary>
+        /// Forget every pending resolution — called when a NEW galaxy is founded
+        /// (NEW GAME / RESET EMPIRE). The list lives in PlayerPrefs, outside the
+        /// save, and march ids restart at 1 in a fresh game: a stale entry could
+        /// resolve against the new empire (ships removed, loot credited) or even
+        /// hijack a new march that happened to reuse the id.
+        /// </summary>
+        public static void ClearPending()
+        {
+            PlayerPrefs.DeleteKey(PrefsKey);
+            _instance?._pending.Clear();
+        }
+
         // ---------- persistence (device-local, like Favorites) ----------
 
         void Persist()
