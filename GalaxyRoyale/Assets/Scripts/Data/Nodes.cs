@@ -27,7 +27,10 @@ namespace GalaxyRoyale.Data
     public static class Nodes
     {
         public const float NodeCellOccupancy = 0.55f;
-        public const float CampLootFactor = 0.5f;
+        /// <summary>Camp loot = garrison build cost × this. 0.5 → 2 in the
+        /// 2026-09-28 balance pass: a rim camp paid ~100 resources (half a
+        /// minute of gathering) — less than the fighters it cost to take.</summary>
+        public const float CampLootFactor = 2f;
 
         public static readonly IReadOnlyList<NodeKind> All = new[]
         {

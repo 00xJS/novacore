@@ -36,8 +36,12 @@ namespace GalaxyRoyale.Data
 
         /// <summary>Global flight-fuel scalar (user spec 2026-07-07: drastically lower
         /// helium so low gas never grounds a fleet — flying should feel free). One
-        /// tunable knob instead of editing every ship's FuelPerTile.</summary>
-        public const float FlightFuelMult = 0.2f;
+        /// tunable knob instead of editing every ship's FuelPerTile. 0.2 → 0.1 in
+        /// the 2026-09-28 balance pass: on the honest STANDARD start the
+        /// Commander's Path's first strike (10 fighters, ~100 tiles out) cost
+        /// ~1,200 helium against ~600 in the tank — grounded for two days
+        /// (Tests/StandardPacingTests). Only the player pays fuel.</summary>
+        public const float FlightFuelMult = 0.1f;
 
         /// <summary>Round-trip helium, charged up front at launch (milli-helium).</summary>
         public static int HeliumCostMilli(double distTiles, int fleetFuelPerTile) =>
