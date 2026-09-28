@@ -7,6 +7,7 @@
 // quit.
 using System;
 using UnityEngine;
+using GalaxyRoyale.Data;
 using GalaxyRoyale.Local;
 using GalaxyRoyale.Sim;
 using GalaxyRoyale.Sim.Bots;
@@ -69,23 +70,26 @@ namespace GalaxyRoyale.Game
         /// <summary>CONTINUE GAME — adopt the saved galaxy and fast-forward offline time.</summary>
         public void ContinueGame()
         {
-            if (_pendingLoad is not { } found || found.bots == null) { NewGame(); return; }
+            if (_pendingLoad is not { } found || found.bots == null) { NewGame(Balance.TestModeDefault); return; }
             _ctx.AdoptState(found.state, found.bots, found.savedAtMs);
             _pendingLoad = null;
             FinishBoot();
             ReportAway(_ctx.LastDebrief);
         }
 
-        /// <summary>NEW GAME — erase any save and found a fresh galaxy. The title
-        /// screen double-confirms before calling this when a save exists.</summary>
-        public void NewGame()
+        /// <summary>NEW GAME — erase any save and found a fresh galaxy in the chosen
+        /// mode (NewGamePanel). The title screen double-confirms before offering
+        /// this when a save exists.</summary>
+        public void NewGame(bool testMode)
         {
             LocalSave.Delete();
             _pendingLoad = null;
-            StartFreshGalaxy();
+            StartFreshGalaxy(testMode);
             FinishBoot();
             var ui = UI.UIController.Instance;
-            ui?.Toast($"Welcome to the galaxy, Commander — {BotSystem.BotCount} rivals await");
+            ui?.Toast(testMode
+                ? $"TESTING galaxy founded — {BotSystem.BotCount} rivals, a full war chest"
+                : $"Welcome to the galaxy, Commander — {BotSystem.BotCount} rivals await");
             ui?.ShowRookieHints();
         }
 
@@ -97,14 +101,14 @@ namespace GalaxyRoyale.Game
         }
 
         /// <summary>Found a brand-new galaxy: rim spawn for the player, then the rivals.</summary>
-        public void StartFreshGalaxy()
+        public void StartFreshGalaxy(bool testMode)
         {
             // Device-local side tables outlive the save file — a new galaxy must
             // not inherit the old one's pending raids or daily progress.
             RaidArrivals.ClearPending();
             DailyObjectives.ResetProgress();
             UI.RankingsPanel.ForgetLastRank();
-            var state = GameState.CreateNewGame(Spawn.GalaxySeed);
+            var state = GameState.CreateNewGame(Spawn.GalaxySeed, testMode);
             // A random founder token gives each new game its own rim spawn angle.
             string founder = $"player-{UnityEngine.Random.Range(int.MinValue, int.MaxValue)}";
             state.HomeTile = Spawn.SpawnTileFor(founder, Spawn.GalaxySeed);
@@ -113,11 +117,11 @@ namespace GalaxyRoyale.Game
             SaveNow();
         }
 
-        /// <summary>Double-confirmed by the profile panel before this is called.</summary>
-        public void ResetEmpire()
+        /// <summary>Double-confirmed by the profile panel, mode picked in NewGamePanel.</summary>
+        public void ResetEmpire(bool testMode)
         {
             LocalSave.Delete();
-            StartFreshGalaxy();
+            StartFreshGalaxy(testMode);
         }
 
         void Update()

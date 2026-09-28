@@ -23,8 +23,12 @@ namespace GalaxyRoyale.Game.UI
             TechCategory.Logistics => "LOGI",
             TechCategory.Military => "MIL",
             TechCategory.Industry => "IND",
+            TechCategory.Defense => "DEF",
             _ => c.ToString().ToUpper(),
         };
+
+        static int PageOf(TechCategory c) =>
+            c == TechCategory.Military ? 1 : c == TechCategory.Defense ? 2 : 0;
 
         static bool IsReduce(TechEffectKind k) =>
             k == TechEffectKind.HeliumReduce || k == TechEffectKind.BuildTimeReduce
@@ -47,6 +51,10 @@ namespace GalaxyRoyale.Game.UI
                 TechEffectKind.ShipTimeReduce => "ship build time",
                 TechEffectKind.ResearchTimeReduce => "research time",
                 TechEffectKind.ShieldMult => "ship shields",
+                TechEffectKind.DefAtkMult => "home defenders' attack",
+                TechEffectKind.DefHpMult => "home defenders' durability",
+                TechEffectKind.DefShieldMult => "home defenders' shields",
+                TechEffectKind.OrbitalBattery => "battery fire per round",
                 _ => "",
             };
         }
@@ -54,6 +62,8 @@ namespace GalaxyRoyale.Game.UI
         static string EffectLabel(TechId id, int level)
         {
             var def = Techs.Defs[id];
+            if (def.Effect == TechEffectKind.OrbitalBattery) // flat damage, not a percentage
+                return $"{level * Balance.BatteryDamagePerLevel:N0} dmg";
             int pct = (int)Math.Round(level * def.PerLevel * 100);
             return $"{(IsReduce(def.Effect) ? "-" : "+")}{pct}%";
         }
@@ -72,12 +82,12 @@ namespace GalaxyRoyale.Game.UI
             progressList.style.marginTop = 6;
             content.Add(progressList);
 
-            // Two pages instead of four category tabs (user request): ECONOMY and
-            // COMBAT. More room, and the Military set flows down its own page.
+            // Pages instead of one tab per category (user request): ECONOMY,
+            // COMBAT, and DEFENSE (the home-defense branch, 2026-09-27).
             var catRow = Widgets.HBox(Justify.SpaceAround);
             catRow.style.marginTop = 8;
             catRow.style.marginBottom = 10;
-            bool combat = false; // false = ECONOMY page, true = COMBAT page
+            int page = 0; // 0 = ECONOMY · 1 = COMBAT · 2 = DEFENSE
             TechId? selected = null;
             // Three independent change-keys (tree / detail sheet / progress strips).
             // The old single key included the tick + gold, so the WHOLE tree and its
@@ -87,12 +97,15 @@ namespace GalaxyRoyale.Game.UI
             void Invalidate() { treeCache = ""; detailCache = ""; progressCache = ""; }
             var econTab = Widgets.TextButton("ECONOMY", null!, 12);
             var combatTab = Widgets.TextButton("COMBAT", null!, 12);
-            econTab.style.width = Length.Percent(47f);
-            combatTab.style.width = Length.Percent(47f);
-            econTab.clicked += () => { combat = false; selected = null; Invalidate(); };
-            combatTab.clicked += () => { combat = true; selected = null; Invalidate(); };
-            catRow.Add(econTab);
-            catRow.Add(combatTab);
+            var defenseTab = Widgets.TextButton("DEFENSE", null!, 12);
+            var tabs = new[] { econTab, combatTab, defenseTab };
+            for (int i = 0; i < tabs.Length; i++)
+            {
+                int p = i;
+                tabs[i].style.width = Length.Percent(31.5f);
+                tabs[i].clicked += () => { page = p; selected = null; Invalidate(); };
+                catRow.Add(tabs[i]);
+            }
             content.Add(catRow);
 
             // The tree canvas fills the scroll; the detail is a BOTTOM SHEET pinned
@@ -210,16 +223,25 @@ namespace GalaxyRoyale.Game.UI
                 return card;
             }
 
-            // Two PAGES (user request): ECONOMY (Economy + Logistics + Industry)
-            // and COMBAT (Military). Techs flow DOWN as a vertical list of readable
+            // PAGES (user request): ECONOMY (Economy + Logistics + Industry),
+            // COMBAT (Military) and DEFENSE. Techs flow DOWN as a vertical list of readable
             // cards — the old side-by-side nest ran out of width, especially on the
             // Military page — GROUPED and sorted by the Research-Lab level that
             // unlocks each one (early → late).
             void RenderTree()
             {
                 tree.Clear();
+                if (page == 2)
+                {
+                    var hint = Widgets.Text(
+                        "Defense research counts only when your home colony is attacked — " +
+                        "military research counts in every battle, attack or defense.", 10, UiTheme.Dim);
+                    hint.style.whiteSpace = WhiteSpace.Normal;
+                    hint.style.marginBottom = 4;
+                    tree.Add(hint);
+                }
                 var techs = Techs.All
-                    .Where(t => (Techs.Defs[t].Category == TechCategory.Military) == combat)
+                    .Where(t => PageOf(Techs.Defs[t].Category) == page)
                     .OrderBy(t => Techs.Defs[t].LabLevelReq)
                     .ThenBy(t => Techs.Defs[t].Name)
                     .ToList();
@@ -358,6 +380,8 @@ namespace GalaxyRoyale.Game.UI
                     {
                         var res = ResearchSystem.StartResearch(ctx.State!, id);
                         ui.Toast(res.Ok ? $"Researching {def.Name}…" : res.Reason ?? "Cannot research");
+                        if (res.Ok) GameAudio.Feedback(Sfx.Confirm, Haptic.Light);
+                        else GameAudio.Feedback(Sfx.Error, Haptic.Error);
                         Invalidate();
                     }, 12);
                     Widgets.SetButtonEnabled(research,
@@ -432,7 +456,7 @@ namespace GalaxyRoyale.Game.UI
 
                 // What the TREE shows: page, selection, lab gate, levels, what's running.
                 var sb = new System.Text.StringBuilder();
-                sb.Append(combat).Append('|').Append(selected).Append('|').Append(lab).Append('|');
+                sb.Append(page).Append('|').Append(selected).Append('|').Append(lab).Append('|');
                 foreach (var t in Techs.All) sb.Append(ResearchSystem.TechLevel(state, t)).Append(',');
                 sb.Append('|');
                 foreach (var o in state.ResearchQueue) sb.Append(o.TechId).Append(':').Append(o.ToLevel).Append(',');
@@ -460,8 +484,7 @@ namespace GalaxyRoyale.Game.UI
                     labLine.text = lab >= 1
                         ? $"Research Lab Lv {lab} — techs cap at your lab level"
                         : "Build a Research Lab to unlock the tech tree";
-                    Widgets.SetButtonHighlight(econTab, !combat);
-                    Widgets.SetButtonHighlight(combatTab, combat);
+                    for (int i = 0; i < tabs.Length; i++) Widgets.SetButtonHighlight(tabs[i], i == page);
                     RenderTree();
                 }
                 if (detailKey != detailCache) { detailCache = detailKey; RenderDetail(); }

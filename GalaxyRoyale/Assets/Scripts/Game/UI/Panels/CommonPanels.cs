@@ -29,12 +29,16 @@ namespace GalaxyRoyale.Game.UI
             text.style.marginTop = 6;
             content.Add(text);
 
-            var buttons = Widgets.HBox(Justify.SpaceAround);
+            // A long confirm label ("RESET — LOSE EVERYTHING") spilled out of a
+            // half-width button, so long ones stack full width instead.
+            bool stack = confirmLabel.Length > 14;
+            var buttons = stack ? new VisualElement() : Widgets.HBox(Justify.SpaceAround);
             buttons.style.marginTop = 14;
             var confirm = Widgets.TextButton(confirmLabel, () => { ui.CloseModal(); onConfirm(); });
-            confirm.style.width = Length.Percent(45f);
+            confirm.style.width = Length.Percent(stack ? 100f : 45f);
             var cancel = Widgets.TextButton("BACK", () => { ui.CloseModal(); onCancel?.Invoke(); });
-            cancel.style.width = Length.Percent(45f);
+            cancel.style.width = Length.Percent(stack ? 100f : 45f);
+            if (stack) cancel.style.marginTop = 8;
             buttons.Add(confirm);
             buttons.Add(cancel);
             content.Add(buttons);

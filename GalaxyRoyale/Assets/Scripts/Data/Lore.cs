@@ -84,6 +84,10 @@ namespace GalaxyRoyale.Data
             [TechId.QuantumComputing] = "Qubit clusters run lab simulations in a fraction of the time.",
             [TechId.SingularityCores] = "Micro-singularity power cores keep every lab running flat out.",
             [TechId.OrbitalAssembly] = "Orbital cranes lift whole building sections into place at once.",
+            [TechId.BastionHangars] = "Armored berths and damage-control crews keep your home defenders flying.",
+            [TechId.PointDefenseGrid] = "Colony fire-control links every docked ship's guns when raiders arrive.",
+            [TechId.OrbitalBatteries] = "Planetary guns that open fire on every raid — even with no fleet at home. Their shells punch straight through ship shields.",
+            [TechId.PlanetaryDeflectors] = "Ground-based emitters wrap your home fleet in heavier shields.",
         };
 
         public static string DescOf(TechId tech) => Desc.TryGetValue(tech, out var d) ? d : "";

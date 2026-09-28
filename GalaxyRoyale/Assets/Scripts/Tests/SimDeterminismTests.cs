@@ -31,9 +31,9 @@ namespace GalaxyRoyale.Sim.Tests
         {
             var (state, _, _) = NewGame();
             // TestMode swaps in the fat playtest wallet; release keeps v1's 500/300/100.
-            long gold = Balance.TestMode ? Balance.TestModeResources * 1000L : 500_000;
-            long quartz = Balance.TestMode ? Balance.TestModeResources * 1000L : 300_000;
-            long helium = Balance.TestMode ? Balance.TestModeResources * 1000L : 100_000;
+            long gold = Balance.TestModeDefault ? Balance.TestModeResources * 1000L : 500_000;
+            long quartz = Balance.TestModeDefault ? Balance.TestModeResources * 1000L : 300_000;
+            long helium = Balance.TestModeDefault ? Balance.TestModeResources * 1000L : 100_000;
             Assert.AreEqual(gold, state.Resources.Gold,   "whole units → milli");
             Assert.AreEqual(quartz, state.Resources.Quartz, "whole units → milli");
             Assert.AreEqual(helium, state.Resources.Helium,     "whole units → milli");

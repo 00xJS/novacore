@@ -160,7 +160,7 @@ namespace GalaxyRoyale.Game.UI
                 dockedCombat += state.Ships.TryGetValue(hull, out var d) ? d : 0;
             }
             bool hasFleet = dockedCombat > 0;
-            bool free = Balance.TestMode; // free warps while testing
+            bool free = state.TestMode; // free warps while testing
             bool hasWarp = false;
             foreach (var e in state.Inventory)
                 if (e.ItemId == "relocate-target" && e.Count > 0) hasWarp = true;

@@ -14,6 +14,7 @@ namespace GalaxyRoyale.Game.UI
         public static Button TextButton(string label, Action onTap, int fontSize = 14)
         {
             var btn = new Button(onTap) { text = label };
+            btn.clicked += GameAudio.Tap; // quiet tick on every button (IconButton/Fab build on this)
             btn.style.backgroundColor = UiTheme.Btn;
             btn.style.color = UiTheme.Text;
             btn.style.fontSize = fontSize;

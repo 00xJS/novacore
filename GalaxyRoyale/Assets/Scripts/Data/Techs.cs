@@ -1,6 +1,8 @@
-// Research tech tree. Ported from `src/data/research.ts`. Techs live in 4
+// Research tech tree. Ported from `src/data/research.ts`. Techs live in 5
 // categories; each level has a per-level effect that folds into the sim via
 // ResearchSystem accessors. Every tech is capped by the Research Lab level.
+// Military research counts in every battle you fight (attack or defense); the
+// Defense branch only counts when your home colony is the one being hit.
 //
 // Per-tech CostGrowth + TimeGrowth (v1 varies them; e.g. 1.5 vs 1.6) and the
 // Requires prerequisite carries a required LEVEL, not just a tech id.
@@ -44,9 +46,14 @@ namespace GalaxyRoyale.Data
         QuantumComputing,
         SingularityCores,
         OrbitalAssembly,
+        // Defense branch (user request 2026-09-27: "build out the defense research")
+        BastionHangars,
+        PointDefenseGrid,
+        OrbitalBatteries,
+        PlanetaryDeflectors,
     }
 
-    public enum TechCategory { Economy, Logistics, Military, Industry }
+    public enum TechCategory { Economy, Logistics, Military, Industry, Defense }
 
     /// <summary>Kinds of effects a tech level can contribute.</summary>
     public enum TechEffectKind
@@ -63,6 +70,10 @@ namespace GalaxyRoyale.Data
         ShipTimeReduce,    // −% ship build time only (stacks with BuildTimeReduce, same floor)
         ResearchTimeReduce,// −% research time (its own line, split from BuildTimeReduce)
         ShieldMult,        // +% ship shields (the regenerating pre-HP absorb layer)
+        DefAtkMult,        // +% damage dealt by ships defending the home colony
+        DefHpMult,         // +% durability of ships defending the home colony
+        DefShieldMult,     // +% shields of ships defending the home colony
+        OrbitalBattery,    // planetary guns: Balance.BatteryDamagePerLevel per level, every round
     }
 
     public readonly struct TechRequirement
@@ -112,11 +123,14 @@ namespace GalaxyRoyale.Data
             TechId.SwarmFabricators, TechId.QuantumExtractors,
             TechId.QuantumComputing, TechId.SingularityCores,
             TechId.OrbitalAssembly,
+            TechId.BastionHangars, TechId.PointDefenseGrid,
+            TechId.OrbitalBatteries, TechId.PlanetaryDeflectors,
         };
 
         public static readonly IReadOnlyList<TechCategory> Categories = new[]
         {
             TechCategory.Economy, TechCategory.Logistics, TechCategory.Military, TechCategory.Industry,
+            TechCategory.Defense,
         };
 
         public static readonly IReadOnlyDictionary<TechId, TechDef> Defs = new Dictionary<TechId, TechDef>
@@ -482,6 +496,60 @@ namespace GalaxyRoyale.Data
                 TimeGrowth = 1.5f,
                 LabLevelReq = 9,
                 Requires = new TechRequirement(TechId.PrefabAssembly, 8),
+            },
+            // ---- defense branch: home-colony battles only ----
+            [TechId.BastionHangars] = new TechDef
+            {
+                Name = "Bastion Hangars",
+                Category = TechCategory.Defense,
+                Effect = TechEffectKind.DefHpMult,
+                PerLevel = 0.06f,
+                MaxLevel = 10,
+                BaseCost = new ResourceBag(350, 200, 60),
+                CostGrowth = 1.5f,
+                BaseTimeSec = 150,
+                TimeGrowth = 1.45f,
+                LabLevelReq = 1,
+            },
+            [TechId.PointDefenseGrid] = new TechDef
+            {
+                Name = "Point-Defense Grid",
+                Category = TechCategory.Defense,
+                Effect = TechEffectKind.DefAtkMult,
+                PerLevel = 0.06f,
+                MaxLevel = 10,
+                BaseCost = new ResourceBag(350, 250, 100),
+                CostGrowth = 1.55f,
+                BaseTimeSec = 180,
+                TimeGrowth = 1.45f,
+                LabLevelReq = 2,
+            },
+            [TechId.OrbitalBatteries] = new TechDef
+            {
+                Name = "Orbital Batteries",
+                Category = TechCategory.Defense,
+                Effect = TechEffectKind.OrbitalBattery,
+                PerLevel = 1f, // battery level; damage = level × Balance.BatteryDamagePerLevel
+                MaxLevel = 10,
+                BaseCost = new ResourceBag(600, 400, 150),
+                CostGrowth = 1.6f,
+                BaseTimeSec = 300,
+                TimeGrowth = 1.5f,
+                LabLevelReq = 3,
+            },
+            [TechId.PlanetaryDeflectors] = new TechDef
+            {
+                Name = "Planetary Deflectors",
+                Category = TechCategory.Defense,
+                Effect = TechEffectKind.DefShieldMult,
+                PerLevel = 0.08f,
+                MaxLevel = 10,
+                BaseCost = new ResourceBag(900, 500, 200),
+                CostGrowth = 1.6f,
+                BaseTimeSec = 600,
+                TimeGrowth = 1.5f,
+                LabLevelReq = 5,
+                Requires = new TechRequirement(TechId.BastionHangars, 5),
             },
         };
     }

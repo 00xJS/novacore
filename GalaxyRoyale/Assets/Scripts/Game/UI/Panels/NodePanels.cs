@@ -108,6 +108,8 @@ namespace GalaxyRoyale.Game.UI
                     var res = MarchSystem.SendMarch(state, probe, node.Tile, MarchMission.Spy, out _);
                     if (res.Ok)
                     {
+                        GameAudio.Play(Sfx.Launch, 0.6f, 1.25f);
+                        GameAudio.Buzz(Haptic.Light);
                         ui.Toast("Spy probe en route — intel to your Mailbox");
                         onClose();
                     }
@@ -313,7 +315,8 @@ namespace GalaxyRoyale.Game.UI
                     return;
                 }
                 var res = MarchSystem.SendMarch(state, fleet, node.Tile, mission, out _);
-                if (!res.Ok) { status.text = res.Reason ?? "Cannot launch"; return; }
+                if (!res.Ok) { status.text = res.Reason ?? "Cannot launch"; GameAudio.Feedback(Sfx.Error, Haptic.Error); return; }
+                GameAudio.Feedback(Sfx.Launch, Haptic.Medium);
                 ui.Toast(mission switch
                 {
                     MarchMission.Attack => "Fleet launched — battle report on arrival",
@@ -441,7 +444,8 @@ namespace GalaxyRoyale.Game.UI
             void DoLaunch(bool withCargo)
             {
                 var res = MarchSystem.SendMarch(state, fleet, node.Tile, mission, out int marchId);
-                if (!res.Ok) { status.text = res.Reason ?? "Cannot launch"; return; }
+                if (!res.Ok) { status.text = res.Reason ?? "Cannot launch"; GameAudio.Feedback(Sfx.Error, Haptic.Error); return; }
+                GameAudio.Feedback(Sfx.Launch, Haptic.Medium);
                 var load = Picked();
                 if (withCargo && load.Total > 0)
                 {

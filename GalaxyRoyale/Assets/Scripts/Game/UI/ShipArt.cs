@@ -334,6 +334,7 @@ namespace GalaxyRoyale.Game.UI
             TechCategory.Economy => UiTheme.Energy,
             TechCategory.Logistics => UiTheme.Quartz,
             TechCategory.Military => UiTheme.Bad,
+            TechCategory.Defense => UiTheme.Good,
             _ => UiTheme.DarkMatter, // Industry
         };
 
@@ -395,6 +396,10 @@ namespace GalaxyRoyale.Game.UI
             TechEffectKind.BuildTimeReduce => Icon.Rotate,
             TechEffectKind.ShipTimeReduce => Icon.Rotate,
             TechEffectKind.ResearchTimeReduce => Icon.Eye,
+            TechEffectKind.DefAtkMult => Icon.Swords,
+            TechEffectKind.DefHpMult => Icon.Shield,
+            TechEffectKind.DefShieldMult => Icon.Ring,
+            TechEffectKind.OrbitalBattery => Icon.Target,
             _ => Icon.Info,
         };
     }

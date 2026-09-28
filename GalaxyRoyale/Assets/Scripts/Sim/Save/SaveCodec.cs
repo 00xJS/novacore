@@ -309,6 +309,8 @@ namespace GalaxyRoyale.Sim.Save
             };
             if (s.BurningUntilTick > 0) root["burningUntilTick"] = (long)s.BurningUntilTick;
             if (s.VisualSeedOffset != 0) root["visualSeedOffset"] = (long)s.VisualSeedOffset;
+            root["testMode"] = s.TestMode;
+            if (s.QuestStep > 0) root["questStep"] = (long)s.QuestStep;
             return root;
         }
 
@@ -326,6 +328,9 @@ namespace GalaxyRoyale.Sim.Save
                     ? ToI32(burn) : 0,
                 VisualSeedOffset = d.TryGetValue("visualSeedOffset", out var vso) && vso != null
                     ? ToI32(vso) : 0,
+                // Saves from before the NEW GAME choice were all test games.
+                TestMode = !d.TryGetValue("testMode", out var tm) || tm is not bool tmb || tmb,
+                QuestStep = d.TryGetValue("questStep", out var qs) && qs != null ? ToI32(qs) : 0,
             };
 
             var profile = AsObj(d["profile"], "profile");
@@ -721,6 +726,7 @@ namespace GalaxyRoyale.Sim.Save
             if (r.Loot != null) d["loot"] = Bag(r.Loot);
             if (r.Location is TileXY loc) d["location"] = Tile(loc);
             if (r.DefenderName != null) d["defenderName"] = r.DefenderName;
+            if (r.DefenderBattery > 0) d["battery"] = (long)r.DefenderBattery;
             return d;
         }
 
@@ -737,6 +743,7 @@ namespace GalaxyRoyale.Sim.Save
                 Location = d.TryGetValue("location", out var loc) && loc != null
                     ? (TileXY?)DecTile(AsObj(loc, "report.location")) : null,
                 DefenderName = d.TryGetValue("defenderName", out var n) && n is string ns ? ns : null,
+                DefenderBattery = d.TryGetValue("battery", out var bt) && bt is long btl ? (int)btl : 0,
             };
             foreach (var raw in AsArr(d["rounds"], "report.rounds"))
             {
@@ -927,6 +934,10 @@ namespace GalaxyRoyale.Sim.Save
             TechId.QuantumComputing => "quantumComputing",
             TechId.SingularityCores => "singularityCores",
             TechId.OrbitalAssembly => "orbitalAssembly",
+            TechId.BastionHangars => "bastionHangars",
+            TechId.PointDefenseGrid => "pointDefenseGrid",
+            TechId.OrbitalBatteries => "orbitalBatteries",
+            TechId.PlanetaryDeflectors => "planetaryDeflectors",
             _ => throw new InvalidOperationException($"unknown TechId {id}"),
         };
 
@@ -958,6 +969,10 @@ namespace GalaxyRoyale.Sim.Save
             "quantumComputing" => TechId.QuantumComputing,
             "singularityCores" => TechId.SingularityCores,
             "orbitalAssembly" => TechId.OrbitalAssembly,
+            "bastionHangars" => TechId.BastionHangars,
+            "pointDefenseGrid" => TechId.PointDefenseGrid,
+            "orbitalBatteries" => TechId.OrbitalBatteries,
+            "planetaryDeflectors" => TechId.PlanetaryDeflectors,
             _ => throw new FormatException($"unknown tech '{s}'"),
         };
 

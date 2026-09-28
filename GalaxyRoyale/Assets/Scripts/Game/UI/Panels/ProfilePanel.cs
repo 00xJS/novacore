@@ -84,6 +84,36 @@ namespace GalaxyRoyale.Game.UI
             content.Add(empireRow);
 
             // ---- account (signed in / pending verification / guest) ----
+            // ---- sound & haptics (user request 2026-09-27) ----
+            content.Add(SectionHeader("SOUND & HAPTICS"));
+            var fxRow = Widgets.HBox(Justify.SpaceBetween);
+            Button? soundBtn = null, hapticsBtn = null;
+            void SyncFx()
+            {
+                Widgets.SetCaption(soundBtn!, GameAudio.SoundOn ? "SOUND: ON" : "SOUND: OFF");
+                Widgets.SetButtonHighlight(soundBtn!, GameAudio.SoundOn);
+                Widgets.SetCaption(hapticsBtn!, GameAudio.HapticsOn ? "HAPTICS: ON" : "HAPTICS: OFF");
+                Widgets.SetButtonHighlight(hapticsBtn!, GameAudio.HapticsOn);
+            }
+            soundBtn = Widgets.TextButton("", () =>
+            {
+                GameAudio.SoundOn = !GameAudio.SoundOn;
+                GameAudio.Play(Sfx.Toggle);
+                SyncFx();
+            }, 11);
+            hapticsBtn = Widgets.TextButton("", () =>
+            {
+                GameAudio.HapticsOn = !GameAudio.HapticsOn;
+                GameAudio.Buzz(Haptic.Medium); // feel it switch on
+                SyncFx();
+            }, 11);
+            soundBtn.style.width = Length.Percent(48f);
+            hapticsBtn.style.width = Length.Percent(48f);
+            fxRow.Add(soundBtn);
+            fxRow.Add(hapticsBtn);
+            content.Add(fxRow);
+            SyncFx();
+
             content.Add(SectionHeader("ACCOUNT"));
             var accountRow = Widgets.Row();
             BuildAccountSection(ctx, accountRow);
@@ -128,6 +158,10 @@ namespace GalaxyRoyale.Game.UI
                 row.Add(l);
             }
 
+            if (ctx.State is { } st)
+                AddText(st.TestMode
+                    ? "Galaxy mode: TESTING — playtest economy (chosen at NEW GAME)."
+                    : "Galaxy mode: STANDARD (chosen at NEW GAME).", st.TestMode ? UiTheme.Energy : UiTheme.Accent);
             AddText("Your empire saves to this device automatically (every 30s + on exit), " +
                     "with a rolling backup copy.", UiTheme.Dim);
 
@@ -141,12 +175,12 @@ namespace GalaxyRoyale.Game.UI
                     () => ConfirmPanel.Open(
                         "FINAL WARNING\nALL progression will be LOST forever. There is no undo.",
                         "RESET — LOSE EVERYTHING",
-                        () =>
+                        () => NewGamePanel.Open(test =>
                         {
-                            LocalBootstrap.Instance?.ResetEmpire();
+                            LocalBootstrap.Instance?.ResetEmpire(test);
                             ui.CloseModal();
-                            ui.Toast("A new galaxy is born — good luck, Commander");
-                        },
+                            ui.Toast(test ? "A new TESTING galaxy is born" : "A new galaxy is born — good luck, Commander");
+                        }, () => ui.OpenProfile()),
                         () => ui.OpenProfile()),
                     () => ui.OpenProfile()), 11);
             reset.style.marginTop = 8;

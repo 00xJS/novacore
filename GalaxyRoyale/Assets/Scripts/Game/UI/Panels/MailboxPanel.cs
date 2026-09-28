@@ -345,6 +345,15 @@ namespace GalaxyRoyale.Game.UI
                 roundsLine.Add(Widgets.Text("Rounds", 11, UiTheme.Dim));
                 roundsLine.Add(Widgets.Text(r.Rounds.Count.ToString(), 11, UiTheme.Text));
                 content.Add(roundsLine);
+                if (r.DefenderBattery > 0)
+                {
+                    var battery = Widgets.HBox(Justify.SpaceBetween);
+                    battery.style.marginTop = 6;
+                    battery.Add(Widgets.IconText(Icon.Target,
+                        defending ? "Your Orbital Batteries" : "Their Orbital Batteries", 11, UiTheme.Dim));
+                    battery.Add(Widgets.Text($"Lv {r.DefenderBattery}", 11, UiTheme.Text, bold: true));
+                    content.Add(battery);
+                }
 
                 if (r.Loot is { Total: > 0 } loot)
                 {

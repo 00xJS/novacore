@@ -156,8 +156,29 @@ namespace GalaxyRoyale.Sim.Systems
         public static float HpMultFor(GameState state, HullId hull) =>
             HpMult(state) + EffectTotalFor(state, TechEffectKind.HpMult, hull);
 
-        /// <summary>Full attacker-side combat mods (global scalars + per-hull dictionaries).</summary>
-        public static Combat.AttackerMods CombatMods(GameState state)
+        /// <summary>Orbital Batteries level (planetary guns, home defense only).</summary>
+        public static int BatteryLevel(GameState state) => TechLevel(state, TechId.OrbitalBatteries);
+
+        /// <summary>Home-defense combat mods: military research (it counts in every
+        /// battle) plus the Defense branch and the Orbital Batteries (home only).</summary>
+        public static Combat.FleetMods DefenseMods(GameState state)
+        {
+            float atk = EffectTotal(state, TechEffectKind.DefAtkMult);
+            float hp = EffectTotal(state, TechEffectKind.DefHpMult);
+            var atkByHull = new Dictionary<HullId, float>();
+            var hpByHull = new Dictionary<HullId, float>();
+            foreach (var hull in Ships.All)
+            {
+                atkByHull[hull] = AtkMultFor(state, hull) + atk;
+                hpByHull[hull] = HpMultFor(state, hull) + hp;
+            }
+            return new Combat.FleetMods(AtkMult(state) + atk, HpMult(state) + hp, atkByHull, hpByHull,
+                ShieldMult(state) + EffectTotal(state, TechEffectKind.DefShieldMult), BatteryLevel(state));
+        }
+
+        /// <summary>Attacking combat mods — military research only (global scalars +
+        /// per-hull dictionaries). The Defense branch stays home.</summary>
+        public static Combat.FleetMods CombatMods(GameState state)
         {
             var atkByHull = new Dictionary<HullId, float>();
             var hpByHull = new Dictionary<HullId, float>();
@@ -166,7 +187,7 @@ namespace GalaxyRoyale.Sim.Systems
                 atkByHull[hull] = AtkMultFor(state, hull);
                 hpByHull[hull] = HpMultFor(state, hull);
             }
-            return new Combat.AttackerMods(AtkMult(state), HpMult(state), atkByHull, hpByHull,
+            return new Combat.FleetMods(AtkMult(state), HpMult(state), atkByHull, hpByHull,
                 ShieldMult(state));
         }
 

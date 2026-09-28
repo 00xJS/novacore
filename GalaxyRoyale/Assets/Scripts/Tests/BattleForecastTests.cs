@@ -67,7 +67,7 @@ namespace GalaxyRoyale.Sim.Tests
         {
             var fleet = new Dictionary<HullId, int> { [HullId.Fighter] = 5 };
 
-            var empty = BattleForecast.Predict(fleet, new Dictionary<HullId, int>(), AttackerMods.None);
+            var empty = BattleForecast.Predict(fleet, new Dictionary<HullId, int>(), FleetMods.None);
             Assert.IsTrue(empty.Unopposed);
             Assert.AreEqual(BattleWinner.Attacker, empty.Winner);
             Assert.AreEqual(0, empty.YourLosses);
@@ -76,7 +76,7 @@ namespace GalaxyRoyale.Sim.Tests
             {
                 [HullId.Fighter] = 80, [HullId.Bomber] = 40, [HullId.Cruiser] = 20,
             };
-            var wipe = BattleForecast.Predict(fleet, wall, AttackerMods.None);
+            var wipe = BattleForecast.Predict(fleet, wall, FleetMods.None);
             Assert.AreEqual(BattleWinner.Defender, wipe.Winner);
             Assert.IsTrue(wipe.Wiped);
             Assert.AreEqual(5, wipe.YourLossesByHull[HullId.Fighter]);

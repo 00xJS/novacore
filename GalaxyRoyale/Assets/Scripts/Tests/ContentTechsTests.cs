@@ -42,7 +42,7 @@ namespace GalaxyRoyale.Sim.Tests
         public void CombatResolver_PerHullAtkMods_TipASymmetricFight()
         {
             var fleet = new Dictionary<HullId, int> { [HullId.Cruiser] = 10 };
-            var mods = new AttackerMods(1f, 1f,
+            var mods = new FleetMods(1f, 1f,
                 atkByHull: new Dictionary<HullId, float> { [HullId.Cruiser] = 2f });
 
             var report = CombatResolver.Resolve(fleet, new Dictionary<HullId, int>(fleet), mods);
@@ -62,7 +62,7 @@ namespace GalaxyRoyale.Sim.Tests
             var unmodded = CombatResolver.Resolve(attacker, defender);
             Assert.AreEqual(BattleWinner.Defender, unmodded.Winner, "outnumbered attacker loses clean");
 
-            var mods = new AttackerMods(1f, 1f,
+            var mods = new FleetMods(1f, 1f,
                 hpByHull: new Dictionary<HullId, float> { [HullId.Cruiser] = 3f });
             var shielded = CombatResolver.Resolve(attacker, defender, mods);
             // Since regenerating shields landed, mirror attrition is slower — the

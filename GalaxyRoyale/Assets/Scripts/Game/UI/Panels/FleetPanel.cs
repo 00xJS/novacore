@@ -136,8 +136,16 @@ namespace GalaxyRoyale.Game.UI
                 var buildBtn = Widgets.TextButton("BUILD", () =>
                 {
                     var res = FleetSystem.QueueShips(ctx.State!, h, slider.value);
-                    if (!res.Ok) ui.Toast(res.Reason ?? "Cannot build");
-                    else userTouched = false; // next default snaps back to max
+                    if (!res.Ok)
+                    {
+                        ui.Toast(res.Reason ?? "Cannot build");
+                        GameAudio.Feedback(Sfx.Error, Haptic.Error);
+                    }
+                    else
+                    {
+                        userTouched = false; // next default snaps back to max
+                        GameAudio.Feedback(Sfx.Confirm, Haptic.Light);
+                    }
                 }, 12);
                 buildBtn.style.marginLeft = 8;
                 buildBtn.style.minWidth = 70;

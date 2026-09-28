@@ -135,6 +135,7 @@ namespace GalaxyRoyale.Game
 
             string eta = arrivesInSec > 0 ? $"{Math.Max(1, arrivesInSec)}s" : "now";
             UI.UIController.Instance?.Toast($"Radar contact — {what}, arrival {eta}", UI.Icon.Warning, UI.UiTheme.Bad);
+            GameAudio.Feedback(Sfx.Alert, Haptic.Warning);
         }
 
         // ---------- red alert halo (base view) ----------
