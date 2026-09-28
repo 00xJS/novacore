@@ -3,6 +3,7 @@
 // and whether they're out for revenge) — resources and fleets stay hidden
 // until you spy (v1 rule, kept).
 using UnityEngine.UIElements;
+using GalaxyRoyale.Data;
 using GalaxyRoyale.Sim.Bots;
 using GalaxyRoyale.Sim.Systems;
 
@@ -36,7 +37,7 @@ namespace GalaxyRoyale.Game.UI
             avatar.style.marginRight = 10;
             head.Add(avatar);
             var idCol = new VisualElement();
-            idCol.Add(Widgets.Text(name, 16, UiTheme.Text, bold: true));
+            idCol.Add(Widgets.Text(ClanSystem.Tagged(ctx.State!, ctx.Bots!, bot.Id, name), 16, UiTheme.Text, bold: true));
             // Presence mirrors the bot's activity model — the same schedule that
             // gates its decisions, so "online" rivals really are the busy ones.
             bool online = IsOnlineNow(ctx, bot, personality);
@@ -69,42 +70,69 @@ namespace GalaxyRoyale.Game.UI
                 body.Add(grudge);
             }
 
-            // ---- alliance ----
-            bool allied = AllianceSystem.IsAlly(ctx.State!, bot.Id);
-            if (allied)
+            // ---- clan ----
+            var state = ctx.State!;
+            var galaxy = ctx.Bots!;
+            var theirClan = galaxy.FindClan(bot.ClanId);
+            bool clanmate = ClanSystem.SameClanAsPlayer(state, bot);
+            if (theirClan != null)
             {
-                var ally = Widgets.IconText(Icon.Pact,
-                    AllianceSystem.InReinforceRange(ctx.State!, bot)
-                        ? "YOUR ALLY — reinforces your colony when raiders strike"
-                        : "YOUR ALLY — too far away to reinforce you", 11, UiTheme.Good, bold: true);
-                ally.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
-                ally.style.marginTop = 10;
-                body.Add(ally);
+                bool war = ClanSystem.AtWarWith(galaxy, state.ClanId, theirClan.Id);
+                bool covers = TileXY.Distance(bot.HomeTile, state.HomeTile) <= ClanSystem.ReinforceRange;
+                string text = clanmate
+                    ? $"YOUR CLANMATE in {ClanSystem.Label(theirClan)}" + (covers ? " — covers your colony when raiders strike" : "")
+                    : war ? $"{ClanSystem.Label(theirClan)} — AT WAR WITH YOUR CLAN"
+                          : $"Member of {ClanSystem.Label(theirClan)}" + (theirClan.LeaderId == bot.Id ? " (leader)" : "");
+                var clanRow = Widgets.IconText(war ? Icon.Swords : Icon.Pact, text, 11,
+                    clanmate ? UiTheme.Good : war ? UiTheme.Bad : UiTheme.Accent, bold: true);
+                clanRow.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                clanRow.style.marginTop = 10;
+                body.Add(clanRow);
             }
-            var pactBtn = Widgets.IconButton(Icon.Pact, allied ? "ALLIANCES" : "PROPOSE ALLIANCE", () =>
+            else
             {
-                if (allied) { ui.OpenAlliances(); return; }
-                if (AlliancePanel.Propose(ctx, botId)) Open(ctx, botId, fallbackName);
-            }, 10);
-            pactBtn.style.marginTop = 14;
-            if (!allied)
+                var free = Widgets.IconText(Icon.Ring, ClanSystem.IsLoneWolf(state.Seed, bot)
+                    ? "Lone wolf — never joins a clan" : "Independent — in no clan", 11, UiTheme.Dim);
+                free.style.marginTop = 10;
+                body.Add(free);
+            }
+
+            Button? clanBtn = null;
+            if (clanmate) clanBtn = Widgets.IconButton(Icon.Pact, "YOUR CLAN", ui.OpenClan, 10);
+            else if (theirClan == null && ClanSystem.PlayerLeads(state, galaxy))
             {
-                // Say up front whether they'd sign — the reason reads better than a failed tap.
-                var verdict = AllianceSystem.CanPropose(ctx.State!, ctx.Bots!, bot);
+                var verdict = ClanSystem.CanInvite(state, galaxy, bot);
+                clanBtn = Widgets.IconButton(Icon.Pact, "INVITE TO YOUR CLAN", () =>
+                {
+                    var result = ClanSystem.Invite(ctx.State!, ctx.Bots!, botId);
+                    if (!result.Ok) { ui.Toast(result.Reason ?? "They declined", Icon.Info, UiTheme.Bad); return; }
+                    GameAudio.Feedback(Sfx.Quest, Haptic.Success);
+                    ui.Toast($"{name} joined your clan", Icon.Pact, UiTheme.Good);
+                    LocalBootstrap.RequestSync();
+                    Open(ctx, botId, fallbackName);
+                }, 10);
                 if (!verdict.Ok)
                 {
                     var why = Widgets.Text(verdict.Reason ?? "", 10, UiTheme.Dim);
                     why.style.whiteSpace = WhiteSpace.Normal;
-                    why.style.marginTop = 10;
+                    why.style.marginTop = 6;
                     body.Add(why);
-                    pactBtn.style.marginTop = 4;
-                    Widgets.SetButtonEnabled(pactBtn, false);
+                    Widgets.SetButtonEnabled(clanBtn, false);
                 }
             }
-            body.Add(pactBtn);
+            else if (theirClan != null)
+            {
+                int clanId = theirClan.Id;
+                clanBtn = Widgets.IconButton(Icon.Pact, $"VIEW [{theirClan.Tag}]", () => ClanPanel.OpenProfile(ctx, clanId), 10);
+            }
+            if (clanBtn != null)
+            {
+                clanBtn.style.marginTop = 8;
+                body.Add(clanBtn);
+            }
 
             var actions = Widgets.HBox(Justify.SpaceBetween);
-            actions.style.marginTop = 8;
+            actions.style.marginTop = 12;
             var map = Widgets.TextButton("VIEW ON MAP", () =>
             {
                 ui.CloseModal();
@@ -120,7 +148,7 @@ namespace GalaxyRoyale.Game.UI
                 RaidPanel.Open(ctx, botId);
             }, 10);
             raid.style.width = Length.Percent(48f);
-            if (allied) Widgets.SetButtonEnabled(raid, false); // pacts hold both ways
+            if (clanmate) Widgets.SetButtonEnabled(raid, false); // clanmates never raid clanmates
             actions.Add(raid);
             body.Add(actions);
         }

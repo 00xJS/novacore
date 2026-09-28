@@ -34,6 +34,9 @@ namespace GalaxyRoyale.Game.UI
             string? title = AchievementSystem.TitleText(state);
             nameCol.Add(Widgets.Text(title ?? "No title yet", 10, title != null ? UiTheme.Energy : UiTheme.Dim,
                 bold: title != null));
+            var myClan = ctx.Bots?.FindClan(state.ClanId);
+            nameCol.Add(Widgets.Text(myClan != null ? ClanSystem.Label(myClan) : "No clan", 10,
+                myClan != null ? UiTheme.Good : UiTheme.Dim, bold: myClan != null));
             nameCol.Add(Widgets.Text($"HQ {state.HomeTile.X}, {state.HomeTile.Y}", 11, UiTheme.Accent));
             idBox.Add(nameCol);
             cardBox.Add(idBox);

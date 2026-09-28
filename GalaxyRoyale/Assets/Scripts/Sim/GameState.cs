@@ -121,10 +121,13 @@ namespace GalaxyRoyale.Sim
         /// <summary>Defense reports: the raiding bot's id, for STRIKE BACK
         /// (0 = unknown — reports filed before the field existed).</summary>
         public int AttackerBotId;
-        /// <summary>Defense reports: warships your allies committed (already
-        /// counted in the report's Defender side) and who sent them.</summary>
+        /// <summary>Warships your clanmates put on YOUR side of the fight (already
+        /// counted in the report) and who sent them.</summary>
         public Dictionary<HullId, int>? AllyShips;
         public string? AllyNames;
+        /// <summary>Warships the other side's clanmates sent (already counted).</summary>
+        public Dictionary<HullId, int>? EnemyAllyShips;
+        public string? EnemyAllyNames;
     }
 
     /// <summary>
@@ -235,6 +238,9 @@ namespace GalaxyRoyale.Sim
         public long LootMilli;
         /// <summary>Best finishing rank in a season (0 = none finished yet).</summary>
         public int BestSeasonRank;
+        /// <summary>Largest clan the player has belonged to, and clan wars won.</summary>
+        public int BestClanSize;
+        public int ClanWarsWon;
     }
 
     /// <summary>A finished season: where you placed and what it paid.</summary>
@@ -247,16 +253,6 @@ namespace GalaxyRoyale.Sim
         public int RewardDM;
     }
 
-    /// <summary>A pact with a simulated commander (AllianceSystem).</summary>
-    public sealed class Alliance
-    {
-        public int BotId;
-        public int SinceTick;
-        public int NextAidTick;
-        /// <summary>Supply runs delivered but not yet collected (milli) and how many.</summary>
-        public ResourceBag Pending = new();
-        public int PendingRuns;
-    }
 
     public sealed class GameState
     {
@@ -291,8 +287,18 @@ namespace GalaxyRoyale.Sim
         public int Season;
         public long SeasonStartMight;
         public List<SeasonRecord> SeasonHistory = new();
-        /// <summary>Pacts with simulated commanders (at most AllianceSystem.MaxAllies).</summary>
-        public List<Alliance> Allies = new();
+        /// <summary>The player's clan (ClanSystem; 0 = none) — membership lives
+        /// here for the player, on BotEmpire.ClanId for the rivals.</summary>
+        public int ClanId;
+        /// <summary>A clan's standing invitation (0 = none) and when it lapses; no
+        /// new invitation before ClanNextInviteTick.</summary>
+        public int ClanInviteId;
+        public int ClanInviteExpiresTick;
+        public int ClanNextInviteTick;
+        /// <summary>The clan's daily supply run: next arrival, what's waiting (milli), how many runs.</summary>
+        public int ClanSupplyNextTick;
+        public ResourceBag ClanSupplyPending = new();
+        public int ClanSupplyRuns;
         public Profile Profile = new();
         /// <summary>Milli-units.</summary>
         public ResourceBag Resources = new();

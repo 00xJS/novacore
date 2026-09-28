@@ -1,5 +1,5 @@
-// Galaxy-level progression that needs the player AND the bots: allied supply
-// runs, season rollovers and achievements. GameContext runs it once per sim
+// Galaxy-level progression that needs the player AND the bots: clan politics
+// and supply runs, season rollovers and achievements. GameContext runs it once per sim
 // tick right after the bots advance — live, and at the end of the offline
 // catch-up (where the bus holds its events; the debrief reads the results off
 // the state instead).
@@ -11,8 +11,7 @@ namespace GalaxyRoyale.Sim.Systems
     {
         public static void Advance(GameState player, BotGalaxy galaxy, SimEventBus events)
         {
-            int runs = AllianceSystem.Tick(player, galaxy);
-            if (runs > 0) events.Emit(new AllySuppliesArrived(runs));
+            ClanSystem.Tick(player, galaxy, events);
             var season = SeasonSystem.Tick(player, galaxy);
             if (season != null) events.Emit(new SeasonEnded(season));
             foreach (var a in AchievementSystem.CheckNew(player)) events.Emit(new AchievementUnlocked(a));

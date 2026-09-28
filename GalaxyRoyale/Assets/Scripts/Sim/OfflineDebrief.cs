@@ -23,19 +23,14 @@ namespace GalaxyRoyale.Sim
         public readonly HashSet<string> Achievements;
         public readonly int Seasons;
         public readonly int SupplyRuns;
+        public readonly int ClanWarsWon;
 
         public ProgressMark(GameState state)
         {
             Achievements = new HashSet<string>(state.Achievements);
             Seasons = state.SeasonHistory.Count;
-            SupplyRuns = PendingRuns(state);
-        }
-
-        public static int PendingRuns(GameState state)
-        {
-            int runs = 0;
-            foreach (var pact in state.Allies) runs += pact.PendingRuns;
-            return runs;
+            SupplyRuns = state.ClanSupplyRuns;
+            ClanWarsWon = state.Stats.ClanWarsWon;
         }
     }
 
@@ -63,13 +58,14 @@ namespace GalaxyRoyale.Sim
         public List<AchievementDef> Achievements = new();
         public List<SeasonRecord> SeasonsEnded = new();
         public int SupplyRuns;
+        public int ClanWarsWon;
 
         /// <summary>Anything worth a full report (vs. a resources-only toast)?</summary>
         public bool Notable =>
             RaidsSuffered + RaidsRepelled + RaidsDeflected + SpyScans
             + BattlesWon + BattlesLost + SpyReports + FleetsHome
             + Upgrades + Research + ShipsBuilt
-            + Achievements.Count + SeasonsEnded.Count + SupplyRuns > 0
+            + Achievements.Count + SeasonsEnded.Count + SupplyRuns + ClanWarsWon > 0
             || RankAfter != RankBefore;
 
         /// <summary>1 + the number of rivals with MORE might (ties share the better rank).</summary>
@@ -103,7 +99,8 @@ namespace GalaxyRoyale.Sim
                         d.Achievements.Add(a);
                 for (int i = mark.Seasons; i < state.SeasonHistory.Count; i++)
                     d.SeasonsEnded.Add(state.SeasonHistory[i]);
-                d.SupplyRuns = System.Math.Max(0, ProgressMark.PendingRuns(state) - mark.SupplyRuns);
+                d.SupplyRuns = System.Math.Max(0, state.ClanSupplyRuns - mark.SupplyRuns);
+                d.ClanWarsWon = System.Math.Max(0, state.Stats.ClanWarsWon - mark.ClanWarsWon);
             }
 
             foreach (var mail in state.Mailbox)

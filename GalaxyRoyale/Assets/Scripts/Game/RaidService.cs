@@ -3,6 +3,7 @@
 // resolves AT ARRIVAL against the bot's LIVE state (RaidArrivals), so the
 // radar-dodge design survives the single-player pivot intact. The defense
 // snapshot is computed on demand — it can never be stale.
+using System;
 using System.Collections.Generic;
 using GalaxyRoyale.Data;
 using GalaxyRoyale.Sim;
@@ -22,16 +23,18 @@ namespace GalaxyRoyale.Game
         /// <summary>
         /// Launch only — the battle resolves AT ARRIVAL against the bot's live
         /// defense (RaidArrivals). `ships` must already be validated against
-        /// docked counts (PreviewMarch re-checks).
+        /// docked counts (PreviewMarch re-checks). <paramref name="callClan"/>:
+        /// up to two clanmates in range fly along (ClanSystem.RaidSupport).
         /// </summary>
         public static (bool ok, string message) LaunchRaid(
-            GameContext ctx, DefenseSnapshot target, Dictionary<HullId, int> ships)
+            GameContext ctx, DefenseSnapshot target, Dictionary<HullId, int> ships, bool callClan = false)
         {
             var state = ctx.State!;
+            var galaxy = ctx.Bots;
             if (IsShielded(target.Might))
                 return (false, "That commander is under a new-commander shield");
-            if (AllianceSystem.IsAlly(state, target.BotId))
-                return (false, $"{target.CommanderName} is your ally — break the pact first");
+            if (galaxy?.Find(target.BotId) is { } targetBot && ClanSystem.SameClanAsPlayer(state, targetBot))
+                return (false, $"{target.CommanderName} is your clanmate — clanmates never raid each other");
 
             // Full fleet flies out; arrival at the node-less tile turns it around,
             // which is the moment RaidArrivals resolves the fight.
@@ -44,12 +47,31 @@ namespace GalaxyRoyale.Game
 
             var march = state.Marches.Find(m => m.Id == marchId)!;
             int arrivesInSec = march.ArrivesAtTick - state.Tick;
+
+            // Clanmates who answer the call commit their ships now; they fight
+            // beside yours at arrival and fly home to their own docks.
+            var allied = new List<(int botId, Dictionary<HullId, int> ships)>();
+            if (callClan && galaxy != null)
+                foreach (var (ally, sent) in ClanSystem.RaidSupport(state, galaxy, target.BotId))
+                {
+                    foreach (var kv in sent)
+                        ally.State.Ships[kv.Key] = Math.Max(0, ally.State.Ships[kv.Key] - kv.Value);
+                    ally.SupportReadyTick = state.Tick + ClanSystem.RaidSupportCooldownSec;
+                    ally.CachedMight = PowerSystem.ComputePower(ally.State);
+                    allied.Add((ally.Id, sent));
+                }
             RaidArrivals.Register(marchId, target.BotId, target.CommanderName,
-                isRaid: true, ships, tile);
+                isRaid: true, ships, tile, allied);
+            // Save now: the pending raid (PlayerPrefs) and the ships that left
+            // your docks and your clanmates' (save file) must agree if the app
+            // dies before the next autosave — or the fight would hand the
+            // clanmates' survivors back to docks they never left.
+            LocalBootstrap.RequestSync();
 
             GameAudio.Feedback(Sfx.Launch, Haptic.Medium);
             return (true,
                 $"Fleet away — battle on arrival in {UiTheme.FmtDuration(arrivesInSec)}"
+                + (allied.Count > 0 ? $" · {allied.Count} clanmate{(allied.Count == 1 ? "" : "s")} flying with you" : "")
                 + (shieldBroke ? " · your Aegis Shield dropped" : ""));
         }
 

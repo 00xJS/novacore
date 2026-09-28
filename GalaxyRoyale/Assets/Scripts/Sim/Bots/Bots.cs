@@ -78,6 +78,10 @@ namespace GalaxyRoyale.Sim.Bots
         public int SpyBackAtTick;
         /// <summary>Might at the start of the current season (SeasonSystem).</summary>
         public long SeasonStartMight;
+        /// <summary>Clan membership (0 = independent). See ClanSystem.</summary>
+        public int ClanId;
+        /// <summary>Flies with a clanmate's raid again from this tick (ClanSystem.RaidSupport).</summary>
+        public int SupportReadyTick;
 
         public string Name => BotNames.NameOf(Id);
         public TileXY HomeTile => State.HomeTile;
@@ -141,7 +145,9 @@ namespace GalaxyRoyale.Sim.Bots
         public Dictionary<BuildingId, int> Buildings = new();
     }
 
-    /// <summary>One line of galaxy news — a battle between two empires (id 0 = the player).</summary>
+    /// <summary>One line of galaxy news — a battle between two empires (id 0 =
+    /// the player), or a bulletin (clan founded, war declared or won…) when
+    /// <see cref="Text"/> is set.</summary>
     public sealed class NewsItem
     {
         public int Tick;
@@ -150,6 +156,10 @@ namespace GalaxyRoyale.Sim.Bots
         public bool AttackerWon;
         /// <summary>Milli-resources plundered (0 on a repelled raid).</summary>
         public long LootMilli;
+        /// <summary>A bulletin's headline (null for battles).</summary>
+        public string? Text;
+
+        public bool IsBulletin => Text != null;
     }
 
     /// <summary>The 99 simulated commanders + attacks currently aimed at the player.</summary>
@@ -170,8 +180,24 @@ namespace GalaxyRoyale.Sim.Bots
         /// <summary>Last player tick Advance ran for (transient — not saved).
         /// Lets the per-frame call return in one compare between sim ticks.</summary>
         public int LastAdvanceTick = -1;
+        /// <summary>Clans (ClanSystem) — the simulated ones and the player's.</summary>
+        public List<Clan> Clans = new();
+        public int NextClanId = 1;
+        /// <summary>Galaxy time of the next clan-politics pass (ClanSystem.Politics).</summary>
+        public int NextPoliticsTick;
 
         public BotEmpire? Find(int botId) => Bots.Find(b => b.Id == botId);
+        public Clan? FindClan(int clanId) => clanId == 0 ? null : Clans.Find(c => c.Id == clanId);
+
+        /// <summary>A bulletin line on the news wire (clan politics, the core…).</summary>
+        public void AddBulletin(int tick, string text)
+        {
+            var item = new NewsItem { Tick = tick, AttackerId = -1, DefenderId = -1, Text = text };
+            int at = News.Count;
+            while (at > 0 && News[at - 1].Tick > tick) at--;
+            News.Insert(at, item);
+            if (News.Count > Balance.NewsCap) News.RemoveRange(0, News.Count - Balance.NewsCap);
+        }
 
         public void AddNews(int tick, int attackerId, int defenderId, bool attackerWon, long lootMilli)
         {
@@ -452,7 +478,7 @@ namespace GalaxyRoyale.Sim.Bots
                 {
                     bot.SpyBackAtTick = 0;
                     if (!galaxy.Inbound.Exists(a => a.BotId == bot.Id)
-                        && !AllianceSystem.IsAlly(player, bot.Id)) // friends don't scout friends
+                        && !ClanSystem.SameClanAsPlayer(player, bot)) // clanmates don't scout clanmates
                         LaunchAtPlayer(player, galaxy, bot, fleet: null, launchTick: now);
                 }
                 RollAttacks(player, galaxy, bot, personality, events);
@@ -807,7 +833,10 @@ namespace GalaxyRoyale.Sim.Bots
 
             var rng = Rng.Mulberry32(unchecked((uint)player.Seed
                 ^ (uint)(bot.Id * 0x27D4EB2F) ^ (uint)rollTick));
-            if (rng() >= personality.Aggression * AggressionRollMult) return; // stand down
+            // A clan at war rolls hotter ("war fever").
+            var myClan = galaxy.FindClan(bot.ClanId);
+            double fever = myClan != null && myClan.WarWithClanId != 0 ? ClanSystem.WarFever : 1.0;
+            if (rng() >= personality.Aggression * AggressionRollMult * fever) return; // stand down
 
             var fleet = CombatFleetOf(bot.State, RaidCommitFraction);
             if (CombatResolver.FleetCount(fleet) < 8) return; // no worthwhile fleet yet
@@ -837,21 +866,31 @@ namespace GalaxyRoyale.Sim.Bots
             foreach (var other in galaxy.Bots)
             {
                 if (other.Id == bot.Id) continue;
+                if (ClanSystem.SameClan(bot, other)) continue;       // clanmates never raid clanmates
                 if (other.CachedMight < PlayerShieldMight) continue; // young empires shielded
                 if (other.CachedMight > reachCap) continue;         // too big to bite
                 if (myPower < (long)(EstimateDefensePower(other.State) * BeatabilityEdge))
                     continue;                                       // a fight they'd lose
-                candidates.Add((other.Id, LootableTotal(other.State)));
+                long loot = LootableTotal(other.State);
+                // At war, the enemy clan's members rank as the richest marks.
+                if (myClan != null && other.ClanId != 0 && myClan.WarWithClanId == other.ClanId)
+                    loot = (long)(loot * ClanSystem.WarTargetWeight);
+                candidates.Add((other.Id, loot));
             }
             long playerMight = PowerSystem.ComputePower(player);
             bool playerEligible = rollTick >= galaxy.NextInboundWindowTick
-                && !AllianceSystem.IsAlly(player, bot.Id) // pacts hold
+                && !ClanSystem.SameClanAsPlayer(player, bot) // clanmates never raid clanmates
                 && playerMight >= PlayerShieldMight
                 && playerMight <= reachCap
                 && player.Buffs.ShieldUntilTick <= rollTick // Aegis Shield: untargetable
                 && myPower >= (long)(EstimateDefensePower(player) * BeatabilityEdge);
             if (playerEligible)
-                candidates.Add((0, LootableTotal(player)));
+            {
+                long loot = LootableTotal(player);
+                if (myClan != null && player.ClanId != 0 && myClan.WarWithClanId == player.ClanId)
+                    loot = (long)(loot * ClanSystem.WarTargetWeight);
+                candidates.Add((0, loot));
+            }
             if (candidates.Count == 0) return;
 
             candidates.Sort((a, b) => b.loot.CompareTo(a.loot));
@@ -945,7 +984,7 @@ namespace GalaxyRoyale.Sim.Bots
 
             if (bot.FocusTargetId == 0) // the player wronged this bot
             {
-                if (AllianceSystem.IsAlly(player, bot.Id)) { bot.FocusTargetId = -1; return false; }
+                if (ClanSystem.SameClanAsPlayer(player, bot)) { bot.FocusTargetId = -1; return false; }
                 long playerMight = PowerSystem.ComputePower(player);
                 if (playerMight > reachCap) return false;  // not big enough yet — another day
                 if (playerMight < PlayerShieldMight) { bot.FocusTargetId = -1; return false; }
@@ -962,7 +1001,7 @@ namespace GalaxyRoyale.Sim.Bots
             }
 
             var mark = galaxy.Find(bot.FocusTargetId);
-            if (mark == null) { bot.FocusTargetId = -1; return false; }
+            if (mark == null || ClanSystem.SameClan(bot, mark)) { bot.FocusTargetId = -1; return false; }
             if (mark.CachedMight > reachCap) return false; // outgrew the grudge — for now
             if (mark.CachedMight < PlayerShieldMight) { bot.FocusTargetId = -1; return false; }
             if (myPower < (long)(EstimateDefensePower(mark.State) * BeatabilityEdge))
@@ -1154,18 +1193,14 @@ namespace GalaxyRoyale.Sim.Bots
                 // The battle: bot fleet vs whatever the player has DOCKED right now.
                 // Ships out on fly-to holds/marches are away — the radar warning is
                 // a real dodge window, exactly like the old PvP arrival rule.
-                var defenders = new Dictionary<HullId, int>(player.Ships);
-                // Allies in range send a share of their docked warships; they fight
-                // under the colony's defense research (it's your home they hold).
-                var reinforcements = AllianceSystem.Reinforcements(player, galaxy);
-                Dictionary<HullId, int>? allyShips = null;
-                foreach (var (_, sent) in reinforcements)
-                    foreach (var kv in sent)
-                    {
-                        allyShips ??= new Dictionary<HullId, int>();
-                        allyShips[kv.Key] = (allyShips.TryGetValue(kv.Key, out var a) ? a : 0) + kv.Value;
-                        defenders[kv.Key] = (defenders.TryGetValue(kv.Key, out var d0) ? d0 : 0) + kv.Value;
-                    }
+                // Clanmates in range send a share of their docked warships; they
+                // fight under the colony's defense research (it's your home they hold).
+                var reinforcements = ClanSystem.DefenseHelpers(player, galaxy, 0, bot.Id);
+                var lines = new List<Dictionary<HullId, int>> { new Dictionary<HullId, int>(player.Ships) };
+                foreach (var (_, sent) in reinforcements) lines.Add(sent);
+                var defenders = ClanSystem.Combine(lines);
+                Dictionary<HullId, int>? allyShips = reinforcements.Count > 0
+                    ? ClanSystem.Combine(reinforcements.ConvertAll(r => r.ships)) : null;
                 var report = CombatResolver.Resolve(atk.Ships, defenders,
                     ResearchSystem.CombatMods(bot.State), ResearchSystem.DefenseMods(player));
                 report.Location = player.HomeTile;
@@ -1191,27 +1226,13 @@ namespace GalaxyRoyale.Sim.Bots
 
                 // Defender side: losses + plunder land now. Each hull's losses are
                 // shared in proportion to who put ships in the line.
-                foreach (var hull in Ships.All)
+                var losses = ClanSystem.SplitLosses(lines, report.DefenderSurvivors);
+                ClanSystem.Deduct(player.Ships, losses[0]);
+                for (int r = 0; r < reinforcements.Count; r++)
                 {
-                    int had = defenders.TryGetValue(hull, out var d) ? d : 0;
-                    int left = report.DefenderSurvivors.TryGetValue(hull, out var s) ? s : 0;
-                    int lost = had - left;
-                    if (lost <= 0) continue;
-                    int yoursLost = lost;
-                    foreach (var (ally, sent) in reinforcements)
-                    {
-                        if (!sent.TryGetValue(hull, out var mine) || mine <= 0) continue;
-                        int allyLost = Math.Min(Math.Min(mine, yoursLost),
-                            (int)Math.Round(lost * (double)mine / had));
-                        ally.State.Ships[hull] = Math.Max(0, ally.State.Ships[hull] - allyLost);
-                        yoursLost -= allyLost;
-                    }
-                    if (yoursLost > 0)
-                        player.Ships[hull] = Math.Max(0,
-                            (player.Ships.TryGetValue(hull, out var cur) ? cur : 0) - yoursLost);
+                    ClanSystem.Deduct(reinforcements[r].ally.State.Ships, losses[r + 1]);
+                    reinforcements[r].ally.CachedMight = PowerSystem.ComputePower(reinforcements[r].ally.State);
                 }
-                foreach (var (ally, _) in reinforcements)
-                    ally.CachedMight = PowerSystem.ComputePower(ally.State);
                 player.Resources.Gold = Math.Max(0, player.Resources.Gold - loot.Gold);
                 player.Resources.Quartz = Math.Max(0, player.Resources.Quartz - loot.Quartz);
                 player.Resources.Helium = Math.Max(0, player.Resources.Helium - loot.Helium);
@@ -1231,6 +1252,7 @@ namespace GalaxyRoyale.Sim.Bots
                     player.Stats.BattlesWon++;
                     player.Stats.DefensesWon++;
                 }
+                ClanSystem.RecordBattle(player, galaxy, bot.Id, 0, playerLost);
 
                 InsertMail(player, new BattleMailReport
                 {
@@ -1331,17 +1353,28 @@ namespace GalaxyRoyale.Sim.Bots
                         continue;
                     }
 
-                    var defending = new Dictionary<HullId, int>(defender.State.Ships);
+                    // They joined the same clan while the fleet was in flight: it stands down.
+                    if (ClanSystem.SameClan(attacker, defender))
+                    {
+                        march.Resolved = true;
+                        march.ReturnsAtTick = march.ArrivesAtTick + (march.ArrivesAtTick - march.LaunchTick);
+                        continue;
+                    }
+
+                    // The defender's clanmates in range help hold the line.
+                    var helpers = ClanSystem.DefenseHelpers(player, galaxy, defender.Id, attacker.Id);
+                    var lines = new List<Dictionary<HullId, int>> { new Dictionary<HullId, int>(defender.State.Ships) };
+                    foreach (var (_, sent) in helpers) lines.Add(sent);
+                    var defending = ClanSystem.Combine(lines);
                     var report = CombatResolver.Resolve(march.Ships, defending,
                         ResearchSystem.CombatMods(attacker.State), ResearchSystem.DefenseMods(defender.State));
 
-                    foreach (var hull in Ships.All)
+                    var losses = ClanSystem.SplitLosses(lines, report.DefenderSurvivors);
+                    ClanSystem.Deduct(defender.State.Ships, losses[0]);
+                    for (int hi = 0; hi < helpers.Count; hi++)
                     {
-                        int had = defending.TryGetValue(hull, out var d) ? d : 0;
-                        int left = report.DefenderSurvivors.TryGetValue(hull, out var s) ? s : 0;
-                        if (had - left > 0)
-                            defender.State.Ships[hull] =
-                                Math.Max(0, defender.State.Ships[hull] - (had - left));
+                        ClanSystem.Deduct(helpers[hi].ally.State.Ships, losses[hi + 1]);
+                        helpers[hi].ally.CachedMight = PowerSystem.ComputePower(helpers[hi].ally.State);
                     }
 
                     long lootTotal = 0;
@@ -1380,6 +1413,8 @@ namespace GalaxyRoyale.Sim.Bots
                         attacker.State.Stats.BattlesLost++;
                         defender.State.Stats.BattlesWon++;
                     }
+                    ClanSystem.RecordBattle(player, galaxy, attacker.Id, defender.Id,
+                        report.Winner == BattleWinner.Attacker);
                     defender.CachedMight = PowerSystem.ComputePower(defender.State);
                     galaxy.AddNews(march.ArrivesAtTick, attacker.Id, defender.Id,
                         report.Winner == BattleWinner.Attacker, lootTotal);
@@ -1469,21 +1504,27 @@ namespace GalaxyRoyale.Sim.Bots
         /// <summary>Apply a player raid's outcome to the defending bot (+ news + battle
         /// scar). A bot the player keeps farming counts those losses toward its
         /// panic-port threshold too — hounded rivals eventually flee.</summary>
+        /// <param name="ownLosses">The target's own losses when its clanmates fought
+        /// beside it (ClanSystem.SplitLosses); null = everything in the report was its.</param>
         public static void ApplyPlayerRaid(BotGalaxy galaxy, BotEmpire bot,
-            BattleReport report, ResourceBag lootMilli, GameState? player = null)
+            BattleReport report, ResourceBag lootMilli, GameState? player = null,
+            Dictionary<HullId, int>? ownLosses = null)
         {
-            foreach (var hull in Ships.All)
-            {
-                int had = bot.State.Ships.TryGetValue(hull, out var d) ? d : 0;
-                int inFight = report.Defender.TryGetValue(hull, out var f) ? f : 0;
-                int left = report.DefenderSurvivors.TryGetValue(hull, out var s) ? s : 0;
-                int lost = Math.Min(had, inFight - left);
-                if (lost > 0) bot.State.Ships[hull] = had - lost;
-            }
+            if (ownLosses != null) ClanSystem.Deduct(bot.State.Ships, ownLosses);
+            else
+                foreach (var hull in Ships.All)
+                {
+                    int had = bot.State.Ships.TryGetValue(hull, out var d) ? d : 0;
+                    int inFight = report.Defender.TryGetValue(hull, out var f) ? f : 0;
+                    int left = report.DefenderSurvivors.TryGetValue(hull, out var s) ? s : 0;
+                    int lost = Math.Min(had, inFight - left);
+                    if (lost > 0) bot.State.Ships[hull] = had - lost;
+                }
             bot.State.Resources.Gold = Math.Max(0, bot.State.Resources.Gold - lootMilli.Gold);
             bot.State.Resources.Quartz = Math.Max(0, bot.State.Resources.Quartz - lootMilli.Quartz);
             bot.State.Resources.Helium = Math.Max(0, bot.State.Resources.Helium - lootMilli.Helium);
             bool playerWon = report.Winner == BattleWinner.Attacker;
+            if (player != null) ClanSystem.RecordBattle(player, galaxy, 0, bot.Id, playerWon);
             if (playerWon)
             {
                 bot.State.Stats.BattlesLost++;
