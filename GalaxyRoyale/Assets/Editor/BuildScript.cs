@@ -13,6 +13,9 @@
 // values are restored afterwards, so ProjectSettings.asset never picks up a
 // real identity. (Without GR_TEAM_ID, pick your team in Xcode instead.)
 //
+// Release builds (scripts/testflight.sh) also pass GR_BUILD_NUMBER — every
+// TestFlight upload needs a higher one — and optionally GR_VERSION.
+//
 //   Unity -batchmode -buildTarget iOS -executeMethod BuildScript.BuildIosSimulator
 using System;
 using UnityEditor;
@@ -47,6 +50,8 @@ public static class BuildScript
         // Snapshot what's committed so the build leaves ProjectSettings.asset as it was.
         string committedId = PlayerSettings.GetApplicationIdentifier(NamedBuildTarget.iOS);
         string committedTeam = PlayerSettings.iOS.appleDeveloperTeamID;
+        string committedVersion = PlayerSettings.bundleVersion;
+        string committedBuild = PlayerSettings.iOS.buildNumber;
         var committedSdk = PlayerSettings.iOS.sdkVersion;
         var committedSimArch = PlayerSettings.iOS.simulatorSdkArchitecture;
         bool ok = false;
@@ -55,8 +60,9 @@ public static class BuildScript
             PlayerSettings.productName = "Galaxy Royale";
             PlayerSettings.companyName = "Galaxy Royale";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleId);
-            PlayerSettings.bundleVersion = "1.1";
-            PlayerSettings.iOS.buildNumber = "2"; // prototype shipped as 1 — must increase
+            PlayerSettings.bundleVersion = Env("GR_VERSION") ?? "1.2";
+            // Must rise with every upload; device/simulator builds keep a fixed one.
+            PlayerSettings.iOS.buildNumber = Env("GR_BUILD_NUMBER") ?? "3";
             PlayerSettings.iOS.appleDeveloperTeamID = TeamId;
             PlayerSettings.iOS.appleEnableAutomaticSigning = true;
             PlayerSettings.iOS.targetOSVersionString = "13.0"; // the editor clamps to its own floor
@@ -87,6 +93,8 @@ public static class BuildScript
         {
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, committedId);
             PlayerSettings.iOS.appleDeveloperTeamID = committedTeam;
+            PlayerSettings.bundleVersion = committedVersion;
+            PlayerSettings.iOS.buildNumber = committedBuild;
             PlayerSettings.iOS.sdkVersion = committedSdk;
             PlayerSettings.iOS.simulatorSdkArchitecture = committedSimArch;
             AssetDatabase.SaveAssets();
