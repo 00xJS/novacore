@@ -141,14 +141,20 @@ namespace GalaxyRoyale.Game.UI
             }, 10);
             map.style.width = Length.Percent(48f);
             actions.Add(map);
-            // Painted swords — "⚔ RAID" rendered as "□ RAID" on device.
-            var raid = Widgets.IconButton(Icon.Swords, "RAID", () =>
-            {
-                ui.CloseModal();
-                RaidPanel.Open(ctx, botId);
-            }, 10);
+            // Painted swords — "⚔ RAID" rendered as "□ RAID" on device. Clanmates
+            // never raid each other; for them the slot sends a garrison instead.
+            var raid = clanmate
+                ? Widgets.IconButton(Icon.Shield, "GARRISON", () =>
+                {
+                    ui.CloseModal();
+                    GarrisonPanel.Open(ctx, botId);
+                }, 10)
+                : Widgets.IconButton(Icon.Swords, "RAID", () =>
+                {
+                    ui.CloseModal();
+                    RaidPanel.Open(ctx, botId);
+                }, 10);
             raid.style.width = Length.Percent(48f);
-            if (clanmate) Widgets.SetButtonEnabled(raid, false); // clanmates never raid clanmates
             actions.Add(raid);
             body.Add(actions);
         }

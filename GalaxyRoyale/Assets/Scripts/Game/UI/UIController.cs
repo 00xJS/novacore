@@ -734,7 +734,28 @@ namespace GalaxyRoyale.Game.UI
                     break;
                 }
                 case MarchPhaseChanged mpc when mpc.Phase == MarchPhase.Gathering:
-                    Toast("Fleet on station — gathering");
+                {
+                    var held = _ctx.State?.Marches.Find(m => m.Id == mpc.MarchId);
+                    if (held?.Mission == MarchMission.Intercept) break; // the battle report follows at once
+                    Toast(held?.Mission == MarchMission.Garrison
+                        ? $"Your garrison is on guard at {_ctx.Bots?.Find(held.GuardEmpireId)?.Name ?? "your clanmate"}'s colony"
+                        : "Fleet on station — gathering",
+                        held?.Mission == MarchMission.Garrison ? Icon.Shield : null, UiTheme.Good);
+                    break;
+                }
+                case GarrisonFought fought:
+                    Toast(fought.Held
+                        ? $"Your garrison helped hold {fought.HostName}'s colony against {fought.AttackerName}"
+                        : $"{fought.AttackerName} broke through your garrison at {fought.HostName}'s colony",
+                        Icon.Shield, fought.Held ? UiTheme.Good : UiTheme.Bad);
+                    GameAudio.Feedback(fought.Held ? Sfx.Victory : Sfx.Defeat, fought.Held ? Haptic.Success : Haptic.Warning);
+                    break;
+                case InterceptMissed missed:
+                    Toast($"Intercept missed — {missed.TargetName} changed course. Your fleet is heading home.", Icon.Info, UiTheme.Dim);
+                    break;
+                case ClanGarrisonArrived arrived:
+                    Toast(arrived.Wings == 1 ? "A clan garrison is on guard at your colony"
+                        : $"{arrived.Wings} clan garrisons are on guard at your colony", Icon.Shield, UiTheme.Good);
                     break;
                 case MarchReturned mr:
                 {

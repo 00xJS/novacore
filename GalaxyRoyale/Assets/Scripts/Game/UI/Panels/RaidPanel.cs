@@ -145,10 +145,13 @@ namespace GalaxyRoyale.Game.UI
                 return;
             }
 
-            // Clanmates who'd fly along (the CALL YOUR CLAN toggle below). Declared
-            // before the sliders: their callbacks run Refresh, which reads these.
-            bool callClan = false;
-            var support = ClanSystem.RaidSupport(state, galaxy, targetBotId);
+            // Clanmates who'd land with your fleet (the JOINT STRIKE toggle below) —
+            // who can make it depends on your fleet's speed, so Refresh recomputes
+            // them. Declared before the sliders: their callbacks run Refresh.
+            bool joint = false;
+            var wings = new List<StrikeSystem.Wing>();
+            Button? jointBtn = null;
+            Label? jointNote = null;
 
             // ---- fleet selection (per-hull sliders; probes stay home) ----
             var fleetHeader = Widgets.Text("SELECT YOUR RAIDING FLEET", 10, UiTheme.Dim, bold: true);
@@ -229,36 +232,38 @@ namespace GalaxyRoyale.Game.UI
             quick.Add(clearBtn);
             content.Add(quick);
 
-            // ---- call your clan ----
-            Button? clanBtn = null;
+            // ---- joint strike ----
             if (state.ClanId != 0)
             {
-                int supportShips = 0;
-                foreach (var (_, sent) in support) supportShips += MarchSystem.FleetCount(sent);
-                if (support.Count > 0)
+                jointBtn = Widgets.IconButton(Icon.Pact, "JOINT STRIKE", () =>
                 {
-                    string Caption() => callClan
-                        ? $"CLAN CALLED: {support.Count} · +{supportShips} WARSHIPS"
-                        : $"CALL YOUR CLAN ({support.Count} ready · +{supportShips} warships)";
-                    clanBtn = Widgets.IconButton(Icon.Pact, Caption(), () =>
-                    {
-                        callClan = !callClan;
-                        Widgets.SetCaption(clanBtn!, Caption());
-                        Widgets.SetButtonHighlight(clanBtn!, callClan);
-                        Refresh();
-                    }, 11);
-                    clanBtn.style.marginTop = 10;
-                    content.Add(clanBtn);
-                }
-                else
-                {
-                    var none = Widgets.Text("No clanmates ready to fly with you (they need to be within " +
-                        $"{ClanSystem.ReinforceRange:N0} tiles, with warships docked, and rested since their last sortie).",
-                        10, UiTheme.Dim);
-                    none.style.whiteSpace = WhiteSpace.Normal;
-                    none.style.marginTop = 8;
-                    content.Add(none);
-                }
+                    joint = !joint;
+                    Refresh();
+                }, 11);
+                jointBtn.style.marginTop = 10;
+                content.Add(jointBtn);
+                jointNote = Widgets.Text("", 10, UiTheme.Dim);
+                jointNote.style.whiteSpace = WhiteSpace.Normal;
+                jointNote.style.marginTop = 4;
+                content.Add(jointNote);
+            }
+
+            void RefreshJoint(int arriveTick)
+            {
+                if (jointBtn == null || jointNote == null) return;
+                wings = arriveTick > 0 ? StrikeSystem.StrikeWings(state, galaxy, tile, arriveTick, targetBotId) : new List<StrikeSystem.Wing>();
+                int wingShips = 0;
+                foreach (var w in wings) wingShips += MarchSystem.FleetCount(w.Ships);
+                bool on = joint && wings.Count > 0;
+                Widgets.SetCaption(jointBtn, arriveTick <= 0 ? "JOINT STRIKE — PICK YOUR FLEET FIRST"
+                    : wings.Count == 0 ? "JOINT STRIKE — NO CLANMATES CAN MAKE IT"
+                    : on ? $"JOINT STRIKE ON: {wings.Count} CLANMATE{(wings.Count == 1 ? "" : "S")} · +{wingShips} WARSHIPS"
+                    : $"JOINT STRIKE ({wings.Count} ready · +{wingShips} warships)");
+                Widgets.SetButtonHighlight(jointBtn, on);
+                Widgets.SetButtonEnabled(jointBtn, wings.Count > 0);
+                jointNote.text = wings.Count > 0
+                    ? $"{string.Join(", ", wings.ConvertAll(w => w.Bot.Name))} would fly from their own colonies and land with your fleet, each bringing a quarter of their warships. They keep a share of the plunder."
+                    : $"Clanmates join when they can land with your fleet: within {StrikeSystem.StrikeRange:N0} tiles of the target, rested, with warships docked.";
             }
 
             content.Add(preview);
@@ -282,16 +287,17 @@ namespace GalaxyRoyale.Game.UI
                     preview.text = "Select ships to preview the raid.";
                     status.text = "";
                     forecast.Hide();
+                    RefreshJoint(0);
                     if (launchBtn != null) Widgets.SetButtonEnabled(launchBtn, false);
                     return;
                 }
-                // Same inputs the arrival battle uses (RaidArrivals.ResolveRaid):
-                // the picked fleet + your research vs their docked garrison.
+                var p = MarchSystem.PreviewMarch(state, fleet, tile);
+                RefreshJoint(p.Ok ? state.Tick + p.TravelSec : 0);
                 if (hasIntel)
                 {
-                    // Same lines the arrival battle uses (RaidArrivals.ResolveRaid).
+                    // Same lines the arrival battle uses (StrikeSystem.ResolveRaid).
                     var attackers = new List<Dictionary<HullId, int>> { fleet };
-                    if (callClan) foreach (var (_, sent) in support) attackers.Add(sent);
+                    if (joint) foreach (var w in wings) attackers.Add(w.Ships);
                     var defenders = new List<Dictionary<HullId, int>> { target.Ships };
                     foreach (var (_, sent) in theirHelpers) defenders.Add(sent);
                     forecast.Show(BattleForecast.Predict(ClanSystem.Combine(attackers), ClanSystem.Combine(defenders),
@@ -300,7 +306,6 @@ namespace GalaxyRoyale.Game.UI
                 }
                 else
                     forecast.NeedsIntel("Send a spy probe first — the forecast needs their garrison.");
-                var p = MarchSystem.PreviewMarch(state, fleet, tile);
                 if (p.Ok)
                 {
                     status.text = "";
@@ -317,7 +322,7 @@ namespace GalaxyRoyale.Game.UI
             launchBtn = Widgets.TextButton("LAUNCH RAID", () =>
             {
                 var fleet = Fleet();
-                var (ok, message) = RaidService.LaunchRaid(ctx, target, fleet, callClan);
+                var (ok, message) = RaidService.LaunchRaid(ctx, target, fleet, joint && wings.Count > 0);
                 ui.Toast(message);
                 if (ok) ui.CloseModal();
             }, 14);
@@ -325,6 +330,8 @@ namespace GalaxyRoyale.Game.UI
             footer.Add(launchBtn);
 
             Refresh();
+            // Live: clanmates come and go (a fleet docks, a wing rests) while the screen is open.
+            if (state.ClanId != 0) blocker.schedule.Execute(Refresh).Every(1000);
             ui.OpenModal(blocker);
         }
     }

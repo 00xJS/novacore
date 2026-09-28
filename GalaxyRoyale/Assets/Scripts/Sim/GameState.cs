@@ -8,7 +8,10 @@ using GalaxyRoyale.Sim.Map;
 namespace GalaxyRoyale.Sim
 {
     public enum MarchPhase { Outbound, Gathering, Returning }
-    public enum MarchMission { Gather, Attack, Spy }
+    /// <summary>Intercept: meet a rival fleet in flight (StrikeSystem). Garrison:
+    /// stand guard at a clanmate's colony until recalled. Both hold where they
+    /// land (Phase Gathering, no due tick) until StrikeSystem or BotSystem settles them.</summary>
+    public enum MarchMission { Gather, Attack, Spy, Intercept, Garrison }
 
     public sealed class March
     {
@@ -33,6 +36,15 @@ namespace GalaxyRoyale.Sim
         /// never landed, so no raid/spy resolves against the destination (the
         /// aborted-attack bug: a recalled fleet used to still file a victory).</summary>
         public bool Recalled;
+        /// <summary>Intercept: the rival fleet it hunts — a BotAttack aimed at the
+        /// player (TargetInbound) or a BotMarch — on which leg of its flight
+        /// (0 outbound, 1 homeward), and the tick the fleets meet.</summary>
+        public int TargetFleetId;
+        public bool TargetInbound;
+        public int TargetLeg;
+        public int EngageTick;
+        /// <summary>Garrison: the clanmate whose colony it guards.</summary>
+        public int GuardEmpireId;
     }
 
     /// <summary>Production building types that can have multiple instances.</summary>
@@ -125,6 +137,11 @@ namespace GalaxyRoyale.Sim
         /// counted in the report) and who sent them.</summary>
         public Dictionary<HullId, int>? AllyShips;
         public string? AllyNames;
+        /// <summary>Plunder your clanmates carried home from a joint strike (milli).</summary>
+        public long AllyLootMilli;
+        /// <summary>A garrison report: the clanmate whose colony your garrison
+        /// defended (0 = the fight was at your own colony).</summary>
+        public int GuardedBotId;
         /// <summary>Warships the other side's clanmates sent (already counted).</summary>
         public Dictionary<HullId, int>? EnemyAllyShips;
         public string? EnemyAllyNames;
@@ -299,6 +316,8 @@ namespace GalaxyRoyale.Sim
         public int ClanSupplyNextTick;
         public ResourceBag ClanSupplyPending = new();
         public int ClanSupplyRuns;
+        /// <summary>No new clan garrison request before this tick (StrikeSystem.RequestGarrison).</summary>
+        public int ClanGarrisonReadyTick;
         public Profile Profile = new();
         /// <summary>Milli-units.</summary>
         public ResourceBag Resources = new();

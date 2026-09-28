@@ -302,28 +302,56 @@ namespace GalaxyRoyale.Game.UI
             string target = NameOf(ctx, targetId);
             int ships = 0;
             foreach (var kv in march.Ships) ships += kv.Value;
+            var kind = march.Kind;
 
             string Status(BotMarch m)
             {
                 int now = ctx.State?.Tick ?? 0;
                 if (!m.Resolved)
-                    return $"{(m.IsSpy ? "scouting" : "raiding")} {target} · arrives in " +
-                           UiTheme.FmtDuration(Math.Max(0, m.ArrivesAtTick - now));
+                {
+                    int left = Math.Max(0, m.ArrivesAtTick - now);
+                    return kind switch
+                    {
+                        BotMarchKind.Escort => left > 0 ? $"flying with your strike · arrives in {UiTheme.FmtDuration(left)}"
+                                                        : "waiting at the target with your strike",
+                        BotMarchKind.Garrison => left > 0 ? $"coming to guard your colony · arrives in {UiTheme.FmtDuration(left)}"
+                                                          : "standing guard at your colony",
+                        _ => $"{(m.IsSpy ? "scouting" : "raiding")} {target} · arrives in {UiTheme.FmtDuration(left)}",
+                    };
+                }
                 long loot = m.LootMilli.Gold + m.LootMilli.Quartz + m.LootMilli.Helium;
                 return (loot > 0 ? $"homeward with {UiTheme.FmtAmount(loot)} loot" : "homeward, empty-handed") +
                        $" · {UiTheme.FmtDuration(Math.Max(0, m.ReturnsAtTick - now))}";
             }
 
             void Close() { onClose(); CalloutChrome.Close(); }
+            var actions = new List<CalloutAction>
+            {
+                CalloutChrome.Act(kind == BotMarchKind.Raid || kind == BotMarchKind.Spy ? "ATTACKER" : "COMMANDER",
+                    () => { Close(); PlayerProfilePanel.Open(ctx, attackerId, attacker); }, icon: Icon.Swords),
+            };
+            if (kind == BotMarchKind.Raid || kind == BotMarchKind.Spy)
+                actions.Add(CalloutChrome.Act("TARGET", () => { Close(); PlayerProfilePanel.Open(ctx, targetId, target); }));
+            // Raid fleets (outbound or carrying plunder home) can be intercepted —
+            // not your clanmates', and not probes.
+            if (kind == BotMarchKind.Raid && ctx.State is { } st && ctx.Bots?.Find(attackerId) is { } owner
+                && !ClanSystem.SameClanAsPlayer(st, owner))
+                actions.Add(CalloutChrome.Act("INTERCEPT", () => { Close(); InterceptPanel.Open(ctx, false, marchId); },
+                    icon: Icon.Target));
+
             Label? sub = null;
             var strip = CalloutChrome.Strip(
-                march.IsSpy ? $"{attacker}'s spy probe" : $"{attacker}'s raid fleet · {ships} ships",
+                kind switch
+                {
+                    BotMarchKind.Spy => $"{attacker}'s spy probe",
+                    BotMarchKind.Escort => $"{attacker}'s strike wing · {ships} ships",
+                    BotMarchKind.Garrison => $"{attacker}'s garrison · {ships} ships",
+                    _ => $"{attacker}'s raid fleet · {ships} ships",
+                },
                 $"{Status(march)} · following",
                 Close,
                 l => sub = l,
-                CalloutChrome.Act("ATTACKER", () => { Close(); PlayerProfilePanel.Open(ctx, attackerId, attacker); },
-                    icon: Icon.Swords),
-                CalloutChrome.Act("TARGET", () => { Close(); PlayerProfilePanel.Open(ctx, targetId, target); }));
+                actions.ToArray());
             strip.schedule.Execute(() =>
             {
                 var m = Find();
@@ -376,6 +404,10 @@ namespace GalaxyRoyale.Game.UI
             {
                 CalloutChrome.Act("DEFENSES", () => { Close(); ui.OpenQueues(); }, icon: Icon.Warning),
             };
+            // Meet it before it lands.
+            if (contact.IsFleet)
+                actions.Add(CalloutChrome.Act("INTERCEPT", () => { Close(); InterceptPanel.Open(ctx, true, contactId); },
+                    icon: Icon.Target));
             if (attackerId >= 0)
                 actions.Add(CalloutChrome.Act("ATTACKER", () => { Close(); PlayerProfilePanel.Open(ctx, attackerId, who); }));
 

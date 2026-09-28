@@ -1146,9 +1146,11 @@ namespace GalaxyRoyale.Game
 
                 var color = march.Mission switch
                 {
-                    MarchMission.Attack => new Color(0.95f, 0.45f, 0.4f),
-                    MarchMission.Spy    => new Color(0.75f, 0.63f, 0.91f),
-                    _                   => new Color(0.5f, 0.83f, 1f),
+                    MarchMission.Attack    => new Color(0.95f, 0.45f, 0.4f),
+                    MarchMission.Spy       => new Color(0.75f, 0.63f, 0.91f),
+                    MarchMission.Intercept => new Color(1f, 0.66f, 0.25f),
+                    MarchMission.Garrison  => new Color(0.45f, 0.9f, 0.55f),
+                    _                      => new Color(0.5f, 0.83f, 1f),
                 };
                 vis.Line.startColor = WithAlpha(color, 0.55f);
                 vis.Line.endColor   = WithAlpha(color, 0.55f);
@@ -1306,12 +1308,21 @@ namespace GalaxyRoyale.Game
                     vis.DotSr.color = hasArt ? WithAlpha(Color.white, 0.9f) : color;
                 }
 
-                // --- real bot-vs-bot flights: raid fleets (red) + recon probes (violet) ---
+                // --- real bot flights: raid fleets (red), recon probes (violet), and
+                // your clanmates' strike wings (teal) and garrisons (green) ---
                 var raidColor = new Color(0.95f, 0.5f, 0.42f);
                 var spyColor = new Color(0.75f, 0.63f, 0.91f); // matches player spy missions
+                var wingColor = new Color(0.35f, 0.9f, 0.8f);
+                var guardColor = new Color(0.45f, 0.9f, 0.55f); // matches your own garrisons
                 foreach (var m in galaxy.Marches)
                 {
-                    var color = m.IsSpy ? spyColor : raidColor;
+                    var color = m.Kind switch
+                    {
+                        GalaxyRoyale.Sim.Bots.BotMarchKind.Spy => spyColor,
+                        GalaxyRoyale.Sim.Bots.BotMarchKind.Escort => wingColor,
+                        GalaxyRoyale.Sim.Bots.BotMarchKind.Garrison => guardColor,
+                        _ => raidColor,
+                    };
                     string art = m.IsSpy ? "probe" : "fleet";
                     var fromW = TileToWorld(m.From.X, m.From.Y);
                     var toW = TileToWorld(m.To.X, m.To.Y);

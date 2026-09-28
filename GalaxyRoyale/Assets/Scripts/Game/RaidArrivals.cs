@@ -35,9 +35,6 @@ namespace GalaxyRoyale.Game
             public bool IsRaid;
             public Dictionary<HullId, int> Sent = new();
             public int TargetX, TargetY;
-            /// <summary>Clanmates flying with the raid (ClanSystem.RaidSupport): their
-            /// ships left their docks at launch and return there after the fight.</summary>
-            public List<(int botId, Dictionary<HullId, int> ships)> Allied = new();
         }
 
         static RaidArrivals? _instance;
@@ -66,32 +63,23 @@ namespace GalaxyRoyale.Game
         {
             var gone = _pending.FindAll(p => p.MarchId == marchId);
             if (gone.Count == 0) return;
-            foreach (var entry in gone) ReturnAllied(entry);
+            StandDownWings(marchId);
             _pending.RemoveAll(p => p.MarchId == marchId);
             Persist();
             UI.UIController.Instance?.Toast("Fleet recalled — no engagement");
         }
 
-        /// <summary>Clanmates' ships head home untouched (no battle happened).</summary>
-        void ReturnAllied(Pending entry)
+        /// <summary>A joint strike that never fought: the clanmates' wings head home untouched.</summary>
+        void StandDownWings(int marchId)
         {
             var galaxy = _ctx.Bots;
-            if (galaxy == null) return;
-            foreach (var (botId, ships) in entry.Allied)
-            {
-                var ally = galaxy.Find(botId);
-                if (ally == null) continue;
-                foreach (var kv in ships)
-                    ally.State.Ships[kv.Key] = (ally.State.Ships.TryGetValue(kv.Key, out var n) ? n : 0) + kv.Value;
-                ally.CachedMight = PowerSystem.ComputePower(ally.State);
-            }
-            entry.Allied.Clear();
+            var state = _ctx.State;
+            if (galaxy != null && state != null) StrikeSystem.TurnEscortsHome(galaxy, marchId, state.Tick);
         }
 
         /// <summary>Called by RaidService at launch. `sent` = the full fleet that flew.</summary>
         public static void Register(int marchId, int targetBotId, string targetName,
-            bool isRaid, Dictionary<HullId, int> sent, TileXY target,
-            List<(int botId, Dictionary<HullId, int> ships)>? allied = null)
+            bool isRaid, Dictionary<HullId, int> sent, TileXY target)
         {
             var inst = _instance;
             if (inst == null) return;
@@ -104,7 +92,6 @@ namespace GalaxyRoyale.Game
                 Sent = new Dictionary<HullId, int>(sent),
                 TargetX = target.X,
                 TargetY = target.Y,
-                Allied = allied ?? new List<(int botId, Dictionary<HullId, int> ships)>(),
             });
             inst.Persist();
         }
@@ -127,7 +114,7 @@ namespace GalaxyRoyale.Game
                 // case the OnMarchRecalled hook was missed, e.g. across a reload).
                 if (march != null && march.Recalled)
                 {
-                    ReturnAllied(entry);
+                    StandDownWings(entry.MarchId);
                     _pending.RemoveAt(i);
                     Persist();
                     continue;
@@ -155,7 +142,7 @@ namespace GalaxyRoyale.Game
                 else if (entry.IsRaid) ResolveRaid(state, bot, entry);
                 else ResolveSpy(state, bot, entry);
 
-                ReturnAllied(entry); // no-op when the raid resolved (it settles its own)
+                StandDownWings(entry.MarchId); // no-op when the raid resolved (it settles its wings)
                 _pending.RemoveAt(i);
                 Persist();
             }
@@ -163,130 +150,11 @@ namespace GalaxyRoyale.Game
 
         void ResolveRaid(GameState state, BotEmpire bot, Pending entry)
         {
-            var galaxy = _ctx.Bots!;
-            var snapshot = BotSystem.SnapshotOf(bot);
-            var tile = new TileXY(entry.TargetX, entry.TargetY);
-
-            // Your side: your fleet plus any clanmates who flew with it. Theirs: the
-            // garrison plus clanmates in range (ClanSystem). RaidPanel's forecast
-            // makes the same call at launch — keep the inputs in step.
-            var attackLines = new List<Dictionary<HullId, int>> { entry.Sent };
-            var helpers = new List<BotEmpire?>();
-            foreach (var (botId, ships) in entry.Allied)
-            {
-                attackLines.Add(ships);
-                helpers.Add(galaxy.Find(botId));
-            }
-            var defenseHelpers = ClanSystem.DefenseHelpers(state, galaxy, bot.Id, 0);
-            var defenseLines = new List<Dictionary<HullId, int>> { new Dictionary<HullId, int>(snapshot.Ships) };
-            foreach (var (_, sent) in defenseHelpers) defenseLines.Add(sent);
-
-            var report = CombatResolver.Resolve(ClanSystem.Combine(attackLines), ClanSystem.Combine(defenseLines),
-                ResearchSystem.CombatMods(state), ResearchSystem.DefenseMods(bot.State));
-            report.Location = tile;
-            report.DefenderName = snapshot.CommanderName;
-
-            var attackLosses = ClanSystem.SplitLosses(attackLines, report.AttackerSurvivors);
-            var yourSurvivors = Minus(entry.Sent, attackLosses[0]);
-            // Clanmates' survivors fly home to their own docks.
-            for (int i = 0; i < helpers.Count; i++)
-            {
-                if (helpers[i] is not { } ally) continue;
-                foreach (var kv in Minus(attackLines[i + 1], attackLosses[i + 1]))
-                    ally.State.Ships[kv.Key] = (ally.State.Ships.TryGetValue(kv.Key, out var n) ? n : 0) + kv.Value;
-                ally.CachedMight = PowerSystem.ComputePower(ally.State);
-            }
-            var alliedNames = new List<string>();
-            foreach (var ally in helpers) if (ally != null) alliedNames.Add(ally.Name);
-            var alliedShips = entry.Allied.Count > 0
-                ? ClanSystem.Combine(entry.Allied.ConvertAll(a => a.ships)) : null;
-            entry.Allied.Clear(); // settled here
-
-            var loot = new ResourceBag();
-            if (report.Winner == BattleWinner.Attacker)
-            {
-                // Your own surviving ships carry the plunder. War Games (galaxy
-                // event): raiding fleets haul more.
-                long cap = (long)(MarchSystem.EffCargoCap(state, yourSurvivors) * EventSystem.RaidLootMult(state));
-                long total = snapshot.LootableMilli.Total;
-                double scale = total > 0 ? Math.Min(1.0, cap / (double)total) : 0;
-                loot.Gold = (long)Math.Floor(snapshot.LootableMilli.Gold * scale);
-                loot.Quartz = (long)Math.Floor(snapshot.LootableMilli.Quartz * scale);
-                loot.Helium = (long)Math.Floor(snapshot.LootableMilli.Helium * scale);
-            }
-            report.Loot = loot.Clone();
-
-            var march = state.Marches.Find(m => m.Id == entry.MarchId);
-            if (march != null)
-            {
-                // Fleet is flying home — survivors carry the plunder.
-                march.Ships = new Dictionary<HullId, int>(yourSurvivors);
-                march.Cargo = loot.Clone();
-                if (MarchSystem.FleetCount(march.Ships) == 0)
-                    state.Marches.RemoveAll(m => m.Id == entry.MarchId); // wiped out
-            }
-            else
-            {
-                // Offline catch-up already docked the round trip intact — square it up.
-                ClanSystem.Deduct(state.Ships, attackLosses[0]);
-                state.Resources.Gold += loot.Gold;
-                state.Resources.Quartz += loot.Quartz;
-                state.Resources.Helium += loot.Helium;
-            }
-
-            if (report.Winner == BattleWinner.Attacker)
-            {
-                state.Stats.BattlesWon++;
-                state.Stats.RaidsWon++;
-                state.Stats.LootMilli += loot.Total;
-            }
-            else state.Stats.BattlesLost++;
-
-            // The defending clanmates take their share of the losses.
-            var defenseLosses = ClanSystem.SplitLosses(defenseLines, report.DefenderSurvivors);
-            for (int i = 0; i < defenseHelpers.Count; i++)
-            {
-                ClanSystem.Deduct(defenseHelpers[i].ally.State.Ships, defenseLosses[i + 1]);
-                defenseHelpers[i].ally.CachedMight = PowerSystem.ComputePower(defenseHelpers[i].ally.State);
-            }
-
-            RaidService.InsertMail(state, new BattleMailReport
-            {
-                Id = state.NextReportId++,
-                AtTick = state.Tick,
-                Target = tile,
-                Subject = report.Winner switch
-                {
-                    BattleWinner.Attacker => $"Raid victory — {snapshot.CommanderName}",
-                    BattleWinner.Defender => $"Raid repelled — {snapshot.CommanderName}",
-                    _ => $"Raid stalemate — {snapshot.CommanderName}",
-                },
-                Report = report,
-                AllyShips = alliedShips,
-                AllyNames = alliedNames.Count > 0 ? string.Join(", ", alliedNames) : null,
-                EnemyAllyShips = defenseHelpers.Count > 0
-                    ? ClanSystem.Combine(defenseHelpers.ConvertAll(h => h.ships)) : null,
-                EnemyAllyNames = defenseHelpers.Count > 0
-                    ? string.Join(", ", defenseHelpers.ConvertAll(h => h.ally.Name)) : null,
-            });
-            _ctx.Events!.Emit(new BattleResolved(report));
-
-            // Defender side lands immediately — the bot's empire takes the hit,
-            // their planet burns on the map, and the galaxy news carries the story.
-            // (Passing the player state lets a farmed bot panic-port somewhere
-            // that isn't the player's own tile.)
-            BotSystem.ApplyPlayerRaid(galaxy, bot, report, loot, state, defenseLosses[0]);
-        }
-
-        static Dictionary<HullId, int> Minus(Dictionary<HullId, int> fleet, Dictionary<HullId, int> losses)
-        {
-            var left = new Dictionary<HullId, int>();
-            foreach (var kv in fleet)
-            {
-                int n = kv.Value - (losses.TryGetValue(kv.Key, out var l) ? l : 0);
-                if (n > 0) left[kv.Key] = n;
-            }
-            return left;
+            // The fight itself — your fleet and any joint-strike wings against their
+            // garrison and clan — lives in the sim (StrikeSystem) so it's testable.
+            var mail = StrikeSystem.ResolveRaid(state, _ctx.Bots!, bot, entry.MarchId, entry.Sent,
+                new TileXY(entry.TargetX, entry.TargetY));
+            _ctx.Events!.Emit(new BattleResolved(mail.Report));
         }
 
         void ResolveSpy(GameState state, BotEmpire bot, Pending entry)
@@ -351,27 +219,11 @@ namespace GalaxyRoyale.Game
                     ["sent"] = SaveCodec.Comp(p.Sent),
                     ["tx"] = (long)p.TargetX,
                     ["ty"] = (long)p.TargetY,
-                    ["allied"] = p.Allied.ConvertAll(a => (object?)new Dictionary<string, object?>
-                    {
-                        ["bot"] = (long)a.botId,
-                        ["ships"] = SaveCodec.Comp(a.ships),
-                    }),
                 });
             PlayerPrefs.SetString(PrefsKey, Json.Write(rows));
             // Flush now (Unity only writes prefs at quit otherwise): a raid lost
             // to a crash would strand the clanmates' ships that flew with it.
             PlayerPrefs.Save();
-        }
-
-        static List<(int botId, Dictionary<HullId, int> ships)> ReadAllied(Dictionary<string, object?> d)
-        {
-            var list = new List<(int botId, Dictionary<HullId, int> ships)>();
-            if (!d.TryGetValue("allied", out var raw) || raw is not List<object?> rows) return list;
-            foreach (var r in rows)
-                if (r is Dictionary<string, object?> a && a.TryGetValue("bot", out var b) && b is long botId
-                    && a.TryGetValue("ships", out var sh) && sh is Dictionary<string, object?> ships)
-                    list.Add(((int)botId, SaveCodec.DecComp(ships)));
-            return list;
         }
 
         void Load()
@@ -395,7 +247,6 @@ namespace GalaxyRoyale.Game
                             ? SaveCodec.DecComp(comp) : new Dictionary<HullId, int>(),
                         TargetX = d["tx"] is long tx ? (int)tx : 0,
                         TargetY = d["ty"] is long ty ? (int)ty : 0,
-                        Allied = ReadAllied(d),
                     });
                 }
             }
