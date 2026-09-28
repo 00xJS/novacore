@@ -70,6 +70,21 @@ namespace GalaxyRoyale.Game.UI
                 if (d.ShipsBuilt > 0) Line(Icon.Check, $"{N(d.ShipsBuilt, "ship", "ships")} built", UiTheme.Text);
             }
 
+            if (d.Achievements.Count + d.SeasonsEnded.Count + d.SupplyRuns > 0)
+            {
+                Section("PROGRESS");
+                foreach (var rec in d.SeasonsEnded)
+                    Line(Icon.Trophy, $"Season {rec.Season} ended — you placed #{rec.Rank} of {rec.Of} (+{rec.RewardDM} DM)",
+                        UiTheme.Energy);
+                foreach (var a in d.Achievements)
+                    Line(Icon.Trophy, a.Title != null
+                        ? $"Achievement: {a.Name} (+{a.RewardDM} DM, title \"{a.Title}\")"
+                        : $"Achievement: {a.Name} (+{a.RewardDM} DM)", UiTheme.Energy);
+                if (d.SupplyRuns > 0)
+                    Line(Icon.Pact, $"{N(d.SupplyRuns, "supply run", "supply runs")} from your allies — collect in MORE › ALLIES",
+                        UiTheme.Good);
+            }
+
             var gained = d.Gained;
             if (gained.Gold > 0 || gained.Quartz > 0 || gained.Helium > 0)
             {

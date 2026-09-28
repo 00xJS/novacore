@@ -90,6 +90,7 @@ namespace GalaxyRoyale.Sim.Systems
             {
                 budget -= curLeft;
                 state.Ships[order.Hull]++;
+                state.Stats.ShipsBuilt++;
                 order.Remaining--;
                 curLeft = buildTime;
             }
@@ -126,6 +127,7 @@ namespace GalaxyRoyale.Sim.Systems
                 }
                 if (state.Tick < order.NextDoneAtTick) continue;
                 state.Ships[order.Hull]++;
+                state.Stats.ShipsBuilt++;
                 order.Remaining--;
                 events.Emit(new ShipsCompleted(order.Hull, 1));
                 if (order.Remaining <= 0) { state.ShipQueue.RemoveAt(i); i--; }

@@ -88,5 +88,13 @@ namespace GalaxyRoyale.Game.UI
             if (m > 0) return $"{m}m {sec}s";
             return $"{sec}s";
         }
+
+        /// <summary>Like FmtDuration, but counts days for long spans ("9d 4h").</summary>
+        public static string FmtLong(double seconds)
+        {
+            long s = (long)System.Math.Max(0, System.Math.Ceiling(seconds));
+            if (s < 86400) return FmtDuration(s);
+            return $"{s / 86400}d {s % 86400 / 3600}h";
+        }
     }
 }

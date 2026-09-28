@@ -121,6 +121,10 @@ namespace GalaxyRoyale.Sim
         /// <summary>Defense reports: the raiding bot's id, for STRIKE BACK
         /// (0 = unknown — reports filed before the field existed).</summary>
         public int AttackerBotId;
+        /// <summary>Defense reports: warships your allies committed (already
+        /// counted in the report's Defender side) and who sent them.</summary>
+        public Dictionary<HullId, int>? AllyShips;
+        public string? AllyNames;
     }
 
     /// <summary>
@@ -219,6 +223,39 @@ namespace GalaxyRoyale.Sim
         public int BattlesWon;
         public int BattlesLost;
         public int MarchesSent;
+        // Progression counters (achievements, events, seasons — 2026-09-28).
+        public int CampsCleared;
+        public int RaidsWon;
+        public int DefensesWon;
+        public int ShipsBuilt;
+        public int UpgradesDone;
+        public int ResearchDone;
+        public int EventsCompleted;
+        /// <summary>Plunder taken from camps and raids, milli-units.</summary>
+        public long LootMilli;
+        /// <summary>Best finishing rank in a season (0 = none finished yet).</summary>
+        public int BestSeasonRank;
+    }
+
+    /// <summary>A finished season: where you placed and what it paid.</summary>
+    public sealed class SeasonRecord
+    {
+        public int Season;
+        public int Rank;
+        public int Of;
+        public long Gain;
+        public int RewardDM;
+    }
+
+    /// <summary>A pact with a simulated commander (AllianceSystem).</summary>
+    public sealed class Alliance
+    {
+        public int BotId;
+        public int SinceTick;
+        public int NextAidTick;
+        /// <summary>Supply runs delivered but not yet collected (milli) and how many.</summary>
+        public ResourceBag Pending = new();
+        public int PendingRuns;
     }
 
     public sealed class GameState
@@ -241,6 +278,21 @@ namespace GalaxyRoyale.Sim
         /// <summary>Commander's Path progress — index of the next quest in
         /// Quests.Chain (runs in both modes).</summary>
         public int QuestStep;
+        /// <summary>Unlocked achievement ids (Data/Achievements).</summary>
+        public HashSet<string> Achievements = new();
+        /// <summary>Equipped commander title — an unlocked achievement's id (null = none).</summary>
+        public string? Title;
+        /// <summary>Galaxy event being tracked (EventSystem): its instance number,
+        /// the goal counter's value when it began, whether its reward was claimed.</summary>
+        public int EventInstance = -1;
+        public long EventBaseline;
+        public bool EventClaimed;
+        /// <summary>Current season (0 = not started) and the might it began at.</summary>
+        public int Season;
+        public long SeasonStartMight;
+        public List<SeasonRecord> SeasonHistory = new();
+        /// <summary>Pacts with simulated commanders (at most AllianceSystem.MaxAllies).</summary>
+        public List<Alliance> Allies = new();
         public Profile Profile = new();
         /// <summary>Milli-units.</summary>
         public ResourceBag Resources = new();

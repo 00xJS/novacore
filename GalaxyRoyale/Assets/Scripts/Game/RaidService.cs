@@ -30,6 +30,8 @@ namespace GalaxyRoyale.Game
             var state = ctx.State!;
             if (IsShielded(target.Might))
                 return (false, "That commander is under a new-commander shield");
+            if (AllianceSystem.IsAlly(state, target.BotId))
+                return (false, $"{target.CommanderName} is your ally — break the pact first");
 
             // Full fleet flies out; arrival at the node-less tile turns it around,
             // which is the moment RaidArrivals resolves the fight.

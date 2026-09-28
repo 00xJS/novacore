@@ -77,7 +77,11 @@ namespace GalaxyRoyale.Game
         SimEventBus? _events;
         double _startTime;
 
-        void Awake() => EnsureInit();
+        void Awake()
+        {
+            ErrorLog.Install();
+            EnsureInit();
+        }
 
         // Idempotent re-init. Unity nulls private non-serialized fields on domain reload
         // (e.g. asset refresh during Play mode) without calling Awake again — so any of
@@ -119,13 +123,14 @@ namespace GalaxyRoyale.Game
             _engine = new TickEngine(_state, _events!);
             int mailIdBefore = _state.NextReportId;
             int rankBefore = OfflineDebrief.RankOf(_state, _bots);
+            var progressBefore = new ProgressMark(_state);
             var summary = SaveManager.ApplyOfflineProgress(
                 _state, _engine, _events!,
                 savedAtMs, System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
             // Bots catch up to the fast-forwarded player clock in the same
             // suppressed window (no retroactive raid toasts from hours ago).
             CatchUpBots();
-            LastDebrief = OfflineDebrief.Build(_state, summary, mailIdBefore, rankBefore, _bots);
+            LastDebrief = OfflineDebrief.Build(_state, summary, mailIdBefore, rankBefore, _bots, progressBefore);
             // AdvanceToWallClock's clock counts from scene start; the loaded save is
             // already at Tick N, so shift the origin back N seconds to line them up.
             _startTime = Time.timeAsDouble - _state.Tick;
@@ -139,7 +144,13 @@ namespace GalaxyRoyale.Game
         {
             if (_bots == null || _state == null) return;
             _events!.Suppressed = true;
-            try { GalaxyRoyale.Sim.Bots.BotSystem.Advance(_state, _bots, _events); }
+            try
+            {
+                GalaxyRoyale.Sim.Bots.BotSystem.Advance(_state, _bots, _events);
+                // Supply runs, a season that ended while away, achievements.
+                ProgressionSystem.Advance(_state, _bots, _events);
+                _progressTick = _state.Tick;
+            }
             finally { _events.Suppressed = false; }
             _events.DrainSuppressed();
         }
@@ -172,10 +183,11 @@ namespace GalaxyRoyale.Game
 
             int mailIdBefore = _state.NextReportId;
             int rankBefore = OfflineDebrief.RankOf(_state, _bots);
+            var progressBefore = new ProgressMark(_state);
             var summary = SaveManager.ApplyOfflineProgress(_state, _engine, _events, 0, gapMs);
             CatchUpBots();
             _startTime = Time.timeAsDouble - _state.Tick;
-            LastDebrief = OfflineDebrief.Build(_state, summary, mailIdBefore, rankBefore, _bots);
+            LastDebrief = OfflineDebrief.Build(_state, summary, mailIdBefore, rankBefore, _bots, progressBefore);
             Debug.Log($"[GalaxyRoyale] Resumed after {gapMs / 1000}s — caught up {summary.ElapsedSec}s");
             Resumed?.Invoke(LastDebrief);
         }
@@ -187,8 +199,18 @@ namespace GalaxyRoyale.Game
             _engine!.AdvanceToWallClock(nowMs);
             // The simulated galaxy rides the same clock, right behind the player sim.
             if (_bots != null && _state != null)
+            {
                 GalaxyRoyale.Sim.Bots.BotSystem.Advance(_state, _bots, _events!);
+                if (_state.Tick != _progressTick)
+                {
+                    _progressTick = _state.Tick;
+                    ProgressionSystem.Advance(_state, _bots, _events!);
+                }
+            }
         }
+
+        /// <summary>Last tick ProgressionSystem ran for (once per sim tick).</summary>
+        int _progressTick = -1;
 
         void OnSimEvent(SimEvent e)
         {

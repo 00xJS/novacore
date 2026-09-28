@@ -4,6 +4,7 @@
 // until you spy (v1 rule, kept).
 using UnityEngine.UIElements;
 using GalaxyRoyale.Sim.Bots;
+using GalaxyRoyale.Sim.Systems;
 
 namespace GalaxyRoyale.Game.UI
 {
@@ -55,6 +56,7 @@ namespace GalaxyRoyale.Game.UI
 
             Line("MIGHT", bot.CachedMight.ToString("N0"), UiTheme.Energy);
             Line("HQ", $"{bot.HomeTile.X}, {bot.HomeTile.Y}", UiTheme.Accent);
+            Line("DISTANCE", $"{GalaxyRoyale.Data.TileXY.Distance(bot.HomeTile, ctx.State!.HomeTile):N0} tiles", UiTheme.Text);
             Line("BATTLES", $"{bot.State.Stats.BattlesWon}W · {bot.State.Stats.BattlesLost}L", UiTheme.Text);
             // Your won raid marked them (BotSystem.ApplyPlayerRaid): the counter-
             // raid comes once they can win it, unless the grudge lapses first.
@@ -67,8 +69,42 @@ namespace GalaxyRoyale.Game.UI
                 body.Add(grudge);
             }
 
+            // ---- alliance ----
+            bool allied = AllianceSystem.IsAlly(ctx.State!, bot.Id);
+            if (allied)
+            {
+                var ally = Widgets.IconText(Icon.Pact,
+                    AllianceSystem.InReinforceRange(ctx.State!, bot)
+                        ? "YOUR ALLY — reinforces your colony when raiders strike"
+                        : "YOUR ALLY — too far away to reinforce you", 11, UiTheme.Good, bold: true);
+                ally.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                ally.style.marginTop = 10;
+                body.Add(ally);
+            }
+            var pactBtn = Widgets.IconButton(Icon.Pact, allied ? "ALLIANCES" : "PROPOSE ALLIANCE", () =>
+            {
+                if (allied) { ui.OpenAlliances(); return; }
+                if (AlliancePanel.Propose(ctx, botId)) Open(ctx, botId, fallbackName);
+            }, 10);
+            pactBtn.style.marginTop = 14;
+            if (!allied)
+            {
+                // Say up front whether they'd sign — the reason reads better than a failed tap.
+                var verdict = AllianceSystem.CanPropose(ctx.State!, ctx.Bots!, bot);
+                if (!verdict.Ok)
+                {
+                    var why = Widgets.Text(verdict.Reason ?? "", 10, UiTheme.Dim);
+                    why.style.whiteSpace = WhiteSpace.Normal;
+                    why.style.marginTop = 10;
+                    body.Add(why);
+                    pactBtn.style.marginTop = 4;
+                    Widgets.SetButtonEnabled(pactBtn, false);
+                }
+            }
+            body.Add(pactBtn);
+
             var actions = Widgets.HBox(Justify.SpaceBetween);
-            actions.style.marginTop = 14;
+            actions.style.marginTop = 8;
             var map = Widgets.TextButton("VIEW ON MAP", () =>
             {
                 ui.CloseModal();
@@ -84,6 +120,7 @@ namespace GalaxyRoyale.Game.UI
                 RaidPanel.Open(ctx, botId);
             }, 10);
             raid.style.width = Length.Percent(48f);
+            if (allied) Widgets.SetButtonEnabled(raid, false); // pacts hold both ways
             actions.Add(raid);
             body.Add(actions);
         }

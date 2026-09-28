@@ -76,6 +76,8 @@ namespace GalaxyRoyale.Sim.Bots
         /// <summary>Pending "spy them back" flight at the PLAYER (0 = none) — set
         /// when the player's probe sweeps this bot and it notices.</summary>
         public int SpyBackAtTick;
+        /// <summary>Might at the start of the current season (SeasonSystem).</summary>
+        public long SeasonStartMight;
 
         public string Name => BotNames.NameOf(Id);
         public TileXY HomeTile => State.HomeTile;
@@ -449,7 +451,8 @@ namespace GalaxyRoyale.Sim.Bots
                 if (bot.SpyBackAtTick > 0 && now >= bot.SpyBackAtTick)
                 {
                     bot.SpyBackAtTick = 0;
-                    if (!galaxy.Inbound.Exists(a => a.BotId == bot.Id))
+                    if (!galaxy.Inbound.Exists(a => a.BotId == bot.Id)
+                        && !AllianceSystem.IsAlly(player, bot.Id)) // friends don't scout friends
                         LaunchAtPlayer(player, galaxy, bot, fleet: null, launchTick: now);
                 }
                 RollAttacks(player, galaxy, bot, personality, events);
@@ -842,6 +845,7 @@ namespace GalaxyRoyale.Sim.Bots
             }
             long playerMight = PowerSystem.ComputePower(player);
             bool playerEligible = rollTick >= galaxy.NextInboundWindowTick
+                && !AllianceSystem.IsAlly(player, bot.Id) // pacts hold
                 && playerMight >= PlayerShieldMight
                 && playerMight <= reachCap
                 && player.Buffs.ShieldUntilTick <= rollTick // Aegis Shield: untargetable
@@ -941,6 +945,7 @@ namespace GalaxyRoyale.Sim.Bots
 
             if (bot.FocusTargetId == 0) // the player wronged this bot
             {
+                if (AllianceSystem.IsAlly(player, bot.Id)) { bot.FocusTargetId = -1; return false; }
                 long playerMight = PowerSystem.ComputePower(player);
                 if (playerMight > reachCap) return false;  // not big enough yet — another day
                 if (playerMight < PlayerShieldMight) { bot.FocusTargetId = -1; return false; }
@@ -1150,6 +1155,17 @@ namespace GalaxyRoyale.Sim.Bots
                 // Ships out on fly-to holds/marches are away — the radar warning is
                 // a real dodge window, exactly like the old PvP arrival rule.
                 var defenders = new Dictionary<HullId, int>(player.Ships);
+                // Allies in range send a share of their docked warships; they fight
+                // under the colony's defense research (it's your home they hold).
+                var reinforcements = AllianceSystem.Reinforcements(player, galaxy);
+                Dictionary<HullId, int>? allyShips = null;
+                foreach (var (_, sent) in reinforcements)
+                    foreach (var kv in sent)
+                    {
+                        allyShips ??= new Dictionary<HullId, int>();
+                        allyShips[kv.Key] = (allyShips.TryGetValue(kv.Key, out var a) ? a : 0) + kv.Value;
+                        defenders[kv.Key] = (defenders.TryGetValue(kv.Key, out var d0) ? d0 : 0) + kv.Value;
+                    }
                 var report = CombatResolver.Resolve(atk.Ships, defenders,
                     ResearchSystem.CombatMods(bot.State), ResearchSystem.DefenseMods(player));
                 report.Location = player.HomeTile;
@@ -1163,7 +1179,8 @@ namespace GalaxyRoyale.Sim.Bots
                         Math.Max(0, player.Resources.Gold - shielded.Gold),
                         Math.Max(0, player.Resources.Quartz - shielded.Quartz),
                         Math.Max(0, player.Resources.Helium - shielded.Helium));
-                    long cap = MarchSystem.FleetCargoCap(report.AttackerSurvivors);
+                    // War Games (galaxy event): raiding fleets haul more.
+                    long cap = (long)(MarchSystem.FleetCargoCap(report.AttackerSurvivors) * EventSystem.RaidLootMult(player));
                     long total = lootable.Total;
                     double scale = total > 0 ? Math.Min(1.0, cap / (double)total) : 0;
                     loot.Gold = (long)Math.Floor(lootable.Gold * scale);
@@ -1172,15 +1189,29 @@ namespace GalaxyRoyale.Sim.Bots
                 }
                 report.Loot = loot.Clone();
 
-                // Defender (player) side: losses + plunder land now.
+                // Defender side: losses + plunder land now. Each hull's losses are
+                // shared in proportion to who put ships in the line.
                 foreach (var hull in Ships.All)
                 {
                     int had = defenders.TryGetValue(hull, out var d) ? d : 0;
                     int left = report.DefenderSurvivors.TryGetValue(hull, out var s) ? s : 0;
-                    if (had - left > 0)
+                    int lost = had - left;
+                    if (lost <= 0) continue;
+                    int yoursLost = lost;
+                    foreach (var (ally, sent) in reinforcements)
+                    {
+                        if (!sent.TryGetValue(hull, out var mine) || mine <= 0) continue;
+                        int allyLost = Math.Min(Math.Min(mine, yoursLost),
+                            (int)Math.Round(lost * (double)mine / had));
+                        ally.State.Ships[hull] = Math.Max(0, ally.State.Ships[hull] - allyLost);
+                        yoursLost -= allyLost;
+                    }
+                    if (yoursLost > 0)
                         player.Ships[hull] = Math.Max(0,
-                            (player.Ships.TryGetValue(hull, out var cur) ? cur : 0) - (had - left));
+                            (player.Ships.TryGetValue(hull, out var cur) ? cur : 0) - yoursLost);
                 }
+                foreach (var (ally, _) in reinforcements)
+                    ally.CachedMight = PowerSystem.ComputePower(ally.State);
                 player.Resources.Gold = Math.Max(0, player.Resources.Gold - loot.Gold);
                 player.Resources.Quartz = Math.Max(0, player.Resources.Quartz - loot.Quartz);
                 player.Resources.Helium = Math.Max(0, player.Resources.Helium - loot.Helium);
@@ -1195,7 +1226,11 @@ namespace GalaxyRoyale.Sim.Bots
                     player.BurningUntilTick = Math.Max(player.BurningUntilTick,
                         atk.ArrivesAtTick + Balance.BurnDurationSec);
                 }
-                else player.Stats.BattlesWon++;
+                else
+                {
+                    player.Stats.BattlesWon++;
+                    player.Stats.DefensesWon++;
+                }
 
                 InsertMail(player, new BattleMailReport
                 {
@@ -1208,6 +1243,10 @@ namespace GalaxyRoyale.Sim.Bots
                     Defending = true,
                     AttackerBotId = bot.Id,
                     Report = report,
+                    AllyShips = allyShips,
+                    AllyNames = reinforcements.Count > 0
+                        ? string.Join(", ", reinforcements.ConvertAll(r => r.ally.Name))
+                        : null,
                 });
                 events.Emit(new ColonyRaided(report, bot.Name));
                 galaxy.AddNews(atk.ArrivesAtTick, bot.Id, 0, playerLost, loot.Total);
@@ -1313,7 +1352,8 @@ namespace GalaxyRoyale.Sim.Bots
                             Math.Max(0, defender.State.Resources.Gold - shielded.Gold),
                             Math.Max(0, defender.State.Resources.Quartz - shielded.Quartz),
                             Math.Max(0, defender.State.Resources.Helium - shielded.Helium));
-                        long cap = MarchSystem.FleetCargoCap(report.AttackerSurvivors);
+                        long cap = (long)(MarchSystem.FleetCargoCap(report.AttackerSurvivors)
+                            * EventSystem.RaidLootMult(defender.State));
                         long total = lootable.Total;
                         double scale = total > 0 ? Math.Min(1.0, cap / (double)total) : 0;
                         var loot = new ResourceBag(
