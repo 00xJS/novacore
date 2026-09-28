@@ -1205,7 +1205,7 @@ namespace GalaxyRoyale.Game.UI
                     if (m.Kind == GalaxyRoyale.Sim.Bots.BotMarchKind.CoreAssault && !m.Resolved)
                         assault = Math.Min(assault, m.ArrivesAtTick);
             int tribute = Math.Max(0, galaxy.Core.NextTributeTick - state.Tick);
-            string key = $"{mine}|{clan}|{(assault != int.MaxValue ? assault - state.Tick : -1)}|{tribute / 60}";
+            string key = $"{mine}|{clan}|{(assault != int.MaxValue ? assault - state.Tick : -1)}|{tribute}";
             if (key == _coreKey) return;
             _coreKey = key;
             _coreChip.style.display = mine || clan ? DisplayStyle.Flex : DisplayStyle.None;
