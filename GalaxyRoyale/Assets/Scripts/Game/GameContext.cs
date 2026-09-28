@@ -122,10 +122,7 @@ namespace GalaxyRoyale.Game
                 savedAtMs, System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
             // Bots catch up to the fast-forwarded player clock in the same
             // suppressed window (no retroactive raid toasts from hours ago).
-            _events!.Suppressed = true;
-            GalaxyRoyale.Sim.Bots.BotSystem.Advance(_state, _bots, _events);
-            _events.Suppressed = false;
-            _events.DrainSuppressed();
+            CatchUpBots();
             // AdvanceToWallClock's clock counts from scene start; the loaded save is
             // already at Tick N, so shift the origin back N seconds to line them up.
             _startTime = Time.timeAsDouble - _state.Tick;
@@ -133,6 +130,44 @@ namespace GalaxyRoyale.Game
             SceneBootstrap.RequestPlanetRefresh(); // adopted seed → new planet look
             Debug.Log($"[GalaxyRoyale] Adopted save at tick {_state.Tick} (+{summary.ElapsedSec}s offline)");
             return summary;
+        }
+
+        void CatchUpBots()
+        {
+            if (_bots == null || _state == null) return;
+            _events!.Suppressed = true;
+            try { GalaxyRoyale.Sim.Bots.BotSystem.Advance(_state, _bots, _events); }
+            finally { _events.Suppressed = false; }
+            _events.DrainSuppressed();
+        }
+
+        // ---------- background → foreground catch-up ----------
+        //
+        // iOS suspends the app in the background, and on resume Time.timeAsDouble
+        // only advances by Time.maximumDeltaTime (~0.33 s). So an hour spent in
+        // another app used to FREEZE the galaxy — and the next autosave stamped
+        // "now", losing that hour for good. Resuming now runs the same suppressed
+        // catch-up a cold start does, then re-bases the wall clock.
+
+        long _pausedAtMs;
+
+        /// <summary>Fired after a background→foreground catch-up (LocalBootstrap toasts it).</summary>
+        public event System.Action<OfflineSummary>? Resumed;
+
+        void OnApplicationPause(bool paused)
+        {
+            long now = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (paused) { _pausedAtMs = now; return; }
+            if (_pausedAtMs <= 0 || _state == null || _engine == null || _events == null) return;
+            long gapMs = now - _pausedAtMs;
+            _pausedAtMs = 0;
+            if (gapMs < 2000) return; // a notification-shade peek isn't worth a catch-up
+
+            var summary = SaveManager.ApplyOfflineProgress(_state, _engine, _events, 0, gapMs);
+            CatchUpBots();
+            _startTime = Time.timeAsDouble - _state.Tick;
+            Debug.Log($"[GalaxyRoyale] Resumed after {gapMs / 1000}s — caught up {summary.ElapsedSec}s");
+            Resumed?.Invoke(summary);
         }
 
         void Update()

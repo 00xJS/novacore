@@ -450,12 +450,20 @@ namespace GalaxyRoyale.Sim.Systems
 
         // ---------- tick ----------
 
+        // ArriveAtNode can REMOVE a march (a camp battle that wipes the fleet),
+        // so the tick walks a snapshot. Mutating state.Marches under a foreach
+        // threw InvalidOperationException — during offline catch-up that aborted
+        // the whole load (no autosave afterwards, and every relaunch replayed it).
+        static readonly List<March> s_tickSnapshot = new();
+
         public static void Tick(GameState state, SimEventBus events)
         {
             if (state.Marches.Count == 0) return;
             var done = new List<March>();
 
-            foreach (var march in state.Marches)
+            s_tickSnapshot.Clear();
+            s_tickSnapshot.AddRange(state.Marches);
+            foreach (var march in s_tickSnapshot)
             {
                 if (state.Tick < march.ArrivesAtTick) continue;
                 if (march.Phase == MarchPhase.Outbound) ArriveAtNode(state, events, march);
@@ -557,7 +565,6 @@ namespace GalaxyRoyale.Sim.Systems
                 {
                     state.Stats.BattlesLost++;
                 }
-                events.Emit(new BattleResolved(report));
 
                 string subject = report.Winner switch
                 {
@@ -576,6 +583,9 @@ namespace GalaxyRoyale.Sim.Systems
                     Favorite = false,
                 });
                 TrimMailbox(state);
+                // Emit AFTER the report is filed: the UI pops Mailbox[0] on this
+                // event, and emitting first showed the PREVIOUS battle's report.
+                events.Emit(new BattleResolved(report));
 
                 if (FleetCount(march.Ships) == 0)
                 {
