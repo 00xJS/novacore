@@ -15,6 +15,7 @@ namespace GalaxyRoyale.Game.UI
         Swords, Star, StarOutline, Info, Warning, Check,
         ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown,
         Close, Menu, More, Search, Rotate, Chart, Dot, Ring, Eye,
+        Play, FastForward, Skip,
     }
 
     /// <summary>A square element that paints one <see cref="Icon"/> in a tint color.</summary>
@@ -241,6 +242,18 @@ namespace GalaxyRoyale.Game.UI
                     p.ClosePath();
                     p.Stroke();
                     Circle(0.5f, 0.5f, 0.14f, fill: true);
+                    break;
+                case Icon.Play:
+                    Path(true, 0.28f, 0.18f, 0.84f, 0.5f, 0.28f, 0.82f);
+                    break;
+                case Icon.FastForward:
+                    Path(true, 0.1f, 0.22f, 0.5f, 0.5f, 0.1f, 0.78f);
+                    Path(true, 0.5f, 0.22f, 0.9f, 0.5f, 0.5f, 0.78f);
+                    break;
+                case Icon.Skip: // skip to the end: play triangle + bar
+                    Path(true, 0.14f, 0.2f, 0.64f, 0.5f, 0.14f, 0.8f);
+                    p.lineWidth = Mathf.Max(1.4f, s * 0.13f);
+                    Line(0.8f, 0.22f, 0.8f, 0.78f);
                     break;
             }
         }

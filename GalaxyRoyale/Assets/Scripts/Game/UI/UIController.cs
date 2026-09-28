@@ -692,9 +692,11 @@ namespace GalaxyRoyale.Game.UI
                     break;
                 }
                 case BattleResolved:
-                    // v1 pops the report immediately; MarchSystem inserts it at Mailbox[0].
+                    // The fight plays out (SKIP-able replay), then the report; a
+                    // round-less one goes straight to the report. MarchSystem and
+                    // RaidArrivals insert it at Mailbox[0] before emitting.
                     if (_ctx.State!.Mailbox.Count > 0 && _ctx.State.Mailbox[0] is BattleMailReport report)
-                        MailboxPanel.OpenReport(_ctx, report);
+                        ShowBattle(report);
                     else
                         Toast("Battle resolved — report in your Mailbox");
                     break;
@@ -704,11 +706,17 @@ namespace GalaxyRoyale.Game.UI
                 case ColonyRaided raided:
                     // A rival's raid landed on the home colony — pop the report.
                     if (_ctx.State!.Mailbox.Count > 0 && _ctx.State.Mailbox[0] is BattleMailReport cr)
-                        MailboxPanel.OpenReport(_ctx, cr);
+                        ShowBattle(cr);
                     else
                         Toast($"Your colony was raided by {raided.AttackerName} — check Mail");
                     break;
             }
+        }
+
+        void ShowBattle(BattleMailReport report)
+        {
+            if (BattleReplayPanel.CanReplay(report)) BattleReplayPanel.Open(_ctx, report);
+            else MailboxPanel.OpenReport(_ctx, report);
         }
 
         // ---------- per-frame refresh (string-cached like v1) ----------
@@ -719,6 +727,10 @@ namespace GalaxyRoyale.Game.UI
         // down (plus a beat after, for fling momentum and scroll inertia); idle
         // drops back to the old 30 so battery use at rest is unchanged.
         float _lastTouchTime = -10f;
+
+        /// <summary>Hold 60 fps for a moment, as a touch does — animations (the
+        /// battle replay) call this every frame while they play.</summary>
+        public void KeepSmooth() => _lastTouchTime = Time.unscaledTime;
 
         void PaceFrames()
         {
