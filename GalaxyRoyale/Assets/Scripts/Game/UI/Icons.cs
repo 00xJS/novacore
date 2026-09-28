@@ -16,6 +16,7 @@ namespace GalaxyRoyale.Game.UI
         ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown,
         Close, Menu, More, Search, Rotate, Chart, Dot, Ring, Eye,
         Play, FastForward, Skip, Shield, Target,
+        Trophy, Pact, Bolt, Clock,
     }
 
     /// <summary>A square element that paints one <see cref="Icon"/> in a tint color.</summary>
@@ -276,6 +277,43 @@ namespace GalaxyRoyale.Game.UI
                     Line(0.5f, 0.74f, 0.5f, 0.94f);
                     Line(0.06f, 0.5f, 0.26f, 0.5f);
                     Line(0.74f, 0.5f, 0.94f, 0.5f);
+                    break;
+                case Icon.Trophy: // cup on a stem (achievements, seasons)
+                    p.BeginPath();
+                    p.MoveTo(P(0.27f, 0.12f));
+                    p.LineTo(P(0.73f, 0.12f));
+                    p.LineTo(P(0.73f, 0.34f));
+                    p.BezierCurveTo(P(0.73f, 0.52f), P(0.62f, 0.6f), P(0.5f, 0.6f));
+                    p.BezierCurveTo(P(0.38f, 0.6f), P(0.27f, 0.52f), P(0.27f, 0.34f));
+                    p.ClosePath();
+                    p.Fill();
+                    p.lineWidth = Mathf.Max(1f, s * 0.07f);
+                    p.BeginPath(); // handles
+                    p.MoveTo(P(0.27f, 0.2f));
+                    p.BezierCurveTo(P(0.08f, 0.2f), P(0.1f, 0.44f), P(0.3f, 0.44f));
+                    p.Stroke();
+                    p.BeginPath();
+                    p.MoveTo(P(0.73f, 0.2f));
+                    p.BezierCurveTo(P(0.92f, 0.2f), P(0.9f, 0.44f), P(0.7f, 0.44f));
+                    p.Stroke();
+                    p.lineWidth = Mathf.Max(1.2f, s * 0.1f);
+                    Line(0.5f, 0.6f, 0.5f, 0.76f);
+                    Path(true, 0.3f, 0.76f, 0.7f, 0.76f, 0.72f, 0.88f, 0.28f, 0.88f);
+                    break;
+                case Icon.Pact: // two linked rings (alliances)
+                    p.lineWidth = Mathf.Max(1.2f, s * 0.09f);
+                    Circle(0.37f, 0.5f, 0.22f, fill: false);
+                    Circle(0.63f, 0.5f, 0.22f, fill: false);
+                    break;
+                case Icon.Bolt: // lightning (galaxy events)
+                    Path(true, 0.6f, 0.06f, 0.2f, 0.56f, 0.47f, 0.56f, 0.38f, 0.94f, 0.8f, 0.42f, 0.53f, 0.42f);
+                    break;
+                case Icon.Clock:
+                    p.lineWidth = Mathf.Max(1f, s * 0.08f);
+                    Circle(0.5f, 0.5f, 0.4f, fill: false);
+                    p.lineWidth = Mathf.Max(1.2f, s * 0.09f);
+                    Line(0.5f, 0.5f, 0.5f, 0.26f);
+                    Line(0.5f, 0.5f, 0.67f, 0.6f);
                     break;
             }
         }

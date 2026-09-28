@@ -329,8 +329,21 @@ namespace GalaxyRoyale.Game.UI
 
                 if (defending)
                 {
-                    FleetSection("YOUR DEFENDERS", r.Defender);
-                    if (!deflected) FleetSection("YOUR SURVIVORS", r.DefenderSurvivors);
+                    // Allied reinforcements fought in the same line (their ships
+                    // are counted in the defenders below).
+                    if (battle.AllyShips != null && battle.AllyNames != null)
+                    {
+                        int allied = 0;
+                        foreach (var kv in battle.AllyShips) allied += kv.Value;
+                        var help = Widgets.IconText(Icon.Pact,
+                            $"ALLIED REINFORCEMENTS — {allied} warship{(allied == 1 ? "" : "s")} from {battle.AllyNames}",
+                            11, UiTheme.Good, bold: true);
+                        help.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                        help.style.marginTop = 10;
+                        content.Add(help);
+                    }
+                    FleetSection(battle.AllyShips != null ? "DEFENDERS (YOURS + ALLIES)" : "YOUR DEFENDERS", r.Defender);
+                    if (!deflected) FleetSection("SURVIVORS", r.DefenderSurvivors);
                     FleetSection("RAIDERS", r.Attacker);
                 }
                 else

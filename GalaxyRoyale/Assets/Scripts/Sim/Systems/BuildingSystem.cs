@@ -170,6 +170,7 @@ namespace GalaxyRoyale.Sim.Systems
                 {
                     state.Buildings[order.Building].Level = order.ToLevel;
                 }
+                state.Stats.UpgradesDone++;
                 events.Emit(new BuildingCompleted(order.Building, order.ToLevel));
             }
             if (completed.Count > 0)

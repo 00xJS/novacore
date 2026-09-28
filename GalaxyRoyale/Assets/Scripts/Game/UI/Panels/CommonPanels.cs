@@ -54,11 +54,13 @@ namespace GalaxyRoyale.Game.UI
     /// </summary>
     public static class ChoicePanel
     {
+        /// <param name="onDismiss">What the × does besides closing (default: nothing).</param>
         public static void Open(string title, string message,
-            (string label, Action action) first, (string label, Action action) second)
+            (string label, Action action) first, (string label, Action action) second,
+            Action? onDismiss = null)
         {
             var ui = UIController.Instance!;
-            var (blocker, content) = Widgets.ModalPanel(title, ui.CloseModal, 42f);
+            var (blocker, content) = Widgets.ModalPanel(title, () => { ui.CloseModal(); onDismiss?.Invoke(); }, 42f);
 
             var text = Widgets.Text(message, 13, UiTheme.Text);
             text.style.whiteSpace = WhiteSpace.Normal;

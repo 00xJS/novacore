@@ -30,6 +30,10 @@ namespace GalaxyRoyale.Game.UI
             var nameCol = new VisualElement();
             var nameLabel = Widgets.Text(state.Profile.Name, 15, UiTheme.Text, bold: true);
             nameCol.Add(nameLabel);
+            // Commander title (earned in AWARDS).
+            string? title = AchievementSystem.TitleText(state);
+            nameCol.Add(Widgets.Text(title ?? "No title yet", 10, title != null ? UiTheme.Energy : UiTheme.Dim,
+                bold: title != null));
             nameCol.Add(Widgets.Text($"HQ {state.HomeTile.X}, {state.HomeTile.Y}", 11, UiTheme.Accent));
             idBox.Add(nameCol);
             cardBox.Add(idBox);
@@ -43,9 +47,15 @@ namespace GalaxyRoyale.Game.UI
             card.Add(cardBox);
 
             int renameCost = Shop.ById["name-change"].PriceDM;
+            var idButtons = Widgets.HBox(Justify.SpaceBetween);
+            idButtons.style.marginTop = 8;
             var rename = Widgets.TextButton($"RENAME ({renameCost} DM)", () => OpenRename(ctx), 10);
-            rename.style.marginTop = 8;
-            card.Add(rename);
+            rename.style.width = Length.Percent(49f);
+            idButtons.Add(rename);
+            var titles = Widgets.IconButton(Icon.Trophy, "TITLES & AWARDS", ui.OpenAchievements, 10);
+            titles.style.width = Length.Percent(49f);
+            idButtons.Add(titles);
+            card.Add(idButtons);
             content.Add(card);
 
             // ---- resources ----
@@ -71,7 +81,10 @@ namespace GalaxyRoyale.Game.UI
             var empireRow = Widgets.Row();
             var statLabels = new System.Collections.Generic.Dictionary<string, Label>();
             foreach (var statName in new[]
-                { "Battles won", "Battles lost", "Marches sent", "Ships docked", "Tech levels", "Dark Matter" })
+            {
+                "Battles won", "Battles lost", "Camps cleared", "Raids won", "Raids repelled", "Marches sent",
+                "Ships built", "Ships docked", "Tech levels", "Achievements", "Best season", "Dark Matter",
+            })
             {
                 var line = Widgets.HBox(Justify.SpaceBetween);
                 line.style.marginTop = 3;
@@ -127,7 +140,7 @@ namespace GalaxyRoyale.Game.UI
                 // cache-key string build (it allocated every frame while open).
                 if (state.Tick == lastRefreshTick) return;
                 lastRefreshTick = state.Tick;
-                string key = $"{state.Profile.Name}|{state.Resources.Total}|{state.Stats.MarchesSent}|{state.Stats.BattlesWon}|{state.Stats.BattlesLost}|{state.Premium.DarkMatter}";
+                string key = $"{state.Profile.Name}|{state.Resources.Total}|{state.Stats.MarchesSent}|{state.Stats.BattlesWon}|{state.Stats.BattlesLost}|{state.Premium.DarkMatter}|{state.Stats.ShipsBuilt}|{state.Achievements.Count}";
                 if (key == cache) return;
                 cache = key;
 
@@ -138,6 +151,12 @@ namespace GalaxyRoyale.Game.UI
                 resLabels[2].text = UiTheme.FmtAmount(state.Resources.Helium);
                 statLabels["Battles won"].text = state.Stats.BattlesWon.ToString();
                 statLabels["Battles lost"].text = state.Stats.BattlesLost.ToString();
+                statLabels["Camps cleared"].text = state.Stats.CampsCleared.ToString();
+                statLabels["Raids won"].text = state.Stats.RaidsWon.ToString();
+                statLabels["Raids repelled"].text = state.Stats.DefensesWon.ToString();
+                statLabels["Ships built"].text = state.Stats.ShipsBuilt.ToString("N0");
+                statLabels["Achievements"].text = $"{state.Achievements.Count} / {Achievements.All.Count}";
+                statLabels["Best season"].text = state.Stats.BestSeasonRank > 0 ? $"#{state.Stats.BestSeasonRank}" : "—";
                 statLabels["Marches sent"].text = state.Stats.MarchesSent.ToString();
                 statLabels["Ships docked"].text = state.Ships.Values.Sum().ToString();
                 statLabels["Tech levels"].text = state.Research.Values.Sum().ToString();
@@ -164,6 +183,33 @@ namespace GalaxyRoyale.Game.UI
                     : "Galaxy mode: STANDARD (chosen at NEW GAME).", st.TestMode ? UiTheme.Energy : UiTheme.Accent);
             AddText("Your empire saves to this device automatically (every 30s + on exit), " +
                     "with a rolling backup copy.", UiTheme.Dim);
+
+            // iCloud backup (CloudSave): status + BACK UP NOW.
+            if (GalaxyRoyale.Local.CloudSave.Supported)
+            {
+                long last = GalaxyRoyale.Local.CloudSave.LastBackupMs;
+                long agoSec = last > 0 ? Math.Max(0, (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - last) / 1000) : -1;
+                var status = Widgets.IconText(Icon.Rotate,
+                    agoSec < 0 ? "iCloud backup: not backed up yet"
+                        : $"iCloud backup: last backed up {UiTheme.FmtLong(agoSec)} ago", 11,
+                    agoSec >= 0 ? UiTheme.Good : UiTheme.Dim);
+                status.style.marginTop = 6;
+                row.Add(status);
+                if (!GalaxyRoyale.Local.CloudSave.SignedIn)
+                    AddText("Not signed in to iCloud on this device — backups sync once you are " +
+                            "(Settings › your name › iCloud).", UiTheme.Dim);
+                var backup = Widgets.IconButton(Icon.Rotate, "BACK UP NOW", () =>
+                {
+                    LocalBootstrap.Instance?.BackUpNow();
+                    bool done = GalaxyRoyale.Local.CloudSave.LastBackupMs > last;
+                    GameAudio.Feedback(done ? Sfx.Success : Sfx.Error, done ? Haptic.Success : Haptic.Error);
+                    ui.Toast(done ? "Empire backed up to iCloud" : "iCloud didn't take the backup — try again later",
+                        Icon.Rotate, done ? UiTheme.Good : UiTheme.Bad);
+                    ui.OpenProfile();
+                }, 11);
+                backup.style.marginTop = 6;
+                row.Add(backup);
+            }
 
             // Starting over is double-confirmed so it can't be fat-fingered — it
             // also refounds the simulated galaxy (every rival starts fresh).

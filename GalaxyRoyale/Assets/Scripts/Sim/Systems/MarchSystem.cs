@@ -549,8 +549,14 @@ namespace GalaxyRoyale.Sim.Systems
                 if (report.Winner == BattleWinner.Attacker)
                 {
                     state.Stats.BattlesWon++;
+                    state.Stats.CampsCleared++;
                     UpsertOverride(state, node.Id, o => o.Cleared = true);
                     var loot = CampLoot(node);
+                    // Pirate Armada (galaxy event): camps carry double loot.
+                    float armada = EventSystem.CampLootMult(state);
+                    if (armada != 1f)
+                        loot = new ResourceBag((long)(loot.Gold * armada), (long)(loot.Quartz * armada),
+                            (long)(loot.Helium * armada));
                     long free = FreeCargo(state, march); // launch cargo keeps its space
                     long total = (long)loot.Gold + loot.Quartz + loot.Helium;
                     double scale = total > 0 ? Math.Min(1.0, free / (double)total) : 0;
@@ -562,6 +568,7 @@ namespace GalaxyRoyale.Sim.Systems
                     march.Cargo.Quartz += taken.Quartz;
                     march.Cargo.Helium     += taken.Helium;
                     report.Loot = taken;
+                    state.Stats.LootMilli += taken.Total;
                 }
                 else
                 {

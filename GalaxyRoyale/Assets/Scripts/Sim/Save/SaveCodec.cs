@@ -104,6 +104,7 @@ namespace GalaxyRoyale.Sim.Save
                 ["focusTargetId"] = (long)b.FocusTargetId,
                 ["focusSetTick"] = (long)b.FocusSetTick,
                 ["spyBackAtTick"] = (long)b.SpyBackAtTick,
+                ["seasonStartMight"] = b.SeasonStartMight,
                 ["state"] = EncodeState(b.State),
             }),
         };
@@ -189,6 +190,7 @@ namespace GalaxyRoyale.Sim.Save
                     FocusTargetId = o.TryGetValue("focusTargetId", out var ft) && ft != null ? ToI32(ft) : -1,
                     FocusSetTick = o.TryGetValue("focusSetTick", out var fs) && fs != null ? ToI32(fs) : 0,
                     SpyBackAtTick = o.TryGetValue("spyBackAtTick", out var sb) && sb != null ? ToI32(sb) : 0,
+                    SeasonStartMight = o.TryGetValue("seasonStartMight", out var ssm) && ssm != null ? ToI64(ssm) : 0,
                     State = DecodeState(AsObj(o["state"], "empire.state")),
                 });
             }
@@ -300,17 +302,51 @@ namespace GalaxyRoyale.Sim.Save
                     ["owned"] = Arr(s.Skins.Owned, x => (object?)x),
                     ["activePlanet"] = s.Skins.ActivePlanet,
                 },
-                ["stats"] = new Dictionary<string, object?>
-                {
-                    ["battlesWon"] = (long)s.Stats.BattlesWon,
-                    ["battlesLost"] = (long)s.Stats.BattlesLost,
-                    ["marchesSent"] = (long)s.Stats.MarchesSent,
-                },
+                ["stats"] = EncodeStats(s.Stats),
             };
             if (s.BurningUntilTick > 0) root["burningUntilTick"] = (long)s.BurningUntilTick;
             if (s.VisualSeedOffset != 0) root["visualSeedOffset"] = (long)s.VisualSeedOffset;
             root["testMode"] = s.TestMode;
             if (s.QuestStep > 0) root["questStep"] = (long)s.QuestStep;
+            if (s.Achievements.Count > 0)
+            {
+                var ids = new List<string>(s.Achievements);
+                ids.Sort(StringComparer.Ordinal);
+                root["achievements"] = Arr(ids, x => (object?)x);
+            }
+            if (s.Title != null) root["title"] = s.Title;
+            if (s.EventInstance >= 0)
+                root["event"] = new Dictionary<string, object?>
+                {
+                    ["instance"] = (long)s.EventInstance,
+                    ["baseline"] = s.EventBaseline,
+                    ["claimed"] = s.EventClaimed,
+                };
+            if (s.Season > 0)
+                root["season"] = new Dictionary<string, object?>
+                {
+                    ["number"] = (long)s.Season,
+                    ["startMight"] = s.SeasonStartMight,
+                    ["history"] = Arr(s.SeasonHistory, h => (object?)new Dictionary<string, object?>
+                    {
+                        ["season"] = (long)h.Season, ["rank"] = (long)h.Rank, ["of"] = (long)h.Of,
+                        ["gain"] = h.Gain, ["reward"] = (long)h.RewardDM,
+                    }),
+                };
+            if (s.Allies.Count > 0)
+                root["allies"] = Arr(s.Allies, a =>
+                {
+                    var pact = new Dictionary<string, object?>
+                    {
+                        ["bot"] = (long)a.BotId, ["since"] = (long)a.SinceTick, ["nextAid"] = (long)a.NextAidTick,
+                    };
+                    if (a.PendingRuns > 0)
+                    {
+                        pact["pending"] = Bag(a.Pending);
+                        pact["pendingRuns"] = (long)a.PendingRuns;
+                    }
+                    return (object?)pact;
+                });
             return root;
         }
 
@@ -452,12 +488,61 @@ namespace GalaxyRoyale.Sim.Save
                 s.Skins.Owned.Add((string)raw!);
 
             var stats = AsObj(d["stats"], "stats");
+            int Opt(string key) => stats.TryGetValue(key, out var v) && v != null ? ToI32(v) : 0;
             s.Stats = new Stats
             {
                 BattlesWon = I32(stats, "battlesWon"),
                 BattlesLost = I32(stats, "battlesLost"),
                 MarchesSent = I32(stats, "marchesSent"),
+                CampsCleared = Opt("campsCleared"),
+                RaidsWon = Opt("raidsWon"),
+                DefensesWon = Opt("defensesWon"),
+                ShipsBuilt = Opt("shipsBuilt"),
+                UpgradesDone = Opt("upgradesDone"),
+                ResearchDone = Opt("researchDone"),
+                EventsCompleted = Opt("eventsCompleted"),
+                LootMilli = stats.TryGetValue("lootMilli", out var lm) && lm != null ? ToI64(lm) : 0,
+                BestSeasonRank = Opt("bestSeasonRank"),
             };
+
+            if (d.TryGetValue("achievements", out var ach) && ach != null)
+                foreach (var raw in AsArr(ach, "achievements"))
+                    if (raw is string id) s.Achievements.Add(id);
+            s.Title = d.TryGetValue("title", out var tt) ? tt as string : null;
+            if (d.TryGetValue("event", out var ev) && ev != null)
+            {
+                var e = AsObj(ev, "event");
+                s.EventInstance = I32(e, "instance");
+                s.EventBaseline = I64(e, "baseline");
+                s.EventClaimed = e.TryGetValue("claimed", out var ec) && ec is bool ecb && ecb;
+            }
+            if (d.TryGetValue("season", out var se) && se != null)
+            {
+                var o = AsObj(se, "season");
+                s.Season = I32(o, "number");
+                s.SeasonStartMight = I64(o, "startMight");
+                foreach (var raw in AsArr(o["history"], "season.history"))
+                {
+                    var h = AsObj(raw, "season.history[]");
+                    s.SeasonHistory.Add(new SeasonRecord
+                    {
+                        Season = I32(h, "season"), Rank = I32(h, "rank"), Of = I32(h, "of"),
+                        Gain = I64(h, "gain"), RewardDM = I32(h, "reward"),
+                    });
+                }
+            }
+            if (d.TryGetValue("allies", out var al) && al != null)
+                foreach (var raw in AsArr(al, "allies"))
+                {
+                    var a = AsObj(raw, "allies[]");
+                    s.Allies.Add(new Alliance
+                    {
+                        BotId = I32(a, "bot"), SinceTick = I32(a, "since"), NextAidTick = I32(a, "nextAid"),
+                        Pending = a.TryGetValue("pending", out var pd) && pd is Dictionary<string, object?> pdd
+                            ? DecBag(pdd) : new ResourceBag(),
+                        PendingRuns = a.TryGetValue("pendingRuns", out var pn) && pn != null ? ToI32(pn) : 0,
+                    });
+                }
 
             return s;
         }
@@ -606,6 +691,8 @@ namespace GalaxyRoyale.Sim.Save
                     d["report"] = EncodeReport(battle.Report);
                     if (battle.Defending) d["defending"] = true; // optional: absent = attacker view
                     if (battle.AttackerBotId > 0) d["attackerBotId"] = (long)battle.AttackerBotId;
+                    if (battle.AllyShips != null) d["allyShips"] = Comp(battle.AllyShips);
+                    if (battle.AllyNames != null) d["allyNames"] = battle.AllyNames;
                     break;
             }
             d["read"] = item.Read;
@@ -682,6 +769,9 @@ namespace GalaxyRoyale.Sim.Save
                 mail.Defending = IsDefenseReport(mail,
                     d.TryGetValue("defending", out var df) && df is bool dfb ? dfb : null);
                 if (d.TryGetValue("attackerBotId", out var ab) && ab is long abl) mail.AttackerBotId = (int)abl;
+                if (d.TryGetValue("allyShips", out var ash) && ash is Dictionary<string, object?> ashd)
+                    mail.AllyShips = DecComp(ashd);
+                if (d.TryGetValue("allyNames", out var anm)) mail.AllyNames = anm as string;
             }
             return item;
         }
@@ -705,6 +795,28 @@ namespace GalaxyRoyale.Sim.Save
             if (flag is bool saved) return saved;
             return subject.StartsWith("Colony raided by", StringComparison.Ordinal)
                 || subject.StartsWith("Raid deflected", StringComparison.Ordinal);
+        }
+
+        static Dictionary<string, object?> EncodeStats(Stats st)
+        {
+            var d = new Dictionary<string, object?>
+            {
+                ["battlesWon"] = (long)st.BattlesWon,
+                ["battlesLost"] = (long)st.BattlesLost,
+                ["marchesSent"] = (long)st.MarchesSent,
+            };
+            // Progression counters only when set: 249 bot states carry stats too.
+            void Opt(string key, long v) { if (v != 0) d[key] = v; }
+            Opt("campsCleared", st.CampsCleared);
+            Opt("raidsWon", st.RaidsWon);
+            Opt("defensesWon", st.DefensesWon);
+            Opt("shipsBuilt", st.ShipsBuilt);
+            Opt("upgradesDone", st.UpgradesDone);
+            Opt("researchDone", st.ResearchDone);
+            Opt("eventsCompleted", st.EventsCompleted);
+            Opt("lootMilli", st.LootMilli);
+            Opt("bestSeasonRank", st.BestSeasonRank);
+            return d;
         }
 
         public static Dictionary<string, object?> EncodeReport(BattleReport r)

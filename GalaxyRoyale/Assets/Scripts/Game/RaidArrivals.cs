@@ -124,6 +124,12 @@ namespace GalaxyRoyale.Game
                     UI.UIController.Instance?.Toast(
                         $"{entry.TargetName} relocated — your {(entry.IsRaid ? "fleet" : "probe")} found empty space");
                 }
+                else if (entry.IsRaid && AllianceSystem.IsAlly(state, bot.Id))
+                {
+                    // Launched before the pact was signed — the fleet stands down.
+                    UI.UIController.Instance?.Toast(
+                        $"{entry.TargetName} is your ally now — your fleet stood down");
+                }
                 else if (entry.IsRaid) ResolveRaid(state, bot, entry);
                 else ResolveSpy(state, bot, entry);
 
@@ -146,7 +152,8 @@ namespace GalaxyRoyale.Game
             var loot = new ResourceBag();
             if (report.Winner == BattleWinner.Attacker)
             {
-                long cap = MarchSystem.EffCargoCap(state, report.AttackerSurvivors);
+                // War Games (galaxy event): raiding fleets haul more.
+                long cap = (long)(MarchSystem.EffCargoCap(state, report.AttackerSurvivors) * EventSystem.RaidLootMult(state));
                 long total = snapshot.LootableMilli.Total;
                 double scale = total > 0 ? Math.Min(1.0, cap / (double)total) : 0;
                 loot.Gold = (long)Math.Floor(snapshot.LootableMilli.Gold * scale);
@@ -181,7 +188,12 @@ namespace GalaxyRoyale.Game
                 state.Resources.Helium += loot.Helium;
             }
 
-            if (report.Winner == BattleWinner.Attacker) state.Stats.BattlesWon++;
+            if (report.Winner == BattleWinner.Attacker)
+            {
+                state.Stats.BattlesWon++;
+                state.Stats.RaidsWon++;
+                state.Stats.LootMilli += loot.Total;
+            }
             else state.Stats.BattlesLost++;
 
             RaidService.InsertMail(state, new BattleMailReport

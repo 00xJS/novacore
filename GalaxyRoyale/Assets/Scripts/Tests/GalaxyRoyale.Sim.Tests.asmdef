@@ -4,6 +4,7 @@
     "references": [
         "GalaxyRoyale.Data",
         "GalaxyRoyale.Sim",
+        "GalaxyRoyale.Local",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

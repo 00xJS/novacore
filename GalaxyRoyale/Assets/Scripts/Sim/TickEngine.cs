@@ -35,6 +35,7 @@ namespace GalaxyRoyale.Sim
 
             // Fixed system order — Buildings → Research → Fleet queue → Resources → Marches → Map.
             // Order is load-bearing; changes require an explicit design note.
+            EventSystem.Tick(_state); // capture a new galaxy event's goal baseline at its real start
             BuildingSystem.Tick(_state, _events);
             ResearchSystem.Tick(_state, _events);
             FleetSystem.Tick(_state, _events);

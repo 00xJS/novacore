@@ -74,7 +74,8 @@ namespace GalaxyRoyale.Data
                 Title = "Scout the Frontier",
                 Detail = "Tap a pirate camp on the MAP and send a SPY probe to read its garrison.",
                 Goal = QuestGoal.CampScouted, Target = 1,
-                Reward = new ResourceBag(400, 300, 200),
+                // Helium enough to fly the next step's strike (balance pass 2026-09-28).
+                Reward = new ResourceBag(400, 300, 600),
             },
             new QuestDef
             {

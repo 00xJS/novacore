@@ -89,6 +89,14 @@ namespace GalaxyRoyale.Game.UI
         bool _moreOpen;
         Button _favoritesFab = null!;
         Button _spinToggle = null!; // base-view auto-rotate (default off)
+        // MORE-menu shortcuts that light up when something waits to be claimed.
+        Button _dailyFab = null!, _eventsFab = null!, _alliesFab = null!;
+        // Top-left stack on the BASE view: quest tracker, then the event chip.
+        VisualElement _leftStack = null!;
+        VisualElement _eventChip = null!;
+        Label _eventChipTitle = null!, _eventChipInfo = null!, _eventClaimPill = null!;
+        string _eventKey = "";
+        int _eventSeenInstance = -1, _eventNudgedInstance = -1;
         // Commander's Path tracker (top left of the BASE view).
         VisualElement _questTracker = null!;
         Label _questTitle = null!, _questGoal = null!;
@@ -167,7 +175,16 @@ namespace GalaxyRoyale.Game.UI
             _spinToggle.style.top = 112; // just under the header (Update tracks the safe area)
             _root.Add(_spinToggle);
 
+            // Quest tracker + event chip share one column so the chip slides
+            // up when the Commander's Path is finished.
+            _leftStack = new VisualElement();
+            _leftStack.style.position = Position.Absolute;
+            _leftStack.style.left = 12;
+            _leftStack.style.top = 112;
+            _leftStack.style.alignItems = Align.FlexStart;
+            _root.Add(_leftStack);
             BuildQuestTracker();
+            BuildEventChip();
 
             _calloutLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             _calloutLayer.style.position = Position.Absolute;
@@ -195,7 +212,7 @@ namespace GalaxyRoyale.Game.UI
             _labelBlockers.AddRange(new[]
             {
                 _header, _nav, _ticker, _queuesFab, _moreFab, _moreMenu,
-                _spinToggle, _searchFab, _favoritesFab, _calloutLayer, _questTracker,
+                _spinToggle, _searchFab, _favoritesFab, _calloutLayer, _leftStack,
             });
 
             _ctx.Events!.Subscribe(OnSimEvent);
@@ -402,14 +419,27 @@ namespace GalaxyRoyale.Game.UI
 
             Button MiniFab(Icon icon, string label, Action onTap)
             {
-                var b = Widgets.Fab(icon, label, () => { ToggleMoreMenu(); onTap(); }, 48f, UiTheme.Stroke);
+                var b = Widgets.Fab(icon, label, () =>
+                {
+                    ToggleMoreMenu();
+                    // A panel that throws while building used to just "do nothing".
+                    try { onTap(); }
+                    catch (Exception e)
+                    {
+                        Debug.LogException(e);
+                        Toast($"{label} couldn't open — the error was logged", Icon.Warning, UiTheme.Bad);
+                    }
+                }, 48f, UiTheme.Stroke);
                 b.style.marginBottom = 8;
                 _moreMenu.Add(b);
                 return b;
             }
             // Stacked bottom-up visually; add in top-down order.
-            MiniFab(Icon.Check, "DAILY", OpenDaily);
-            MiniFab(Icon.Chart, "RANK", OpenRankings);
+            _alliesFab = MiniFab(Icon.Pact, "ALLIES", OpenAlliances);
+            MiniFab(Icon.Trophy, "AWARDS", OpenAchievements);
+            _eventsFab = MiniFab(Icon.Bolt, "EVENTS", () => OpenEvents());
+            _dailyFab = MiniFab(Icon.Check, "DAILY", OpenDaily);
+            MiniFab(Icon.Chart, "RANK", () => OpenRankings());
             _root.Add(_moreMenu);
         }
 
@@ -600,7 +630,10 @@ namespace GalaxyRoyale.Game.UI
         }
 
         public void OpenProfile() => OpenModal(ProfilePanel.Build(_ctx, out var r), r);
-        public void OpenRankings() => OpenModal(RankingsPanel.Build(_ctx, out var r), r);
+        public void OpenRankings(bool season = false) => OpenModal(RankingsPanel.Build(_ctx, out var r, season), r);
+        public void OpenEvents() => OpenModal(EventsPanel.Build(_ctx, out var r), r);
+        public void OpenAchievements() => OpenModal(AchievementsPanel.Build(_ctx, out var r), r);
+        public void OpenAlliances() => OpenModal(AlliancePanel.Build(_ctx, out var r), r);
         public void OpenNews() => OpenModal(NewsPanel.Build(_ctx, out var r), r);
         public void OpenDaily() => OpenModal(DailyPanel.Build(_ctx, out var r), r);
         public void OpenResearch() => OpenModal(ResearchPanel.Build(_ctx, out var r), r);
@@ -732,6 +765,27 @@ namespace GalaxyRoyale.Game.UI
                     else
                         Toast($"Your colony was raided by {raided.AttackerName} — check Mail");
                     break;
+                case AchievementUnlocked unlocked:
+                {
+                    var a = unlocked.Achievement;
+                    Toast(a.Title != null
+                        ? $"Achievement: {a.Name} · +{a.RewardDM} DM · title \"{a.Title}\" unlocked"
+                        : $"Achievement: {a.Name} · +{a.RewardDM} DM", Icon.Trophy, UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Quest, Haptic.Success);
+                    break;
+                }
+                case SeasonEnded ended:
+                {
+                    var rec = ended.Record;
+                    Toast($"Season {rec.Season} is over — you placed #{rec.Rank} of {rec.Of} · +{rec.RewardDM} DM",
+                        Icon.Trophy, UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                    break;
+                }
+                case AllySuppliesArrived:
+                    Toast("Supplies from your allies arrived — collect them in MORE › ALLIES", Icon.Pact, UiTheme.Good);
+                    GameAudio.Play(Sfx.Coins, 0.6f);
+                    break;
             }
         }
 
@@ -778,7 +832,7 @@ namespace GalaxyRoyale.Game.UI
             // so it never overlaps the Dark Matter box on notched devices.
             float headerH = Mathf.Max(topInset + 4f, 34f) + 20f + 50f;
             _spinToggle.style.top = headerH + 10f;
-            _questTracker.style.top = headerH + 10f;
+            _leftStack.style.top = headerH + 10f;
 
             // Header numbers only move when the sim ticks (1 Hz) or the player
             // acts — refreshing them 60×/frame was ComputePower + string-format
@@ -807,16 +861,22 @@ namespace GalaxyRoyale.Game.UI
             _favoritesFab.style.display = mapFabDisplay;
             _spinToggle.style.display = View == ViewId.Base && _modal == null
                 ? DisplayStyle.Flex : DisplayStyle.None;
-            _questTracker.style.display = View == ViewId.Base && _modal == null && !calloutUp
-                && QuestSystem.Current(state) != null ? DisplayStyle.Flex : DisplayStyle.None;
+            _leftStack.style.display = View == ViewId.Base && _modal == null && !calloutUp
+                ? DisplayStyle.Flex : DisplayStyle.None;
+            _questTracker.style.display = QuestSystem.Current(state) != null ? DisplayStyle.Flex : DisplayStyle.None;
 
             // Slow-cadence chores: ticker headline + daily-reward glow on the MORE FAB.
             if (Time.time >= _nextDailyGlowPoll)
             {
                 _nextDailyGlowPoll = Time.time + 5f;
                 RefreshTicker();
-                Widgets.SetBorder(_moreFab,
-                    DailyObjectives.AnyClaimable(state) ? UiTheme.Good : UiTheme.Accent, 2f);
+                bool daily = DailyObjectives.AnyClaimable(state);
+                bool eventReady = EventSystem.CanClaim(state);
+                bool supplies = AllianceSystem.PendingTotal(state).Total > 0;
+                Widgets.SetBorder(_moreFab, daily || eventReady || supplies ? UiTheme.Good : UiTheme.Accent, 2f);
+                Widgets.SetBorder(_dailyFab, daily ? UiTheme.Good : UiTheme.Stroke, 2f);
+                Widgets.SetBorder(_eventsFab, eventReady ? UiTheme.Good : UiTheme.Stroke, 2f);
+                Widgets.SetBorder(_alliesFab, supplies ? UiTheme.Good : UiTheme.Stroke, 2f);
             }
 
             _modalRefresh?.Invoke();
@@ -829,9 +889,6 @@ namespace GalaxyRoyale.Game.UI
         void BuildQuestTracker()
         {
             var t = _questTracker = new VisualElement();
-            t.style.position = Position.Absolute;
-            t.style.left = 12;
-            t.style.top = 112;
             t.style.maxWidth = 300; // up to the SPIN button
             t.style.flexDirection = FlexDirection.Row;
             t.style.alignItems = Align.Center;
@@ -879,7 +936,99 @@ namespace GalaxyRoyale.Game.UI
             t.Add(_questClaimPill);
             t.RegisterCallback<ClickEvent>(_ => QuestPanel.Open(_ctx));
             t.style.display = DisplayStyle.None;
-            _root.Add(t);
+            _leftStack.Add(t);
+        }
+
+        // ---------- galaxy event chip (under the quest tracker) ----------
+
+        void BuildEventChip()
+        {
+            var c = _eventChip = new VisualElement();
+            c.style.maxWidth = 300;
+            c.style.marginTop = 6;
+            c.style.flexDirection = FlexDirection.Row;
+            c.style.alignItems = Align.Center;
+            c.style.paddingLeft = 10;
+            c.style.paddingRight = 10;
+            c.style.paddingTop = 5;
+            c.style.paddingBottom = 5;
+            c.style.backgroundColor = new Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.92f);
+            Widgets.SetBorder(c, UiTheme.Stroke, 1.5f);
+            c.style.borderTopLeftRadius = 12;
+            c.style.borderTopRightRadius = 12;
+            c.style.borderBottomLeftRadius = 12;
+            c.style.borderBottomRightRadius = 12;
+            var bolt = Icons.Make(Icon.Bolt, 14f, UiTheme.Energy);
+            bolt.style.marginRight = 7;
+            c.Add(bolt);
+            var col = new VisualElement { pickingMode = PickingMode.Ignore };
+            col.style.flexShrink = 1f;
+            _eventChipTitle = Widgets.Text("", 10, UiTheme.Energy, bold: true);
+            _eventChipTitle.pickingMode = PickingMode.Ignore;
+            _eventChipInfo = Widgets.Text("", 9, UiTheme.Dim);
+            _eventChipInfo.pickingMode = PickingMode.Ignore;
+            col.Add(_eventChipTitle);
+            col.Add(_eventChipInfo);
+            c.Add(col);
+            _eventClaimPill = Widgets.Text("CLAIM", 9, UiTheme.Bg, bold: true);
+            _eventClaimPill.pickingMode = PickingMode.Ignore;
+            _eventClaimPill.style.marginLeft = 8;
+            _eventClaimPill.style.paddingLeft = 6;
+            _eventClaimPill.style.paddingRight = 6;
+            _eventClaimPill.style.paddingTop = 2;
+            _eventClaimPill.style.paddingBottom = 2;
+            _eventClaimPill.style.backgroundColor = UiTheme.Good;
+            _eventClaimPill.style.borderTopLeftRadius = 7;
+            _eventClaimPill.style.borderTopRightRadius = 7;
+            _eventClaimPill.style.borderBottomLeftRadius = 7;
+            _eventClaimPill.style.borderBottomRightRadius = 7;
+            _eventClaimPill.style.display = DisplayStyle.None;
+            c.Add(_eventClaimPill);
+            c.RegisterCallback<ClickEvent>(_ => OpenEvents());
+            _leftStack.Add(c);
+        }
+
+        void RefreshEventChip(GameState state)
+        {
+            var live = EventSystem.Current(state.Tick);
+            var (have, need) = EventSystem.Progress(state);
+            bool claimable = EventSystem.CanClaim(state);
+            bool claimed = state.EventClaimed && live.Instance == state.EventInstance;
+            int left = live.EndTick - state.Tick;
+            string key = $"{live.Instance}|{have}|{claimable}|{claimed}|{(left >= 3600 ? left / 3600 : left / 60)}";
+            if (key == _eventKey) return;
+            bool firstLook = _eventKey.Length == 0;
+            _eventKey = key;
+            if (EventSystem.IsQuiet(live))
+            {
+                var first = EventSystem.Next(state.Tick).Def;
+                _eventChipTitle.text = $"FIRST GALAXY EVENT IN {UiTheme.FmtLong(left).ToUpperInvariant()}";
+                _eventChipInfo.text = $"{first.Name}: {first.Effect}";
+            }
+            else
+            {
+                _eventChipTitle.text = $"{live.Def.Name.ToUpperInvariant()} · {UiTheme.FmtLong(left)} left";
+                _eventChipInfo.text = claimed ? "Reward claimed — next event soon"
+                    : claimable ? "Goal reached — tap to claim"
+                    : $"{live.Def.Goal}: {have} / {need}";
+            }
+            _eventChipInfo.style.color = claimable ? UiTheme.Good : UiTheme.Dim;
+            _eventClaimPill.style.display = claimable ? DisplayStyle.Flex : DisplayStyle.None;
+            Widgets.SetBorder(_eventChip, claimable ? UiTheme.Good : UiTheme.Stroke, 1.5f);
+
+            // A new event going live mid-session gets announced once.
+            if (!firstLook && _eventSeenInstance != live.Instance && !EventSystem.IsQuiet(live))
+            {
+                Toast($"New galaxy event: {live.Def.Name} — {live.Def.Effect}", Icon.Bolt, UiTheme.Energy);
+                GameAudio.Feedback(Sfx.Alert, Haptic.Light);
+            }
+            _eventSeenInstance = live.Instance;
+            if (claimable && !firstLook && _eventNudgedInstance != live.Instance)
+            {
+                _eventNudgedInstance = live.Instance;
+                Toast($"{live.Def.Name} goal reached — tap the event card to claim", Icon.Bolt, UiTheme.Good);
+                GameAudio.Feedback(Sfx.Quest, Haptic.Success);
+            }
         }
 
         void RefreshQuestTracker(GameState state)
@@ -917,6 +1066,7 @@ namespace GalaxyRoyale.Game.UI
         void RefreshHeader(GameState state)
         {
             RefreshQuestTracker(state);
+            RefreshEventChip(state);
             for (int i = 0; i < 3; i++)
             {
                 var res = Resources_All[i];

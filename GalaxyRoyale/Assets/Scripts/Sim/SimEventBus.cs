@@ -23,6 +23,12 @@ namespace GalaxyRoyale.Sim
     public sealed record ResearchCompleted(TechId Tech, int Level) : SimEvent;
     /// <summary>A simulated commander's raid landed on the player's colony (report is attacker-perspective).</summary>
     public sealed record ColonyRaided(BattleReport Report, string AttackerName) : SimEvent;
+    /// <summary>An achievement unlocked (its Dark Matter is already paid).</summary>
+    public sealed record AchievementUnlocked(AchievementDef Achievement) : SimEvent;
+    /// <summary>A season ended — the record holds your finish and its (already paid) reward.</summary>
+    public sealed record SeasonEnded(SeasonRecord Record) : SimEvent;
+    /// <summary>Allied supply runs arrived; they wait in the ALLIES panel.</summary>
+    public sealed record AllySuppliesArrived(int Runs) : SimEvent;
 
     public sealed class SimEventBus
     {
