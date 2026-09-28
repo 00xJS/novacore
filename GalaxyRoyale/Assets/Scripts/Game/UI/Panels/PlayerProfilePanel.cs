@@ -38,7 +38,7 @@ namespace GalaxyRoyale.Game.UI
             // Presence mirrors the bot's activity model — the same schedule that
             // gates its decisions, so "online" rivals really are the busy ones.
             bool online = IsOnlineNow(ctx, bot, personality);
-            idCol.Add(Widgets.Text(online ? "● online" : "○ offline", 10,
+            idCol.Add(Widgets.IconText(online ? Icon.Dot : Icon.Ring, online ? "online" : "offline", 10,
                 online ? UiTheme.Good : UiTheme.Dim));
             head.Add(idCol);
             body.Add(head);
@@ -66,7 +66,8 @@ namespace GalaxyRoyale.Game.UI
             }, 10);
             map.style.width = Length.Percent(48f);
             actions.Add(map);
-            var raid = Widgets.TextButton("⚔ RAID", () =>
+            // Painted swords — "⚔ RAID" rendered as "□ RAID" on device.
+            var raid = Widgets.IconButton(Icon.Swords, "RAID", () =>
             {
                 ui.CloseModal();
                 RaidPanel.Open(ctx, botId);

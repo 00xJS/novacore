@@ -52,18 +52,24 @@ namespace GalaxyRoyale.Game.UI
                     left.Add(avatar);
                     var name = Widgets.Text(entry.name, 12,
                         me ? UiTheme.Accent : UiTheme.Text, bold: me);
-                    if (!me)
-                    {
-                        int botId = entry.botId;
-                        string botName = entry.name;
-                        name.RegisterCallback<PointerUpEvent>(_ =>
-                            PlayerProfilePanel.Open(ctx, botId, botName));
-                        avatar.RegisterCallback<PointerUpEvent>(_ =>
-                            PlayerProfilePanel.Open(ctx, botId, botName));
-                    }
                     left.Add(name);
                     box.Add(left);
-                    box.Add(Widgets.Text($"{entry.might:N0}", 12, UiTheme.Energy));
+                    var right = Widgets.HBox();
+                    right.Add(Widgets.Text($"{entry.might:N0}", 12, UiTheme.Energy));
+                    if (!me)
+                    {
+                        // The WHOLE card opens the profile — only the name text and
+                        // avatar used to, so taps on the rank / might / padding did
+                        // nothing even though the row looked like one big button.
+                        int botId = entry.botId;
+                        string botName = entry.name;
+                        row.RegisterCallback<PointerUpEvent>(_ =>
+                            PlayerProfilePanel.Open(ctx, botId, botName));
+                        var chevron = Icons.Make(Icon.ChevronRight, 12, UiTheme.Accent);
+                        chevron.style.marginLeft = 8;
+                        right.Add(chevron);
+                    }
+                    box.Add(right);
                     row.Add(box);
                     body.Add(row);
                 }

@@ -317,7 +317,7 @@ namespace GalaxyRoyale.Game.UI
                     long etaSec = Math.Max(0, threat.ArrivesAtTick - state.Tick);
                     var card = Widgets.Row();
                     card.style.backgroundColor = new UnityEngine.Color(0.165f, 0.1f, 0.1f, 0.9f);
-                    card.Add(Widgets.Text("⚠ INCOMING HOSTILE FLEET", 13, UiTheme.Bad, bold: true));
+                    card.Add(Widgets.IconText(Icon.Warning, "INCOMING HOSTILE FLEET", 13, UiTheme.Bad, bold: true));
                     string who = string.IsNullOrEmpty(threat.AttackerName) ? "unknown commander" : threat.AttackerName;
                     string size = threat.FleetCount > 0 ? $"{threat.FleetCount} ships · " : "";
                     card.Add(Widgets.Text($"{size}{who} · arrival {UiTheme.FmtDuration(etaSec)}", 10, UiTheme.Dim));

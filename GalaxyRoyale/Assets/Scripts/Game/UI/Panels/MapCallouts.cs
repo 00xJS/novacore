@@ -2,7 +2,9 @@
 // the map stays pannable) + the favorites list:
 //   RemoteCallout — another commander's planet: ATTACK / SPY / ★ / PROFILE
 //   BlankCallout  — empty space: FLY TO (hold) / PORT HERE / ★
-//   MarchCallout  — a fleet in flight: status, RECALL, REDIRECT (spy)
+//   MarchCallout  — your fleet in flight: status, RECALL, REDIRECT (spy)
+//   RivalFlightCallout — someone else's flight (raid, probe, gather run, or a
+//                   radar-tracked hostile inbound to you); the camera follows it
 //   FavoritesPanel — bookmarked tiles, tap to jump.
 using System;
 using System.Collections.Generic;
@@ -14,17 +16,37 @@ using GalaxyRoyale.Sim.Systems;
 
 namespace GalaxyRoyale.Game.UI
 {
+    /// <summary>One callout action button, with an optional painted icon.</summary>
+    readonly struct CalloutAction
+    {
+        public readonly string Label;
+        public readonly Action OnTap;
+        public readonly bool Enabled;
+        public readonly Icon? Glyph;
+
+        public CalloutAction(string label, Action onTap, bool enabled, Icon? glyph)
+        {
+            Label = label;
+            OnTap = onTap;
+            Enabled = enabled;
+            Glyph = glyph;
+        }
+    }
+
     static class CalloutChrome
     {
+        public static CalloutAction Act(string label, Action onTap, bool enabled = true, Icon? icon = null)
+            => new(label, onTap, enabled, icon);
+
         /// <summary>NodeCallout-style card: title/sub row + a row of small actions.</summary>
         public static VisualElement Strip(string title, string sub, Action onClose,
-            params (string label, Action action, bool enabled)[] actions)
+            params CalloutAction[] actions)
             => Strip(title, sub, onClose, null, actions);
 
         /// <summary>`subRef` receives the sub Label so callers can live-update it (march ETA).</summary>
         public static VisualElement Strip(string title, string sub, Action onClose,
             Action<Label>? subRef,
-            params (string label, Action action, bool enabled)[] actions)
+            params CalloutAction[] actions)
         {
             var card = Widgets.Row();
             card.style.backgroundColor = new UnityEngine.Color(
@@ -55,11 +77,17 @@ namespace GalaxyRoyale.Game.UI
             var row = Widgets.HBox(Justify.SpaceBetween);
             row.style.marginTop = 6;
             float width = actions.Length > 0 ? (100f - 2f * actions.Length) / actions.Length : 100f;
-            foreach (var (label, action, enabled) in actions)
+            foreach (var a in actions)
             {
-                var b = Widgets.TextButton(label, action, 10);
+                // Symbols are painted icons — "★" / "▲" as button text is at the
+                // mercy of the runtime font (other glyphs tofu-boxed on device).
+                var b = a.Glyph is Icon icon
+                    ? Widgets.IconButton(icon, a.Label.Length > 0 ? a.Label : null, a.OnTap, 10, 12f)
+                    : Widgets.TextButton(a.Label, a.OnTap, 10);
                 b.style.width = Length.Percent(width);
-                Widgets.SetButtonEnabled(b, enabled);
+                b.style.paddingLeft = 4;
+                b.style.paddingRight = 4;
+                Widgets.SetButtonEnabled(b, a.Enabled);
                 row.Add(b);
             }
             card.Add(row);
@@ -89,20 +117,20 @@ namespace GalaxyRoyale.Game.UI
                     ? $"might {bot.CachedMight:N0} · HQ {tile.X},{tile.Y}" + (shielded ? " · SHIELDED" : "")
                     : "no telemetry",
                 CalloutChrome.Close,
-                ("ATTACK", () => { CalloutChrome.Close(); RaidPanel.Open(ctx, botId); }, !shielded),
-                ("SPY", () =>
+                CalloutChrome.Act("ATTACK", () => { CalloutChrome.Close(); RaidPanel.Open(ctx, botId); }, !shielded),
+                CalloutChrome.Act("SPY", () =>
                 {
                     CalloutChrome.Close();
                     if (bot == null) { ui.Toast("No telemetry for that colony"); return; }
                     var (_, message) = RaidService.SpyBot(ctx, BotSystem.SnapshotOf(bot));
                     ui.Toast(message);
                 }, bot != null),
-                ("★", () =>
+                CalloutChrome.Act("", () =>
                 {
                     if (bot == null) return;
                     ui.Toast(Favorites.Add(name, tile) ? $"Bookmarked {name}" : "Favorites list is full");
-                }, bot != null),
-                ("PROFILE", () => { CalloutChrome.Close(); PlayerProfilePanel.Open(ctx, botId, name); }, true));
+                }, bot != null, Icon.Star),
+                CalloutChrome.Act("PROFILE", () => { CalloutChrome.Close(); PlayerProfilePanel.Open(ctx, botId, name); }));
 
             ui.OpenCalloutElement(strip);
         }
@@ -141,14 +169,14 @@ namespace GalaxyRoyale.Game.UI
                 $"Empty space  {tile.X}, {tile.Y}",
                 "Send a fleet to hold here, or warp your planet over.",
                 CalloutChrome.Close,
-                // ▲ FLY TO now opens a ship-select composer (user feedback: it used
+                // FLY TO opens a ship-select composer (user feedback: it used
                 // to launch the whole fleet instantly).
-                ("▲ FLY TO", () =>
+                CalloutChrome.Act("FLY TO", () =>
                 {
                     CalloutChrome.Close();
                     FlyToComposer.Open(ctx, tile);
-                }, hasFleet),
-                ("▼ PORT HERE", () =>
+                }, hasFleet, Icon.ArrowUp),
+                CalloutChrome.Act("PORT HERE", () =>
                 {
                     var s = ctx.State!;
                     if (s.Marches.Count > 0) { ui.Toast("Recall all fleets before relocating"); return; }
@@ -170,12 +198,12 @@ namespace GalaxyRoyale.Game.UI
                             ui.Toast(res.Ok ? "Planet relocated!" : res.Reason ?? "Warp failed");
                             if (res.Ok) ctx.GetComponent<MapView>()?.FocusTile(s2.HomeTile);
                         });
-                }, true),
-                ("★", () =>
+                }, true, Icon.ArrowDown),
+                CalloutChrome.Act("", () =>
                 {
                     ui.Toast(Favorites.Add($"Space {tile.X},{tile.Y}", tile)
                         ? "Location bookmarked" : "Favorites list is full");
-                }, true));
+                }, true, Icon.Star));
 
             ui.OpenCalloutElement(strip);
         }
@@ -202,9 +230,9 @@ namespace GalaxyRoyale.Game.UI
 
             void Close() { onClose(); CalloutChrome.Close(); }
 
-            var actions = new List<(string, Action, bool)>
+            var actions = new List<CalloutAction>
             {
-                ("RECALL", () =>
+                CalloutChrome.Act("RECALL", () =>
                 {
                     var res = MarchSystem.RecallMarch(ctx.State!, marchId);
                     if (!res.Ok) ui.Toast(res.Reason ?? "Cannot recall");
@@ -212,16 +240,16 @@ namespace GalaxyRoyale.Game.UI
                 }, march.Phase != MarchPhase.Returning),
             };
             if (isSpy && march.Phase != MarchPhase.Gathering)
-                actions.Add(("REDIRECT", () =>
+                actions.Add(CalloutChrome.Act("REDIRECT", () =>
                 {
                     Close();
                     ctx.GetComponent<MapView>()?.BeginProbeRedirect(marchId);
-                }, true));
+                }));
 
             // Live ETA: tick the sub label down each second instead of only on re-tap.
             Label? subLabel = null;
             var strip = CalloutChrome.Strip(
-                $"{MarchSystem.FleetCount(march.Ships)} ships → {march.Node.X},{march.Node.Y}",
+                $"{MarchSystem.FleetCount(march.Ships)} ships · target {march.Node.X}, {march.Node.Y}",
                 $"{march.Mission} · {StatusFor(march)} · following",
                 Close,
                 lbl => subLabel = lbl,
@@ -231,6 +259,126 @@ namespace GalaxyRoyale.Game.UI
                 var m = ctx.State?.Marches.Find(x => x.Id == marchId);
                 if (m == null || subLabel == null) return;
                 subLabel.text = $"{m.Mission} · {StatusFor(m)} · following";
+            }).Every(500);
+            ui.OpenCalloutElement(strip);
+        }
+    }
+
+    /// <summary>
+    /// Tapped another commander's flight on the map — a raid fleet, spy probe,
+    /// gather run, or a radar-tracked hostile inbound to you. The map camera
+    /// follows it while this is open (user request: only your OWN fleets could
+    /// be tapped and followed before). MapView owns the follow; onClose ends it.
+    /// </summary>
+    public static class RivalFlightCallout
+    {
+        static string NameOf(GameContext ctx, int botId) =>
+            ctx.Bots?.Find(botId)?.Name is { Length: > 0 } n ? n : "Unknown commander";
+
+        /// <summary>A real bot-vs-bot flight: raid (combat wing) or recon probe.</summary>
+        public static void OpenRaid(GameContext ctx, int marchId, Action onClose)
+        {
+            var ui = UIController.Instance!;
+            BotMarch? Find()
+            {
+                var galaxy = ctx.Bots;
+                if (galaxy == null) return null;
+                foreach (var m in galaxy.Marches)
+                    if (m.Id == marchId) return m;
+                return null;
+            }
+            var march = Find();
+            if (march == null) return;
+
+            int attackerId = march.BotId, targetId = march.TargetBotId;
+            string attacker = NameOf(ctx, attackerId);
+            string target = NameOf(ctx, targetId);
+            int ships = 0;
+            foreach (var kv in march.Ships) ships += kv.Value;
+
+            string Status(BotMarch m)
+            {
+                int now = ctx.State?.Tick ?? 0;
+                if (!m.Resolved)
+                    return $"{(m.IsSpy ? "scouting" : "raiding")} {target} · arrives in " +
+                           UiTheme.FmtDuration(Math.Max(0, m.ArrivesAtTick - now));
+                long loot = m.LootMilli.Gold + m.LootMilli.Quartz + m.LootMilli.Helium;
+                return (loot > 0 ? $"homeward with {UiTheme.FmtAmount(loot)} loot" : "homeward, empty-handed") +
+                       $" · {UiTheme.FmtDuration(Math.Max(0, m.ReturnsAtTick - now))}";
+            }
+
+            void Close() { onClose(); CalloutChrome.Close(); }
+            Label? sub = null;
+            var strip = CalloutChrome.Strip(
+                march.IsSpy ? $"{attacker}'s spy probe" : $"{attacker}'s raid fleet · {ships} ships",
+                $"{Status(march)} · following",
+                Close,
+                l => sub = l,
+                CalloutChrome.Act("ATTACKER", () => { Close(); PlayerProfilePanel.Open(ctx, attackerId, attacker); },
+                    icon: Icon.Swords),
+                CalloutChrome.Act("TARGET", () => { Close(); PlayerProfilePanel.Open(ctx, targetId, target); }));
+            strip.schedule.Execute(() =>
+            {
+                var m = Find();
+                if (m != null && sub != null) sub.text = $"{Status(m)} · following";
+            }).Every(500);
+            ui.OpenCalloutElement(strip);
+        }
+
+        /// <summary>A rival's gather shuttle (cosmetic traffic around their colony).</summary>
+        public static void OpenGatherRun(GameContext ctx, int botId, Action onClose)
+        {
+            var ui = UIController.Instance!;
+            string name = NameOf(ctx, botId);
+            void Close() { onClose(); CalloutChrome.Close(); }
+            ui.OpenCalloutElement(CalloutChrome.Strip(
+                $"{name}'s gatherers",
+                "Harvest run near their colony · following",
+                Close,
+                CalloutChrome.Act("COMMANDER", () => { Close(); PlayerProfilePanel.Open(ctx, botId, name); })));
+        }
+
+        /// <summary>A hostile inbound to YOU, as far as the Radar Station can see —
+        /// RadarContact is already sanitized to the radar's detail tier.</summary>
+        public static void OpenContact(GameContext ctx, int contactId, Action onClose)
+        {
+            var ui = UIController.Instance!;
+            RadarContact? Find()
+            {
+                foreach (var c in RadarService.DetectedThreats)
+                    if (c.Id == contactId) return c;
+                return null;
+            }
+            var contact = Find();
+            if (contact == null) return;
+
+            string who = contact.AttackerName.Length > 0 ? contact.AttackerName : "Unknown commander";
+            string what = !contact.IsFleet ? "spy probe"
+                : contact.FleetCount > 0 ? $"{contact.FleetCount} ships" : "hostile fleet";
+            string Status(RadarContact c) =>
+                $"{what} · impact in {UiTheme.FmtDuration(Math.Max(0, c.ArrivesAtTick - (ctx.State?.Tick ?? 0)))} · following";
+
+            // Names are unique across the roster, so the radar's name resolves the bot.
+            int attackerId = -1;
+            if (contact.AttackerName.Length > 0 && ctx.Bots != null)
+                foreach (var b in ctx.Bots.Bots)
+                    if (b.Name == contact.AttackerName) { attackerId = b.Id; break; }
+
+            void Close() { onClose(); CalloutChrome.Close(); }
+            var actions = new List<CalloutAction>
+            {
+                CalloutChrome.Act("DEFENSES", () => { Close(); ui.OpenQueues(); }, icon: Icon.Warning),
+            };
+            if (attackerId >= 0)
+                actions.Add(CalloutChrome.Act("ATTACKER", () => { Close(); PlayerProfilePanel.Open(ctx, attackerId, who); }));
+
+            Label? sub = null;
+            var strip = CalloutChrome.Strip($"INCOMING — {who}", Status(contact), Close, l => sub = l,
+                actions.ToArray());
+            strip.schedule.Execute(() =>
+            {
+                var c = Find();
+                if (c != null && sub != null) sub.text = Status(c);
             }).Every(500);
             ui.OpenCalloutElement(strip);
         }
@@ -333,7 +481,7 @@ namespace GalaxyRoyale.Game.UI
             content.Add(preview);
             content.Add(status);
 
-            launch = Widgets.TextButton("▲ LAUNCH", () =>
+            launch = Widgets.IconButton(Icon.ArrowUp, "LAUNCH", () =>
             {
                 var res = MarchSystem.SendRaidMarch(ctx.State!, Fleet(), tile, out _, MarchMission.Gather);
                 if (!res.Ok) { status.text = res.Reason ?? "Cannot launch"; return; }
@@ -361,7 +509,7 @@ namespace GalaxyRoyale.Game.UI
             if (spots.Count == 0)
             {
                 var empty = Widgets.Text(
-                    "No bookmarks yet.\nTap ★ on a planet, node, or empty tile to save it.",
+                    "No bookmarks yet.\nTap the star on a planet, node, or empty tile to save it.",
                     12, UiTheme.Dim);
                 empty.style.whiteSpace = WhiteSpace.Normal;
                 empty.style.unityTextAlign = UnityEngine.TextAnchor.MiddleCenter;
@@ -373,8 +521,9 @@ namespace GalaxyRoyale.Game.UI
                 var spot = s;
                 var row = Widgets.Row();
                 var box = Widgets.HBox(Justify.SpaceBetween);
-                var label = Widgets.Text($"★ {spot.Name}  ·  {spot.X},{spot.Y}", 12, UiTheme.Text);
+                var label = Widgets.IconText(Icon.Star, $"{spot.Name}  ·  {spot.X},{spot.Y}", 12, UiTheme.Text);
                 label.style.flexShrink = 1f;
+                label.pickingMode = PickingMode.Position; // the name row is tappable too
                 void GoThere()
                 {
                     ui.CloseModal();
@@ -385,7 +534,7 @@ namespace GalaxyRoyale.Game.UI
                 box.Add(label);
                 // Explicit GO (jump to it) + × (remove) so the two are unambiguous.
                 var btns = Widgets.HBox();
-                var go = Widgets.TextButton("▲ GO", GoThere, 11);
+                var go = Widgets.IconButton(Icon.ChevronRight, "GO", GoThere, 11);
                 go.style.marginRight = 6;
                 btns.Add(go);
                 btns.Add(Widgets.TextButton("×", () =>

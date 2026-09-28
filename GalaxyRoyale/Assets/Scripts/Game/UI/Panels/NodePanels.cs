@@ -219,7 +219,7 @@ namespace GalaxyRoyale.Game.UI
                 head.Add(countLabel);
                 row.Add(head);
                 row.Add(Widgets.Text(
-                    $"docked {docked} · atk {def.Atk} · shd {def.Shield} · cargo {def.Cargo}", 9, UiTheme.Dim));
+                    $"docked {docked} · atk {def.Atk} · shd {def.Shield} · cargo {UiTheme.FmtCount(def.Cargo / 1000)}", 9, UiTheme.Dim));
 
                 var slider = new SliderInt(0, Math.Max(0, docked)) { value = 0 };
                 slider.SetEnabled(docked > 0);

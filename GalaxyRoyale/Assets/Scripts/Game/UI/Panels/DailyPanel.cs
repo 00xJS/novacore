@@ -53,15 +53,18 @@ namespace GalaxyRoyale.Game.UI
                     barLabel.text = def.Target > 1 ? $"{progress} / {def.Target}" : done ? "done" : "not yet";
                     row.Add(bar);
 
-                    var claim = Widgets.TextButton(
-                        claimed ? "✓ CLAIMED" : done ? "CLAIM" : "IN PROGRESS", () =>
+                    void OnClaim()
                     {
                         if (DailyObjectives.Claim(ctx.State!, def))
                         {
-                            ui.Toast($"+{def.RewardDM} Dark Matter — objective complete!");
+                            ui.Toast($"+{def.RewardDM} Dark Matter — objective complete!", Icon.Check, UiTheme.Good);
                             cache = "";
                         }
-                    }, 11);
+                    }
+                    // Painted check — "✓" is outside the runtime font's glyph set.
+                    var claim = claimed
+                        ? Widgets.IconButton(Icon.Check, "CLAIMED", OnClaim, 11)
+                        : Widgets.TextButton(done ? "CLAIM" : "IN PROGRESS", OnClaim, 11);
                     Widgets.SetButtonEnabled(claim, done && !claimed);
                     claim.style.marginTop = 6;
                     row.Add(claim);

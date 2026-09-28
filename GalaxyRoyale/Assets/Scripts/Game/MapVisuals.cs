@@ -196,7 +196,12 @@ namespace GalaxyRoyale.Game
             var vel = ps.velocityOverLifetime;
             vel.enabled = true;
             vel.space = ParticleSystemSimulationSpace.Local;
+            // x/y/z must share one curve MODE — setting only y (two-constant)
+            // left x/z as plain constants and Unity logged "Particle Velocity
+            // curves must all be in the same mode" for every burning planet.
+            vel.x = new ParticleSystem.MinMaxCurve(0f, 0f);
             vel.y = new ParticleSystem.MinMaxCurve(0.40f, 0.85f); // flames rise
+            vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
 
             // Turbulence makes the tongues waver instead of rising in straight lanes.
             var noise = ps.noise;
@@ -270,7 +275,9 @@ namespace GalaxyRoyale.Game
             var sVel = sparks.velocityOverLifetime;
             sVel.enabled = true;
             sVel.space = ParticleSystemSimulationSpace.Local;
+            sVel.x = new ParticleSystem.MinMaxCurve(0f, 0f); // same-mode rule, see above
             sVel.y = new ParticleSystem.MinMaxCurve(0.9f, 1.6f); // sparks fly high
+            sVel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
 
             var sNoise = sparks.noise;
             sNoise.enabled = true;
