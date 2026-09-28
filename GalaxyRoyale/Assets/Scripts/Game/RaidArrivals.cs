@@ -136,6 +136,8 @@ namespace GalaxyRoyale.Game
         {
             var snapshot = BotSystem.SnapshotOf(bot);
             var tile = new TileXY(entry.TargetX, entry.TargetY);
+            // RaidPanel's forecast (BattleForecast.Predict) makes this same call
+            // at launch — keep the inputs in step.
             var report = CombatResolver.Resolve(entry.Sent, snapshot.Ships,
                 ResearchSystem.CombatMods(state));
             report.Location = tile;

@@ -2,14 +2,16 @@
 // map (or RAID on their profile). Shows the target's public intel (name,
 // might, coordinates, shield state), a FLEET SELECTION SCREEN (per-hull
 // sliders — user spec: choose what you send, not an auto all-docked fleet),
-// the travel/fuel preview, and a LAUNCH button pinned to the box footer.
-// The defense readout stays CLASSIFIED until a spy probe has visited.
+// the travel/fuel preview, a battle forecast, and a LAUNCH button pinned to
+// the box footer. The defense readout — and with it the forecast — stays
+// CLASSIFIED until a spy probe has visited.
 using System;
 using System.Collections.Generic;
 using UnityEngine.UIElements;
 using GalaxyRoyale.Data;
 using GalaxyRoyale.Sim;
 using GalaxyRoyale.Sim.Bots;
+using GalaxyRoyale.Sim.Combat;
 using GalaxyRoyale.Sim.Systems;
 
 namespace GalaxyRoyale.Game.UI
@@ -41,6 +43,14 @@ namespace GalaxyRoyale.Game.UI
             headRow.Add(Widgets.Text($"MIGHT {target.Might:N0}", 12, UiTheme.Energy, bold: true));
             content.Add(headRow);
             content.Add(Widgets.Text($"HQ {target.HomeX}, {target.HomeY}", 11, UiTheme.Accent));
+            if (BotSystem.HoldsGrudge(bot, state.Tick))
+            {
+                var grudge = Widgets.IconText(Icon.Warning,
+                    "Out for revenge — they'll counter-raid once they can win", 11, UiTheme.Bad);
+                grudge.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                grudge.style.marginTop = 4;
+                content.Add(grudge);
+            }
 
             bool hasIntel = MarchSystem.HasSpyIntel(state, tile);
             if (hasIntel)
@@ -102,6 +112,7 @@ namespace GalaxyRoyale.Game.UI
             var preview = Widgets.Text("", 11, UiTheme.Accent);
             preview.style.whiteSpace = WhiteSpace.Normal;
             var status = Widgets.Text("", 11, UiTheme.Bad);
+            var forecast = new ForecastView();
             Button? launchBtn = null;
 
             var picks = new Dictionary<HullId, SliderInt>();
@@ -174,6 +185,7 @@ namespace GalaxyRoyale.Game.UI
 
             content.Add(preview);
             content.Add(status);
+            content.Add(forecast.Root);
 
             Dictionary<HullId, int> Fleet()
             {
@@ -191,9 +203,17 @@ namespace GalaxyRoyale.Game.UI
                 {
                     preview.text = "Select ships to preview the raid.";
                     status.text = "";
+                    forecast.Hide();
                     if (launchBtn != null) Widgets.SetButtonEnabled(launchBtn, false);
                     return;
                 }
+                // Same inputs the arrival battle uses (RaidArrivals.ResolveRaid):
+                // the picked fleet + your research vs their docked garrison.
+                if (hasIntel)
+                    forecast.Show(BattleForecast.Predict(fleet, target.Ships, ResearchSystem.CombatMods(state)),
+                        "Rivals keep building — their garrison can grow before you arrive.");
+                else
+                    forecast.NeedsIntel("Send a spy probe first — the forecast needs their garrison.");
                 var p = MarchSystem.PreviewMarch(state, fleet, tile);
                 if (p.Ok)
                 {

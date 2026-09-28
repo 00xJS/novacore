@@ -1,6 +1,7 @@
-// Rankings (MORE → RANK) — the galaxy leaderboard: you versus the 99
-// simulated commanders, ranked by might. Your row is highlighted; tapping a
-// rival opens their public profile. All local — no fetch, no spinner.
+// Rankings (MORE → RANK) — the galaxy leaderboard: you versus the simulated
+// commanders, ranked by might. Your row is highlighted, rivals out for revenge
+// carry a red marker, and tapping a rival opens their public profile. All
+// local — no fetch, no spinner.
 using System;
 using System.Collections.Generic;
 using UnityEngine.UIElements;
@@ -37,12 +38,13 @@ namespace GalaxyRoyale.Game.UI
                 body.Clear();
                 long playerMight = PowerSystem.ComputePower(state);
 
-                var rows = new List<(int botId, string name, int avatarSeed, long might)>
+                var rows = new List<(int botId, string name, int avatarSeed, long might, bool grudge)>
                 {
-                    (0, state.Profile.Name, state.Profile.AvatarSeed, playerMight),
+                    (0, state.Profile.Name, state.Profile.AvatarSeed, playerMight, false),
                 };
                 foreach (var bot in galaxy.Bots)
-                    rows.Add((bot.Id, bot.Name, bot.State.Profile.AvatarSeed, bot.CachedMight));
+                    rows.Add((bot.Id, bot.Name, bot.State.Profile.AvatarSeed, bot.CachedMight,
+                        BotSystem.HoldsGrudge(bot, state.Tick)));
                 rows.Sort((a, b) => b.might.CompareTo(a.might));
 
                 // Pinned YOU card: the board is 250 rows, you shouldn't have to hunt
@@ -53,22 +55,30 @@ namespace GalaxyRoyale.Game.UI
                     UiTheme.Accent.r * 0.18f, UiTheme.Accent.g * 0.18f, UiTheme.Accent.b * 0.18f, 1f);
                 Widgets.SetBorder(pin, UiTheme.Accent, 1.5f);
                 pin.style.marginBottom = 12;
-                var pinBox = Widgets.HBox(Justify.SpaceBetween);
-                var pinLeft = Widgets.HBox();
+                var pinBox = Widgets.HBox();
                 var pinRank = Widgets.Text($"#{myRank}", 18, UiTheme.Accent, bold: true);
                 pinRank.style.minWidth = 56;
-                pinLeft.Add(pinRank);
+                pinRank.style.flexShrink = 0f;
+                pinBox.Add(pinRank);
                 var pinCol = new VisualElement();
+                pinCol.style.flexShrink = 1f;
                 pinCol.Add(Widgets.Text("YOUR RANK", 9, UiTheme.Dim, bold: true));
-                pinCol.Add(Widgets.Text($"of {rows.Count} commanders · might {playerMight:N0}", 11, UiTheme.Text));
-                pinLeft.Add(pinCol);
-                pinBox.Add(pinLeft);
+                var standing = Widgets.Text($"of {rows.Count} commanders · might {playerMight:N0}", 11, UiTheme.Text);
+                standing.style.whiteSpace = WhiteSpace.Normal;
+                pinCol.Add(standing);
+                // The movement gets its own line — sharing the row with the might
+                // line, the two ran into each other on phone-width cards.
                 if (lastSeenRank > 0 && lastSeenRank != myRank)
                 {
                     bool up = myRank < lastSeenRank;
-                    pinBox.Add(Widgets.IconText(up ? Icon.ArrowUp : Icon.ArrowDown,
-                        $"{Math.Abs(lastSeenRank - myRank)} since last look", 11, up ? UiTheme.Good : UiTheme.Bad));
+                    int moved = Math.Abs(lastSeenRank - myRank);
+                    var delta = Widgets.IconText(up ? Icon.ArrowUp : Icon.ArrowDown,
+                        $"{(up ? "up" : "down")} {moved} {(moved == 1 ? "place" : "places")} since last look",
+                        11, up ? UiTheme.Good : UiTheme.Bad, bold: true);
+                    delta.style.marginTop = 3;
+                    pinCol.Add(delta);
                 }
+                pinBox.Add(pinCol);
                 pin.Add(pinBox);
                 body.Add(pin);
                 if (!rankStored)
@@ -93,6 +103,12 @@ namespace GalaxyRoyale.Game.UI
                     var name = Widgets.Text(entry.name, 12,
                         me ? UiTheme.Accent : UiTheme.Text, bold: me);
                     left.Add(name);
+                    if (entry.grudge)
+                    {
+                        var mark = Icons.Make(Icon.Swords, 12, UiTheme.Bad);
+                        mark.style.marginLeft = 6;
+                        left.Add(mark);
+                    }
                     box.Add(left);
                     var right = Widgets.HBox();
                     right.Add(Widgets.Text($"{entry.might:N0}", 12, UiTheme.Energy));

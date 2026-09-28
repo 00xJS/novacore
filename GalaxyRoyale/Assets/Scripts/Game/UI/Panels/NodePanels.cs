@@ -5,12 +5,14 @@
 // ATTACK + SPY; resource tiles GATHER; derelicts SALVAGE.
 //
 // NodeComposer: the modal fleet composer — per-hull sliders, live preview of
-// travel / helium / cargo (with research bonuses already baked in), launch.
+// travel / helium / cargo (with research bonuses already baked in), a battle
+// forecast against a scanned pirate camp, launch.
 using System;
 using System.Collections.Generic;
 using UnityEngine.UIElements;
 using GalaxyRoyale.Data;
 using GalaxyRoyale.Sim;
+using GalaxyRoyale.Sim.Combat;
 using GalaxyRoyale.Sim.Map;
 using GalaxyRoyale.Sim.Systems;
 
@@ -189,6 +191,8 @@ namespace GalaxyRoyale.Game.UI
             preview.style.whiteSpace = WhiteSpace.Normal;
             preview.style.marginTop = 8;
             var status = Widgets.Text("", 11, UiTheme.Bad);
+            var forecast = new ForecastView();
+            forecast.Hide();
             Button? launchBtn = null;
 
             // Per-hull sliders — only hulls actually docked (you can't send what you
@@ -254,6 +258,7 @@ namespace GalaxyRoyale.Game.UI
 
             content.Add(preview);
             content.Add(status);
+            if (isCamp) content.Add(forecast.Root);
 
             var launchRow = Widgets.HBox(Justify.SpaceAround);
             launchRow.style.marginTop = 8;
@@ -282,6 +287,16 @@ namespace GalaxyRoyale.Game.UI
                     preview.text = $"{UiTheme.FmtDuration(p.TravelSec)} travel · {p.HeliumCost / 1000.0:0.#} helium · cargo {UiTheme.FmtCount(p.CargoCap / 1000)}";
                 }
                 if (launchBtn != null) Widgets.SetButtonEnabled(launchBtn, p.Ok);
+
+                // Camp garrisons are fixed by level, so once scanned the forecast
+                // is exactly the arrival battle (MarchSystem's camp resolution).
+                if (!isCamp) return;
+                if (MarchSystem.FleetCount(fleet) < 1) forecast.Hide();
+                else if (!MarchSystem.HasSpyIntel(state, node.Tile))
+                    forecast.NeedsIntel("Spy the camp first — the forecast needs its garrison.");
+                else
+                    forecast.Show(BattleForecast.Predict(fleet, MarchSystem.CampGarrison(node),
+                        ResearchSystem.CombatMods(state)), null);
             }
 
             void Launch(MarchMission mission)

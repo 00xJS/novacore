@@ -593,6 +593,7 @@ namespace GalaxyRoyale.Sim.Save
                 case BattleMailReport battle:
                     d["report"] = EncodeReport(battle.Report);
                     if (battle.Defending) d["defending"] = true; // optional: absent = attacker view
+                    if (battle.AttackerBotId > 0) d["attackerBotId"] = (long)battle.AttackerBotId;
                     break;
             }
             d["read"] = item.Read;
@@ -666,18 +667,34 @@ namespace GalaxyRoyale.Sim.Save
             item.Favorite = d.TryGetValue("favorite", out var f) && f is bool fb && fb;
             if (item is BattleMailReport mail)
             {
-                // Reports saved before the flag existed: the inbound-raid subjects
-                // are fixed strings, so recognise them once on load.
-                mail.Defending = (d.TryGetValue("defending", out var df) && df is bool dfb && dfb)
-                    || item.Subject.StartsWith("Colony raided by", StringComparison.Ordinal)
-                    || item.Subject.StartsWith("Raid repelled", StringComparison.Ordinal)
-                    || item.Subject.StartsWith("Raid deflected", StringComparison.Ordinal);
+                mail.Defending = IsDefenseReport(mail,
+                    d.TryGetValue("defending", out var df) && df is bool dfb ? dfb : null);
+                if (d.TryGetValue("attackerBotId", out var ab) && ab is long abl) mail.AttackerBotId = (int)abl;
             }
             return item;
         }
 
         // Public: the PvP raid wire format (raids.report / .loot / .ship_losses
         // jsonb columns) reuses the exact v12 battle-report shapes.
+        /// <summary>
+        /// Which side of a battle the player was on. The saved flag decides —
+        /// except for "Raid repelled — X", which is ALSO the subject of your own
+        /// failed raid on X: saves from before the flag, and builds that guessed
+        /// from the subject alone, read those as defenses (a green VICTORY for a
+        /// raid you lost). Your raid's defender is X itself; a raid you fought off
+        /// names the attacker, with you as the defender.
+        /// </summary>
+        static bool IsDefenseReport(BattleMailReport mail, bool? flag)
+        {
+            const string repelled = "Raid repelled — ";
+            string subject = mail.Subject;
+            if (subject.StartsWith(repelled, StringComparison.Ordinal))
+                return subject.Substring(repelled.Length) != (mail.Report.DefenderName ?? "");
+            if (flag is bool saved) return saved;
+            return subject.StartsWith("Colony raided by", StringComparison.Ordinal)
+                || subject.StartsWith("Raid deflected", StringComparison.Ordinal);
+        }
+
         public static Dictionary<string, object?> EncodeReport(BattleReport r)
         {
             var d = new Dictionary<string, object?>
