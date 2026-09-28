@@ -759,9 +759,11 @@ namespace GalaxyRoyale.Game.UI
             Widgets.SetBorder(_queuesFab, Time.time < _queuesPingUntil ? UiTheme.Energy : UiTheme.Accent, 2f);
             // A bottom callout (node / planet / fleet card) spans the same strip
             // as the corner FABs — they peeked through it, so they step aside.
+            // Same for modals: the FABs can't be tapped behind the blocker, and
+            // their rings showed under the panel's bottom edge.
             bool calloutUp = _callout != null;
             if (calloutUp && _moreOpen) ToggleMoreMenu();
-            var cornerFabDisplay = calloutUp ? DisplayStyle.None : DisplayStyle.Flex;
+            var cornerFabDisplay = calloutUp || _modal != null ? DisplayStyle.None : DisplayStyle.Flex;
             _queuesFab.style.display = cornerFabDisplay;
             _moreFab.style.display = cornerFabDisplay;
             var mapFabDisplay = View == ViewId.Map && _modal == null && !calloutUp

@@ -18,7 +18,14 @@ namespace GalaxyRoyale.Sim.Save
     {
         // ---------- public API ----------
 
-        public static string Encode(SaveFile file)
+        public static string Encode(SaveFile file) => Json.Write(EncodeTree(file));
+
+        /// <summary>
+        /// The save as a plain JSON tree: fresh dictionaries, lists, strings and
+        /// numbers only — nothing references live state — so the tree can be
+        /// turned into text on a worker thread while the sim keeps ticking.
+        /// </summary>
+        public static Dictionary<string, object?> EncodeTree(SaveFile file)
         {
             var root = new Dictionary<string, object?>
             {
@@ -27,7 +34,7 @@ namespace GalaxyRoyale.Sim.Save
                 ["state"] = EncodeState(file.State),
             };
             if (file.Bots != null) root["bots"] = EncodeBots(file.Bots);
-            return Json.Write(root);
+            return root;
         }
 
         /// <summary>Throws FormatException on malformed input. Version gate stays in SaveManager.Unwrap.</summary>
