@@ -47,7 +47,7 @@ namespace GalaxyRoyale.Game.UI
             var list = new VisualElement();
             Button reset = null!;
             long shownXp = -1;
-            int shownLevel = -1;
+            int shownLevel = -1, shownSpent = -1;
 
             // ---- branch tabs ----
             var tabRow = Widgets.HBox(Justify.SpaceBetween);
@@ -100,10 +100,12 @@ namespace GalaxyRoyale.Game.UI
             {
                 var state = ctx.State!;
                 var c = state.Commander;
-                if (c.Xp == shownXp && c.Level == shownLevel) return;
+                int spent = CommanderSystem.PointsSpent(state);
+                if (c.Xp == shownXp && c.Level == shownLevel && spent == shownSpent) return;
                 bool levelled = shownLevel >= 0 && c.Level != shownLevel;
                 shownXp = c.Xp;
                 shownLevel = c.Level;
+                shownSpent = spent;
 
                 levelLabel.text = $"LEVEL {c.Level} COMMANDER";
                 double mult = Difficulties.XpMult(state.Difficulty);
@@ -130,7 +132,6 @@ namespace GalaxyRoyale.Game.UI
                     : c.Level >= CommanderSystem.MaxLevel ? "Every point earned is spent."
                     : $"No points to spend — the next comes with level {c.Level + 1}.";
                 pointsLabel.style.color = free > 0 ? UiTheme.Energy : UiTheme.Dim;
-                int spent = CommanderSystem.PointsSpent(state);
                 int cost = CommanderSystem.RespecCost(state);
                 Widgets.SetCaption(reset, cost == 0 ? "RESET SKILLS (FREE)" : $"RESET SKILLS · {cost} DM");
                 Widgets.SetButtonEnabled(reset, spent > 0);

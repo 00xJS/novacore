@@ -264,28 +264,51 @@ namespace GalaxyRoyale.Game.UI
             profilePill.RegisterCallback<PointerUpEvent>(_ => OpenProfile());
 
             var profile = _ctx.State!.Profile;
+            // The avatar wears the commander level as a badge (the pill keeps its
+            // width — long names already reach the Dynamic Island); the dot on top
+            // means skill points are waiting.
+            var avatarBox = new VisualElement { pickingMode = PickingMode.Ignore };
             _headerAvatar = Portraits.Avatar(profile.AvatarSeed, profile.Name, 22);
             _avatarSeedCache = profile.AvatarSeed;
-            profilePill.Add(_headerAvatar);
-
-            _nameLabel = Widgets.Text(profile.Name, 13, UiTheme.Text);
-            _nameLabel.style.marginLeft = 6;
-            profilePill.Add(_nameLabel);
-            // Commander level; the dot means skill points are waiting.
-            _levelLabel = Widgets.Text("", 11, UiTheme.Energy, bold: true);
-            _levelLabel.style.marginLeft = 6;
-            profilePill.Add(_levelLabel);
+            avatarBox.Add(_headerAvatar);
+            var levelBadge = new VisualElement { pickingMode = PickingMode.Ignore };
+            levelBadge.style.position = Position.Absolute;
+            levelBadge.style.right = -7;
+            levelBadge.style.bottom = -5;
+            levelBadge.style.minWidth = 13;
+            levelBadge.style.height = 12;
+            levelBadge.style.paddingLeft = 2;
+            levelBadge.style.paddingRight = 2;
+            levelBadge.style.backgroundColor = UiTheme.Panel;
+            Widgets.SetBorder(levelBadge, UiTheme.Energy, 1f);
+            levelBadge.style.borderTopLeftRadius = 6;
+            levelBadge.style.borderTopRightRadius = 6;
+            levelBadge.style.borderBottomLeftRadius = 6;
+            levelBadge.style.borderBottomRightRadius = 6;
+            levelBadge.style.justifyContent = Justify.Center;
+            levelBadge.style.alignItems = Align.Center;
+            _levelLabel = Widgets.Text("", 8, UiTheme.Energy, bold: true);
+            _levelLabel.pickingMode = PickingMode.Ignore;
+            levelBadge.Add(_levelLabel);
+            avatarBox.Add(levelBadge);
             _skillDot = new VisualElement { pickingMode = PickingMode.Ignore };
-            _skillDot.style.width = 7;
-            _skillDot.style.height = 7;
-            _skillDot.style.marginLeft = 3;
+            _skillDot.style.position = Position.Absolute;
+            _skillDot.style.right = -3;
+            _skillDot.style.top = -2;
+            _skillDot.style.width = 8;
+            _skillDot.style.height = 8;
             _skillDot.style.borderTopLeftRadius = 4;
             _skillDot.style.borderTopRightRadius = 4;
             _skillDot.style.borderBottomLeftRadius = 4;
             _skillDot.style.borderBottomRightRadius = 4;
             _skillDot.style.backgroundColor = UiTheme.Energy;
             _skillDot.style.display = DisplayStyle.None;
-            profilePill.Add(_skillDot);
+            avatarBox.Add(_skillDot);
+            profilePill.Add(avatarBox);
+
+            _nameLabel = Widgets.Text(profile.Name, 13, UiTheme.Text);
+            _nameLabel.style.marginLeft = 9; // clears the level badge
+            profilePill.Add(_nameLabel);
             profilePill.Add(Widgets.Text("›", 16, UiTheme.Accent, bold: true));
             _islandRow.Add(profilePill);
 
@@ -1280,7 +1303,7 @@ namespace GalaxyRoyale.Game.UI
             if (level != _levelCache)
             {
                 _levelCache = level;
-                _levelLabel.text = $"Lv {state.Commander.Level}";
+                _levelLabel.text = state.Commander.Level.ToString();
                 _skillDot.style.display = freePoints > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             }
 

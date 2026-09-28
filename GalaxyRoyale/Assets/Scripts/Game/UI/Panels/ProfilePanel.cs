@@ -200,9 +200,7 @@ namespace GalaxyRoyale.Game.UI
                 cache = key;
 
                 var cmd = state.Commander;
-                cmdLabel.text = freePoints > 0
-                    ? $"LEVEL {cmd.Level} COMMANDER · {freePoints} POINT{(freePoints == 1 ? "" : "S")} TO SPEND"
-                    : $"LEVEL {cmd.Level} COMMANDER";
+                cmdLabel.text = $"LEVEL {cmd.Level} COMMANDER"; // points waiting show on SKILLS
                 var (into, span) = CommanderSystem.LevelProgress(state);
                 xpFill.style.width = Length.Percent(span > 0 ? Math.Min(100f, 100f * into / span) : 100f);
                 xpText.text = span > 0 ? $"{into:N0} / {span:N0} XP" : "highest level";
