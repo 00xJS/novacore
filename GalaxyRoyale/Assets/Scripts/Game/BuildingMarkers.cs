@@ -423,7 +423,16 @@ namespace GalaxyRoyale.Game
             _     => leveledColor,
         };
 
+        // Markers first (horizon cull toggles renderer.enabled), then the labels
+        // that key off it. Split so PlaceLabels can still CLEAR its layer when
+        // the base camera is off (galaxy map) — UpdateMarkers bails out early then.
         void LateUpdate()
+        {
+            UpdateMarkers();
+            PlaceLabels();
+        }
+
+        void UpdateMarkers()
         {
             if (_planet == null) return;
             var cam = Camera.main;
@@ -541,74 +550,97 @@ namespace GalaxyRoyale.Game
             }
         }
 
-        // ---------- labels (world-anchored IMGUI text) ----------
+        // ---------- labels (world-anchored, UI Toolkit) ----------
+        //
+        // Names live in a WorldLabelLayer under the HUD (they used to be IMGUI,
+        // which painted over the round buttons and sized text in raw pixels —
+        // ~5pt on a 3x iPhone). Placement is prioritized so the declutter pass
+        // keeps the important names when markers crowd together.
 
-        // Cached — constructing GUIStyles every OnGUI frame was pure GC churn.
-        GUIStyle? _labelStyle, _labelShadow;
+        WorldLabelLayer? _labels;
+        readonly List<BuildingId> _labelOrder = new();
+        System.Comparison<BuildingId>? _byLabelPriority;
+        static readonly Color LabelColor = new(1f, 1f, 1f, 0.97f);
+        static readonly Color GhostLabelColor = new(0.62f, 0.85f, 1f, 0.85f);
+        // Cached strings — rebuilt only when a level changes, not every frame.
+        readonly Dictionary<BuildingId, (int level, string text)> _labelText = new();
+        readonly Dictionary<int, (int level, string text)> _mineLabelText = new();
 
-        void OnGUI()
+        void PlaceLabels()
         {
-            if (!showLabels || _ctx?.State == null || Camera.main == null) return;
-            // IMGUI draws over UI Toolkit no matter what — suppress the labels while
-            // a modal is up so building names don't bleed through panels.
-            if (UIController.Instance != null && UIController.Instance.HasModal) return;
-            if (_labelStyle == null)
-            {
-                _labelStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = labelFontSize,
-                    alignment = TextAnchor.MiddleCenter,
-                    fontStyle = FontStyle.Bold,
-                };
-                _labelStyle.normal.textColor = new Color(1f, 1f, 1f, 0.95f);
-                _labelShadow = new GUIStyle(_labelStyle);
-                _labelShadow.normal.textColor = new Color(0f, 0f, 0f, 0.9f);
-            }
-            var style = _labelStyle;
-            var shadow = _labelShadow!;
+            if (_ctx?.State == null) return;
+            _labels ??= UIController.Instance?.CreateWorldLabelLayer("building-labels");
+            if (_labels == null) return;
+
+            // The galaxy map disables the base camera — no planet, no labels. And
+            // with a panel open, names half-peeking past its edges read as clutter.
             var cam = Camera.main;
-
-            // Clip bands (screen px) where the header and bottom nav sit, so a
-            // marker label scrolled to the screen edge doesn't bleed over the UI.
-            float scale = Screen.width / (float)UI.UiTheme.W; // px per UITK point
-            float topInset = UI.Widgets.SafeAreaTopPoints();
-            float headerPx = (Mathf.Max(topInset + 4f, 34f) + 20f + 50f) * scale;
-            const float tickerH = 22f;
-            float navPx = (UI.UiTheme.NavH + tickerH) * scale;
-
-            void DrawLabel(Renderer rend, string text)
+            if (!showLabels || cam == null || !cam.isActiveAndEnabled || UIController.Instance?.HasModal == true)
             {
-                if (rend == null || !rend.enabled) return;
-                // Anchor the label just under the marker's bottom edge in screen space.
-                float halfHeight = rend.transform.lossyScale.y * 0.5f;
-                var bottom = rend.transform.position - cam.transform.up * halfHeight;
-                var sp = cam.WorldToScreenPoint(bottom);
-                if (sp.z < 0) return;
-                var rect = new Rect(sp.x - 75f, Screen.height - sp.y + 2f, 150f, 40f);
-                // Suppress labels that fall into the header or nav bands.
-                if (rect.y < headerPx || rect.yMax > Screen.height - navPx) return;
-                // 4-way black outline so names read over any planet palette.
-                foreach (var (ox, oy) in new[] { (-1f, 0f), (1f, 0f), (0f, -1f), (0f, 1f) })
-                    GUI.Label(new Rect(rect.x + ox, rect.y + oy, rect.width, rect.height), text, shadow);
-                GUI.Label(rect, text, style);
+                _labels.Clear();
+                return;
             }
 
-            foreach (var kv in _renderers)
+            var state = _ctx.State;
+            int fontSize = Mathf.Clamp(labelFontSize - 4, 9, 14); // panel points now, not pixels
+            _labels.Begin();
+
+            // Command Center first, then higher levels win the space.
+            _byLabelPriority ??= (a, b) =>
             {
-                int level = _ctx.State.Buildings[kv.Key].Level;
-                DrawLabel(kv.Value, $"{Buildings.Defs[kv.Key].Name}\nL{level}");
+                if (a == b) return 0;
+                if (a == BuildingId.CommandCenter) return -1;
+                if (b == BuildingId.CommandCenter) return 1;
+                var s = _ctx!.State!;
+                int byLevel = s.Buildings[b].Level.CompareTo(s.Buildings[a].Level);
+                return byLevel != 0 ? byLevel : ((int)a).CompareTo((int)b);
+            };
+            _labelOrder.Clear();
+            foreach (var kv in _renderers) _labelOrder.Add(kv.Key);
+            _labelOrder.Sort(_byLabelPriority);
+
+            foreach (var id in _labelOrder)
+            {
+                var rend = _renderers[id];
+                if (rend == null || !rend.enabled) continue;
+                int level = state.Buildings[id].Level;
+                if (!_labelText.TryGetValue(id, out var cached) || cached.level != level)
+                {
+                    cached = (level, $"{Buildings.Defs[id].Name}\nL{level}");
+                    _labelText[id] = cached;
+                }
+                var color = _selected == id ? UI.UiTheme.Accent : LabelColor;
+                _labels.Place(LabelPoint(cam, rend), cached.text, fontSize, color, above: false);
             }
-            foreach (var mine in _ctx.State.ExtraMines)
+            foreach (var mine in state.ExtraMines)
             {
-                if (!_mineRenderers.TryGetValue(mine.Id, out var rend)) continue;
-                _mineLabels.TryGetValue(mine.Id, out var name);
-                DrawLabel(rend, $"{name}\nL{mine.Level}");
+                if (!_mineRenderers.TryGetValue(mine.Id, out var rend) || rend == null || !rend.enabled) continue;
+                if (!_mineLabelText.TryGetValue(mine.Id, out var cached) || cached.level != mine.Level)
+                {
+                    _mineLabels.TryGetValue(mine.Id, out var name);
+                    cached = (mine.Level, $"{name}\nL{mine.Level}");
+                    _mineLabelText[mine.Id] = cached;
+                }
+                var color = _selectedMine == mine.Id ? UI.UiTheme.Accent : LabelColor;
+                _labels.Place(LabelPoint(cam, rend), cached.text, fontSize, color, above: false);
             }
             foreach (var kv in _ghosts)
             {
                 var rend = kv.Key != null ? kv.Key.GetComponent<Renderer>() : null;
-                if (rend != null) DrawLabel(rend, "+ BUILD");
+                if (rend == null || !rend.enabled) continue;
+                _labels.Place(LabelPoint(cam, rend), "+ BUILD", fontSize - 1, GhostLabelColor, above: false);
             }
+            _labels.End();
+        }
+
+        /// <summary>Screen point just under a marker's bottom edge (camera-up axis).</summary>
+        static Vector3 LabelPoint(Camera cam, Renderer rend)
+        {
+            float halfHeight = rend.transform.lossyScale.y * 0.5f;
+            var bottom = rend.transform.position - cam.transform.up * halfHeight;
+            var sp = cam.WorldToScreenPoint(bottom);
+            sp.y -= 2f; // a hair of breathing room under the icon
+            return sp;
         }
 
         static void Warn(string msg) => Debug.LogWarning($"[GalaxyRoyale] BuildingMarkers: {msg}. Skipping spawn.");

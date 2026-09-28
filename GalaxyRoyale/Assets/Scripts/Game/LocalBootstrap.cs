@@ -35,6 +35,9 @@ namespace GalaxyRoyale.Game
 
         void Start()
         {
+            // Back from another app: GameContext caught the galaxy up — say so.
+            _ctx.Resumed += summary => { if (_booted) ToastOffline(summary); };
+
             _pendingLoad = LocalSave.Load();
             if (_pendingLoad is { } peek && peek.bots == null)
                 _pendingLoad = null; // unreadable/pre-pivot leftovers → treat as no save

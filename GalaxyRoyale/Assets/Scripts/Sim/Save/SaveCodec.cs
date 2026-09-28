@@ -592,6 +592,7 @@ namespace GalaxyRoyale.Sim.Save
                 }
                 case BattleMailReport battle:
                     d["report"] = EncodeReport(battle.Report);
+                    if (battle.Defending) d["defending"] = true; // optional: absent = attacker view
                     break;
             }
             d["read"] = item.Read;
@@ -663,6 +664,15 @@ namespace GalaxyRoyale.Sim.Save
             item.Subject = Str(d, "subject");
             item.Read = d.TryGetValue("read", out var rd) && rd is bool rb && rb;
             item.Favorite = d.TryGetValue("favorite", out var f) && f is bool fb && fb;
+            if (item is BattleMailReport mail)
+            {
+                // Reports saved before the flag existed: the inbound-raid subjects
+                // are fixed strings, so recognise them once on load.
+                mail.Defending = (d.TryGetValue("defending", out var df) && df is bool dfb && dfb)
+                    || item.Subject.StartsWith("Colony raided by", StringComparison.Ordinal)
+                    || item.Subject.StartsWith("Raid repelled", StringComparison.Ordinal)
+                    || item.Subject.StartsWith("Raid deflected", StringComparison.Ordinal);
+            }
             return item;
         }
 

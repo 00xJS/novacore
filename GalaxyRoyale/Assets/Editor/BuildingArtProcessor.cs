@@ -30,8 +30,8 @@ public static class BuildingArtProcessor
     // plain WHITE background instead; a low threshold flood-fills straight through
     // light-grey ART (the radar DISH got eaten), so those use a TIGHT near-white
     // threshold (0.90) that removes only the background and preserves the art.
-    const float CheckerBright = 0.30f;
-    const float WhiteBgBright = 0.90f;
+    internal const float CheckerBright = 0.30f;
+    internal const float WhiteBgBright = 0.90f;
 
     static readonly (string src, string dst, float minBright)[] Map =
     {
@@ -89,7 +89,7 @@ public static class BuildingArtProcessor
         catch (System.Exception e) { Debug.LogError(e); EditorApplication.Exit(1); }
     }
 
-    static bool Process(string srcPath, string dstPath, float minBright)
+    internal static bool Process(string srcPath, string dstPath, float minBright)
     {
         var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
         if (!tex.LoadImage(File.ReadAllBytes(srcPath)))

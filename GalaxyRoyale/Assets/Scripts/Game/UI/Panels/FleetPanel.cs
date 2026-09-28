@@ -32,7 +32,11 @@ namespace GalaxyRoyale.Game.UI
             // Queues FLEETS tab; this screen is for BUILDING ships.
             var (blocker, content) = Widgets.ModalPanel("SHIPYARD — BUILD SHIPS", ui.CloseModal, 84f);
 
-            content.Add(Widgets.Text("set a quantity, then BUILD · fleets in flight are managed in QUEUES → FLEETS", 10, UiTheme.Dim));
+            var intro = Widgets.Text(
+                "Tap a ship for its full specs · set a quantity, then BUILD · fleets in flight live in QUEUES › FLEETS",
+                10, UiTheme.Dim);
+            intro.style.whiteSpace = WhiteSpace.Normal;
+            content.Add(intro);
 
             var refreshers = new List<Action>();
 
@@ -54,15 +58,18 @@ namespace GalaxyRoyale.Game.UI
                     bool anyUnlocked = Ships.All.Any(x =>
                         Ships.Defs[x].Class == cls && FleetSystem.UnlockBlocker(ctx.State!, x) == null);
                     group.style.display = anyUnlocked ? DisplayStyle.Flex : DisplayStyle.None;
-                    var header = Widgets.TextButton(
-                        $"{(anyUnlocked ? "▾" : "▸")}  {cls.ToUpper()}", null!, 11);
+                    // Painted chevrons — "▾" / "▸" in button text relied on the
+                    // runtime font having those glyphs.
+                    var header = Widgets.IconButton(anyUnlocked ? Icon.ChevronDown : Icon.ChevronRight,
+                        cls.ToUpper(), null!, 11);
                     header.style.marginTop = 12;
-                    header.style.unityTextAlign = UnityEngine.TextAnchor.MiddleLeft;
+                    header.style.justifyContent = Justify.FlexStart;
                     header.clicked += () =>
                     {
                         bool open = group.style.display == DisplayStyle.None;
                         group.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
-                        header.text = $"{(open ? "▾" : "▸")}  {cls.ToUpper()}";
+                        var chevron = header.Q<IconElement>();
+                        if (chevron != null) chevron.Icon = open ? Icon.ChevronDown : Icon.ChevronRight;
                     };
                     content.Add(header);
                     content.Add(group);
@@ -71,20 +78,48 @@ namespace GalaxyRoyale.Game.UI
                 var row = Widgets.Row();
                 row.style.marginTop = 6;
 
+                // Picture (drop-in render or painted schematic) — tap for the spec card.
+                var top = Widgets.HBox(Justify.FlexStart, Align.FlexStart);
+                var thumb = Widgets.TextButton("", () =>
+                    ShipDetailPanel.Open(ctx, h, () => ui.SwitchView(ViewId.Fleet)), 10);
+                thumb.style.width = 62;
+                thumb.style.height = 62;
+                thumb.style.paddingLeft = 0;
+                thumb.style.paddingRight = 0;
+                thumb.style.paddingTop = 0;
+                thumb.style.paddingBottom = 0;
+                thumb.style.marginRight = 10;
+                thumb.style.backgroundColor = UnityEngine.Color.clear;
+                Widgets.SetBorder(thumb, UnityEngine.Color.clear, 0f);
+                thumb.Add(ShipArt.Card(h, 62f, 62f));
+                top.Add(thumb);
+
+                var info = new VisualElement();
+                info.style.flexGrow = 1f;
+                info.style.flexShrink = 1f;
                 var head = Widgets.HBox(Justify.SpaceBetween);
                 head.Add(Widgets.Text(def.Name, 14, UiTheme.Text, bold: true));
-                var owned = Widgets.Text("", 14, UiTheme.Accent, bold: true);
+                var owned = Widgets.Text("", 12, UiTheme.Accent, bold: true);
                 head.Add(owned);
-                row.Add(head);
+                info.Add(head);
+                string role = ShipLore.RoleOf(h);
+                if (role.Length > 0)
+                    info.Add(Widgets.Text(role.ToUpper(), 9, ShipArt.RoleColor(h), bold: true));
 
                 string counters = def.Counters is HullId c ? $" · counters {Ships.Defs[c].Name}s" : "";
                 string shield = def.Shield > 0 ? $" · shd {def.Shield}" : "";
-                row.Add(Widgets.Text(
-                    $"atk {def.Atk}{shield} · hp {def.Hp} · spd {def.Speed} · cargo {def.Cargo}{counters}",
-                    9, UiTheme.Dim));
+                // Cargo is stored in milli-units — it used to print 1000× too big.
+                var stats = Widgets.Text(
+                    $"atk {def.Atk}{shield} · hp {def.Hp} · spd {def.Speed} · cargo {UiTheme.FmtCount(def.Cargo / 1000)}{counters}",
+                    9, UiTheme.Dim);
+                stats.style.whiteSpace = WhiteSpace.Normal;
+                info.Add(stats);
 
                 var lockLabel = Widgets.Text("", 11, UiTheme.Bad);
-                row.Add(lockLabel);
+                lockLabel.style.whiteSpace = WhiteSpace.Normal;
+                info.Add(lockLabel);
+                top.Add(info);
+                row.Add(top);
 
                 var controls = Widgets.HBox();
                 controls.style.marginTop = 4;

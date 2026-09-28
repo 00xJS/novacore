@@ -138,41 +138,25 @@ namespace GalaxyRoyale.Game.UI
 
             // Map-only FABs stack on the LEFT above the queues button (user layout):
             // queues (always) → search (map) → favorites (map). MORE lives right.
-            Button LeftFab(string label, Action onTap, float bottomOffset, int fontSize = 20)
+            // Painted icons — font glyphs (⌕, ⟳, ⚔ …) tofu-box on device.
+            Button LeftFab(Icon icon, string? caption, Action onTap, float bottomOffset)
             {
-                var fab = Widgets.TextButton(label, onTap, fontSize);
+                var fab = Widgets.Fab(icon, caption, onTap);
                 fab.style.position = Position.Absolute;
                 fab.style.left = 12;
                 fab.style.bottom = UiTheme.NavH + TickerH + 16 + bottomOffset;
-                fab.style.width = 48;
-                fab.style.height = 48;
-                fab.style.borderTopLeftRadius = 24;
-                fab.style.borderTopRightRadius = 24;
-                fab.style.borderBottomLeftRadius = 24;
-                fab.style.borderBottomRightRadius = 24;
-                Widgets.SetBorder(fab, UiTheme.Accent, 2f);
                 fab.style.display = DisplayStyle.None;
                 _root.Add(fab);
                 return fab;
             }
-            // "⌕" rendered as tofu; use a text label instead (user feedback).
-            _searchFab = LeftFab("FIND", () => SearchPanel.Open(_ctx), 56f, 12);
-            _favoritesFab = LeftFab("★", () => FavoritesPanel.Open(_ctx), 112f);
+            _searchFab = LeftFab(Icon.Search, "FIND", () => SearchPanel.Open(_ctx), 56f);
+            _favoritesFab = LeftFab(Icon.Star, null, () => FavoritesPanel.Open(_ctx), 112f);
 
-            // Auto-rotate toggle — top right of the BASE view, default off
-            // (replaces the retired smoke-test HUD's only useful button). Plain
-            // word label: the runtime font tofu-boxes the ⟳ glyph we used before.
-            _spinToggle = Widgets.TextButton("SPIN", ToggleSpin, 12);
+            // Auto-rotate toggle — top right of the BASE view, default off.
+            _spinToggle = Widgets.Fab(Icon.Rotate, "SPIN", ToggleSpin, 44f, UiTheme.Stroke);
             _spinToggle.style.position = Position.Absolute;
             _spinToggle.style.right = 12;
-            _spinToggle.style.top = 112; // just under the header
-            _spinToggle.style.width = 42;
-            _spinToggle.style.height = 42;
-            _spinToggle.style.borderTopLeftRadius = 21;
-            _spinToggle.style.borderTopRightRadius = 21;
-            _spinToggle.style.borderBottomLeftRadius = 21;
-            _spinToggle.style.borderBottomRightRadius = 21;
-            Widgets.SetBorder(_spinToggle, UiTheme.Stroke, 2f);
+            _spinToggle.style.top = 112; // just under the header (Update tracks the safe area)
             _root.Add(_spinToggle);
 
             _calloutLayer = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -198,6 +182,12 @@ namespace GalaxyRoyale.Game.UI
             _modalLayer.style.bottom = 0;
             _root.Add(_modalLayer);
 
+            _labelBlockers.AddRange(new[]
+            {
+                _header, _nav, _ticker, _queuesFab, _moreFab, _moreMenu,
+                _spinToggle, _searchFab, _favoritesFab, _calloutLayer,
+            });
+
             _ctx.Events!.Subscribe(OnSimEvent);
         }
 
@@ -216,7 +206,7 @@ namespace GalaxyRoyale.Game.UI
 
         void BuildHeader()
         {
-            var header = new VisualElement();
+            var header = _header = new VisualElement();
             header.style.position = Position.Absolute;
             header.style.left = 0;
             header.style.right = 0;
@@ -305,7 +295,7 @@ namespace GalaxyRoyale.Game.UI
 
         void BuildBottomNav()
         {
-            var nav = Widgets.HBox(Justify.SpaceAround, Align.Center);
+            var nav = _nav = Widgets.HBox(Justify.SpaceAround, Align.Center);
             nav.style.position = Position.Absolute;
             nav.style.left = 0;
             nav.style.right = 0;
@@ -351,7 +341,8 @@ namespace GalaxyRoyale.Game.UI
             _ticker.style.paddingRight = 10;
             _ticker.RegisterCallback<PointerUpEvent>(_ => OpenNews());
 
-            var icon = Widgets.Text("⚔", 11, UiTheme.Accent);
+            // Painted swords: the "⚔" glyph rendered as "□" on device (user report).
+            var icon = Icons.Make(Icon.Swords, 12, UiTheme.Accent);
             icon.style.marginRight = 6;
             _ticker.Add(icon);
             _tickerLabel = Widgets.Text("Galaxy news — tap for the battle wire", 11, UiTheme.Dim);
@@ -385,17 +376,10 @@ namespace GalaxyRoyale.Game.UI
         /// <summary>Right-side MORE FAB — pops a reverse-L column of shortcuts.</summary>
         void BuildMoreMenu()
         {
-            _moreFab = Widgets.TextButton("⋯", ToggleMoreMenu, 20);
+            _moreFab = Widgets.Fab(Icon.More, null, ToggleMoreMenu);
             _moreFab.style.position = Position.Absolute;
             _moreFab.style.right = 12;
             _moreFab.style.bottom = UiTheme.NavH + TickerH + 16; // search/favorites moved LEFT
-            _moreFab.style.width = 48;
-            _moreFab.style.height = 48;
-            _moreFab.style.borderTopLeftRadius = 24;
-            _moreFab.style.borderTopRightRadius = 24;
-            _moreFab.style.borderBottomLeftRadius = 24;
-            _moreFab.style.borderBottomRightRadius = 24;
-            Widgets.SetBorder(_moreFab, UiTheme.Accent, 2f);
             _root.Add(_moreFab);
 
             _moreMenu = new VisualElement();
@@ -405,23 +389,16 @@ namespace GalaxyRoyale.Game.UI
             _moreMenu.style.alignItems = Align.Center;
             _moreMenu.style.display = DisplayStyle.None;
 
-            Button MiniFab(string label, Action onTap)
+            Button MiniFab(Icon icon, string label, Action onTap)
             {
-                var b = Widgets.TextButton(label, () => { ToggleMoreMenu(); onTap(); }, 9);
-                b.style.width = 48;
-                b.style.height = 44;
+                var b = Widgets.Fab(icon, label, () => { ToggleMoreMenu(); onTap(); }, 48f, UiTheme.Stroke);
                 b.style.marginBottom = 8;
-                b.style.borderTopLeftRadius = 22;
-                b.style.borderTopRightRadius = 22;
-                b.style.borderBottomLeftRadius = 22;
-                b.style.borderBottomRightRadius = 22;
-                Widgets.SetBorder(b, UiTheme.Stroke, 2f);
                 _moreMenu.Add(b);
                 return b;
             }
             // Stacked bottom-up visually; add in top-down order.
-            MiniFab("DAILY", OpenDaily);
-            MiniFab("RANK", OpenRankings);
+            MiniFab(Icon.Check, "DAILY", OpenDaily);
+            MiniFab(Icon.Chart, "RANK", OpenRankings);
             _root.Add(_moreMenu);
         }
 
@@ -430,7 +407,7 @@ namespace GalaxyRoyale.Game.UI
             var spin = GameObject.Find("Home Planet")?.GetComponent<PlanetSpin>();
             if (spin == null) return;
             spin.enabled = !spin.enabled;
-            _spinToggle.text = spin.enabled ? "STOP" : "SPIN";
+            Widgets.SetCaption(_spinToggle, spin.enabled ? "STOP" : "SPIN");
             Widgets.SetButtonHighlight(_spinToggle, spin.enabled);
             Toast(spin.enabled ? "Auto-rotate on — sit back and watch your world" : "Auto-rotate off");
         }
@@ -444,17 +421,10 @@ namespace GalaxyRoyale.Game.UI
 
         void BuildQueuesFab()
         {
-            _queuesFab = Widgets.TextButton("≡", OpenQueues, 20);
+            _queuesFab = Widgets.Fab(Icon.Menu, null, OpenQueues);
             _queuesFab.style.position = Position.Absolute;
             _queuesFab.style.left = 12;
             _queuesFab.style.bottom = UiTheme.NavH + TickerH + 16;
-            _queuesFab.style.width = 48;
-            _queuesFab.style.height = 48;
-            _queuesFab.style.borderTopLeftRadius = 24;
-            _queuesFab.style.borderTopRightRadius = 24;
-            _queuesFab.style.borderBottomLeftRadius = 24;
-            _queuesFab.style.borderBottomRightRadius = 24;
-            Widgets.SetBorder(_queuesFab, UiTheme.Accent, 2f);
 
             _queuesBadge = new VisualElement { pickingMode = PickingMode.Ignore };
             _queuesBadge.style.position = Position.Absolute;
@@ -559,6 +529,19 @@ namespace GalaxyRoyale.Game.UI
 
         public bool HasModal => _modal != null;
 
+        /// <summary>A fresh layer for world-anchored labels (building names, map
+        /// commander names), painted UNDER the whole HUD so buttons and the header
+        /// always occlude it. See <see cref="WorldLabelLayer"/>.</summary>
+        public WorldLabelLayer CreateWorldLabelLayer(string name)
+        {
+            EnsureBuilt();
+            return new WorldLabelLayer(_root, name, _labelBlockers);
+        }
+
+        /// <summary>HUD pieces world labels must keep clear of (see WorldLabelLayer).</summary>
+        readonly List<VisualElement> _labelBlockers = new();
+        VisualElement _header = null!, _nav = null!;
+
         // ---------- panel launchers ----------
 
         // ---------- node callout (non-modal — the map stays live underneath) ----------
@@ -606,7 +589,10 @@ namespace GalaxyRoyale.Game.UI
 
         // ---------- toasts (v1 ToastManager: max 3, ~2.6s lifetime) ----------
 
-        public void Toast(string message)
+        public void Toast(string message) => Toast(message, null);
+
+        /// <summary>Toast with an optional painted icon on the left (radar warnings etc.).</summary>
+        public void Toast(string message, Icon? icon, Color? iconColor = null)
         {
             EnsureBuilt();
             if (_toasts.Count >= 3)
@@ -624,9 +610,18 @@ namespace GalaxyRoyale.Game.UI
             toast.style.paddingBottom = 8;
             toast.style.marginTop = 6;
             toast.style.maxWidth = UiTheme.W - 80;
+            if (icon is Icon glyph)
+            {
+                toast.style.flexDirection = FlexDirection.Row;
+                toast.style.alignItems = Align.Center;
+                var mark = Icons.Make(glyph, 16, iconColor ?? UiTheme.Energy);
+                mark.style.marginRight = 8;
+                toast.Add(mark);
+            }
             var label = Widgets.Text(message, 13, UiTheme.Text);
             label.style.whiteSpace = WhiteSpace.Normal;
             label.style.unityTextAlign = TextAnchor.MiddleCenter;
+            label.style.flexShrink = 1f;
             toast.Add(label);
             _toastLayer.Add(toast);
             _toasts.Add(toast);
@@ -694,9 +689,25 @@ namespace GalaxyRoyale.Game.UI
 
         // ---------- per-frame refresh (string-cached like v1) ----------
 
+        // ---------- frame pacing ----------
+        // Unity on iOS runs at 30 fps unless told otherwise, so pans and pinches
+        // felt choppy on 60/120 Hz screens (perf review). 60 fps while a finger is
+        // down (plus a beat after, for fling momentum and scroll inertia); idle
+        // drops back to the old 30 so battery use at rest is unchanged.
+        float _lastTouchTime = -10f;
+
+        void PaceFrames()
+        {
+            var pointer = UnityEngine.InputSystem.Pointer.current;
+            if (pointer != null && pointer.press.isPressed) _lastTouchTime = Time.unscaledTime;
+            int want = Time.unscaledTime - _lastTouchTime < 2.5f ? 60 : 30;
+            if (Application.targetFrameRate != want) Application.targetFrameRate = want;
+        }
+
         void Update()
         {
             EnsureBuilt();
+            PaceFrames();
             var state = _ctx.State;
             if (state == null) return;
 
@@ -722,7 +733,14 @@ namespace GalaxyRoyale.Game.UI
             }
 
             Widgets.SetBorder(_queuesFab, Time.time < _queuesPingUntil ? UiTheme.Energy : UiTheme.Accent, 2f);
-            var mapFabDisplay = View == ViewId.Map && _modal == null
+            // A bottom callout (node / planet / fleet card) spans the same strip
+            // as the corner FABs — they peeked through it, so they step aside.
+            bool calloutUp = _callout != null;
+            if (calloutUp && _moreOpen) ToggleMoreMenu();
+            var cornerFabDisplay = calloutUp ? DisplayStyle.None : DisplayStyle.Flex;
+            _queuesFab.style.display = cornerFabDisplay;
+            _moreFab.style.display = cornerFabDisplay;
+            var mapFabDisplay = View == ViewId.Map && _modal == null && !calloutUp
                 ? DisplayStyle.Flex : DisplayStyle.None;
             _searchFab.style.display = mapFabDisplay;
             _favoritesFab.style.display = mapFabDisplay;

@@ -122,7 +122,9 @@ namespace GalaxyRoyale.Game
                 Id = state.NextReportId++,
                 AtTick = state.Tick,
                 Target = state.HomeTile,
-                Subject = $"⚠ RADAR — {what} inbound",
+                // No "⚠" prefix: it tofu-boxes in the runtime font. The mailbox
+                // paints a warning icon on radar rows instead.
+                Subject = $"RADAR ALERT — {what} inbound",
                 ArrivesAtTick = atk.ArrivesAtTick,
                 IsFleet = tier >= 2 ? atk.IsFleet : null,
                 AttackerName = tier >= 3 ? attackerName : null,
@@ -132,7 +134,7 @@ namespace GalaxyRoyale.Game
             BotSystem.InsertMail(state, warning);
 
             string eta = arrivesInSec > 0 ? $"{Math.Max(1, arrivesInSec)}s" : "now";
-            UI.UIController.Instance?.Toast($"⚠ Radar contact — {what}, arrival {eta}");
+            UI.UIController.Instance?.Toast($"Radar contact — {what}, arrival {eta}", UI.Icon.Warning, UI.UiTheme.Bad);
         }
 
         // ---------- red alert halo (base view) ----------

@@ -113,6 +113,11 @@ namespace GalaxyRoyale.Sim
     public sealed class BattleMailReport : MailItem
     {
         public BattleReport Report = new();
+        /// <summary>True when the PLAYER was the defender (a rival raided the
+        /// colony). The report's Attacker side is then the rival, so the mailbox
+        /// must flip perspective — it used to show a lost raid as a green
+        /// "VICTORY" with the raider's ships under YOUR FLEET.</summary>
+        public bool Defending;
     }
 
     /// <summary>

@@ -1085,9 +1085,11 @@ namespace GalaxyRoyale.Sim.Bots
                             // read with their true time-ago in the mailbox.
                             AtTick = atk.ArrivesAtTick,
                             Target = player.HomeTile,
+                            // (No "⚠" prefix — it tofu-boxes in the runtime font; the
+                            // mailbox paints a warning icon on radar rows instead.)
                             Subject = tier >= 3
-                                ? $"⚠ RADAR — {bot.Name}'s probe scanned your colony"
-                                : "⚠ RADAR — a spy probe scanned your colony",
+                                ? $"RADAR ALERT — {bot.Name}'s probe scanned your colony"
+                                : "RADAR ALERT — a spy probe scanned your colony",
                             ArrivesAtTick = atk.ArrivesAtTick,
                             IsFleet = tier >= 2 ? false : null,
                             AttackerName = tier >= 3 ? bot.Name : null,
@@ -1099,7 +1101,10 @@ namespace GalaxyRoyale.Sim.Bots
                 // Aegis Shield up at IMPACT → the raid deflects: no battle, no loot,
                 // the bot's fleet turns for home intact. Buying the shield during
                 // the radar warning window is a legitimate (expensive) panic button.
-                if (player.Buffs.ShieldUntilTick > player.Tick)
+                // Judged at the ARRIVAL tick: during offline catch-up player.Tick is
+                // already the END of the window, so a shield that covered the impact
+                // but lapsed before you reopened the app used to be ignored.
+                if (player.Buffs.ShieldUntilTick > atk.ArrivesAtTick)
                 {
                     foreach (var kv in atk.Ships)
                         bot.State.Ships[kv.Key] =
@@ -1110,6 +1115,7 @@ namespace GalaxyRoyale.Sim.Bots
                         AtTick = atk.ArrivesAtTick,
                         Target = player.HomeTile,
                         Subject = $"Raid deflected — {bot.Name} hit your Aegis Shield",
+                        Defending = true,
                         Report = new BattleReport
                         {
                             Attacker = new Dictionary<HullId, int>(atk.Ships),
@@ -1183,6 +1189,7 @@ namespace GalaxyRoyale.Sim.Bots
                     Subject = playerLost
                         ? $"Colony raided by {bot.Name}"
                         : $"Raid repelled — {bot.Name}",
+                    Defending = true,
                     Report = report,
                 });
                 events.Emit(new ColonyRaided(report, bot.Name));

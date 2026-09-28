@@ -40,17 +40,130 @@ namespace GalaxyRoyale.Game.UI
             return btn;
         }
 
+        /// <summary>
+        /// A real button carrying a painted <see cref="Icon"/> plus an optional
+        /// caption. Use this instead of putting symbols in button text: the
+        /// runtime font tofu-boxes many of them on device (the old "ⓘ LEVELS"
+        /// and "⚔ RAID" buttons read "□ LEVELS" / "□ RAID").
+        /// </summary>
+        public static Button IconButton(Icon icon, string? caption, Action onTap, int fontSize = 12,
+            float iconSize = 0f)
+        {
+            var btn = TextButton("", onTap, fontSize);
+            btn.style.flexDirection = FlexDirection.Row;
+            btn.style.justifyContent = Justify.Center;
+            btn.style.alignItems = Align.Center;
+            btn.Add(Icons.Make(icon, iconSize > 0f ? iconSize : fontSize + 3f, UiTheme.Text));
+            if (!string.IsNullOrEmpty(caption))
+            {
+                // No explicit color: the caption inherits the button's text color,
+                // so SetButtonEnabled / SetButtonHighlight restyle it for free.
+                var text = new Label(caption) { name = "caption", pickingMode = PickingMode.Ignore };
+                text.style.fontSize = fontSize;
+                text.style.unityFontStyleAndWeight = FontStyle.Bold;
+                text.style.marginLeft = 6;
+                text.style.marginRight = 0;
+                text.style.marginTop = 0;
+                text.style.marginBottom = 0;
+                text.style.paddingLeft = 0;
+                text.style.paddingRight = 0;
+                text.style.paddingTop = 0;
+                text.style.paddingBottom = 0;
+                btn.Add(text);
+            }
+            return btn;
+        }
+
+        /// <summary>Swap an <see cref="IconButton"/>'s caption text (no-op for plain buttons).</summary>
+        public static void SetCaption(Button btn, string caption)
+        {
+            var label = btn.Q<Label>("caption");
+            if (label != null) label.text = caption;
+            else btn.text = caption;
+        }
+
+        /// <summary>
+        /// Round floating action button: painted icon, optional tiny caption under
+        /// it. Zero side padding on purpose — TextButton's 10px padding left ~24px
+        /// of room inside a 48px circle, so labels like "DAILY" / "FIND" spilled
+        /// past the ring.
+        /// </summary>
+        public static Button Fab(Icon icon, string? caption, Action onTap, float size = 48f,
+            Color? ring = null, float ringWidth = 2f)
+        {
+            var btn = TextButton("", onTap, 9);
+            btn.style.width = size;
+            btn.style.height = size;
+            float radius = size * 0.5f;
+            btn.style.borderTopLeftRadius = radius;
+            btn.style.borderTopRightRadius = radius;
+            btn.style.borderBottomLeftRadius = radius;
+            btn.style.borderBottomRightRadius = radius;
+            btn.style.paddingLeft = 0;
+            btn.style.paddingRight = 0;
+            btn.style.paddingTop = 0;
+            btn.style.paddingBottom = 0;
+            btn.style.flexDirection = FlexDirection.Column;
+            btn.style.justifyContent = Justify.Center;
+            btn.style.alignItems = Align.Center;
+            SetBorder(btn, ring ?? UiTheme.Accent, ringWidth);
+
+            bool hasCaption = !string.IsNullOrEmpty(caption);
+            btn.Add(Icons.Make(icon, size * (hasCaption ? 0.36f : 0.44f), UiTheme.Text));
+            if (hasCaption)
+            {
+                var text = new Label(caption) { name = "caption", pickingMode = PickingMode.Ignore };
+                text.style.fontSize = size >= 46f ? 9 : 8;
+                text.style.unityFontStyleAndWeight = FontStyle.Bold;
+                text.style.unityTextAlign = TextAnchor.MiddleCenter;
+                text.style.marginTop = 1;
+                text.style.marginBottom = 0;
+                text.style.marginLeft = 0;
+                text.style.marginRight = 0;
+                text.style.paddingLeft = 0;
+                text.style.paddingRight = 0;
+                text.style.paddingTop = 0;
+                text.style.paddingBottom = 0;
+                btn.Add(text);
+            }
+            return btn;
+        }
+
+        /// <summary>Painted icon + label in a row — for inline markers like the
+        /// news ticker's swords or the radar warning header.</summary>
+        public static VisualElement IconText(Icon icon, string text, int size, Color color, bool bold = false)
+        {
+            var row = HBox();
+            row.pickingMode = PickingMode.Ignore;
+            var glyph = Icons.Make(icon, size + 2f, color);
+            glyph.style.marginRight = 5;
+            row.Add(glyph);
+            var label = Text(text, size, color, bold);
+            label.name = "text";
+            label.style.flexShrink = 1f;
+            row.Add(label);
+            return row;
+        }
+
         public static void SetButtonEnabled(Button btn, bool on)
         {
             btn.SetEnabled(on);
             btn.style.backgroundColor = on ? UiTheme.Btn : UiTheme.BtnDisabled;
             btn.style.color = on ? UiTheme.Text : UiTheme.Dim;
+            TintIcons(btn, on ? UiTheme.Text : UiTheme.Dim);
         }
 
         public static void SetButtonHighlight(Button btn, bool on)
         {
             btn.style.backgroundColor = on ? UiTheme.BtnActive : UiTheme.Btn;
             btn.style.color = on ? UiTheme.Accent : UiTheme.Text;
+            TintIcons(btn, on ? UiTheme.Accent : UiTheme.Text);
+        }
+
+        /// <summary>Painted icons don't inherit text color — keep them in step.</summary>
+        static void TintIcons(VisualElement root, Color color)
+        {
+            root.Query<IconElement>().ForEach(i => i.Color = color);
         }
 
         public static Label Text(string text, int size, Color color, bool bold = false)

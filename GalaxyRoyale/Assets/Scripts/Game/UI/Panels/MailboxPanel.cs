@@ -15,8 +15,30 @@ namespace GalaxyRoyale.Game.UI
     {
         enum Tab { All, Battle, Spy, Fav }
 
+        /// <summary>Aegis deflections file a round-less report the defender "won".</summary>
+        static bool IsDeflection(BattleMailReport battle) =>
+            battle.Defending && battle.Report.Winner == BattleWinner.Defender && battle.Report.Rounds.Count == 0;
+
+        /// <summary>Subjects saved by older builds carry a "⚠ " prefix that
+        /// tofu-boxes on device — radar rows get a painted icon instead.</summary>
+        static string DisplaySubject(MailItem item) =>
+            item.Subject.StartsWith("⚠ ", StringComparison.Ordinal) ? item.Subject.Substring(2) : item.Subject;
+
         static string IntelLine(GameState state, MailItem item)
         {
+            if (item is BattleMailReport { Defending: true } defense)
+            {
+                // A rival hit YOUR colony: their win is your loss.
+                var r = defense.Report;
+                if (IsDeflection(defense)) return "Deflected — your Aegis Shield held";
+                long lost = r.Loot?.Total ?? 0;
+                return r.Winner switch
+                {
+                    BattleWinner.Attacker => lost > 0 ? $"Raided — lost {UiTheme.FmtAmount(lost)}" : "Raided — defenses broken",
+                    BattleWinner.Defender => "Defended — raiders destroyed",
+                    _ => "Held — raiders withdrew",
+                };
+            }
             if (item is BattleMailReport battle)
             {
                 var r = battle.Report;
@@ -72,11 +94,16 @@ namespace GalaxyRoyale.Game.UI
             var tabButtons = new Dictionary<Tab, Button>();
             foreach (var (t, label) in new[]
             {
-                (Tab.All, "ALL"), (Tab.Battle, "BATTLES"), (Tab.Spy, "SPY"), (Tab.Fav, "★ SAVED"),
+                (Tab.All, "ALL"), (Tab.Battle, "BATTLES"), (Tab.Spy, "SPY"), (Tab.Fav, "SAVED"),
             })
             {
                 var tt = t;
-                var b = Widgets.TextButton(label, () => { tab = tt; cache = ""; }, 10);
+                void Select() { tab = tt; cache = ""; }
+                var b = tt == Tab.Fav
+                    ? Widgets.IconButton(Icon.Star, label, Select, 10, 11f)
+                    : Widgets.TextButton(label, Select, 10);
+                b.style.paddingLeft = 4;
+                b.style.paddingRight = 4;
                 b.style.width = Length.Percent(24f);
                 tabButtons[tt] = b;
                 tabRow.Add(b);
@@ -112,7 +139,7 @@ namespace GalaxyRoyale.Game.UI
                     {
                         Tab.Battle => "No battle reports yet.\nAttack a pirate camp to log one.",
                         Tab.Spy => "No spy reports yet.\nSend a Spy Probe from any map node.",
-                        Tab.Fav => "No saved reports yet.\nTap ★ on any report to save it.",
+                        Tab.Fav => "No saved reports yet.\nTap SAVE on any report to keep it.",
                         _ => "No reports yet.\nSend a Spy Probe or attack a camp.",
                     };
                     var empty = Widgets.Text(msg, 12, UiTheme.Dim);
@@ -132,12 +159,26 @@ namespace GalaxyRoyale.Game.UI
                     else if (r.Read) row.style.backgroundColor = new UnityEngine.Color(UiTheme.PanelLight.r, UiTheme.PanelLight.g, UiTheme.PanelLight.b, 0.4f);
                     row.RegisterCallback<PointerUpEvent>(_ => OpenDetail(ctx, r));
 
-                    string star = r.Favorite ? "★ " : "";
-                    string bullet = r.Read ? "" : "● ";
+                    // Unread dot / saved star / radar warning are painted icons —
+                    // text glyphs are at the mercy of the runtime font.
                     var head = Widgets.HBox(Justify.SpaceBetween);
-                    head.Add(Widgets.Text($"{bullet}{star}{r.Subject}", 12,
-                        r.Read ? UiTheme.Dim : isBattle ? UiTheme.Bad : UiTheme.Text, bold: !r.Read));
-                    head.Add(Widgets.Text("›", 16, UiTheme.Accent, bold: true));
+                    var lead = Widgets.HBox();
+                    lead.style.flexShrink = 1f;
+                    void Mark(Icon icon, float size, UnityEngine.Color color)
+                    {
+                        var mark = Icons.Make(icon, size, color);
+                        mark.style.marginRight = 5;
+                        lead.Add(mark);
+                    }
+                    if (!r.Read) Mark(Icon.Dot, 10f, UiTheme.Accent);
+                    if (r.Favorite) Mark(Icon.Star, 12f, UiTheme.Energy);
+                    if (r is RadarWarning) Mark(Icon.Warning, 13f, UiTheme.Bad);
+                    var subject = Widgets.Text(DisplaySubject(r), 12,
+                        r.Read ? UiTheme.Dim : isBattle ? UiTheme.Bad : UiTheme.Text, bold: !r.Read);
+                    subject.style.flexShrink = 1f;
+                    lead.Add(subject);
+                    head.Add(lead);
+                    head.Add(Icons.Make(Icon.ChevronRight, 14, UiTheme.Accent));
                     row.Add(head);
                     var meta = Widgets.Text(
                         $"{IntelLine(state, r)} · {UiTheme.FmtDuration(state.Tick - r.AtTick)} ago",
@@ -161,7 +202,7 @@ namespace GalaxyRoyale.Game.UI
             var ui = UIController.Instance!;
             report.Read = true;
 
-            var (blocker, content, footer) = Widgets.ModalPanelFooter(report.Subject, ui.OpenMailbox, 70f);
+            var (blocker, content, footer) = Widgets.ModalPanelFooter(DisplaySubject(report), ui.OpenMailbox, 70f);
             var state = ctx.State!;
 
             content.Add(Widgets.Text(
@@ -171,16 +212,23 @@ namespace GalaxyRoyale.Game.UI
             if (report is BattleMailReport battle)
             {
                 var r = battle.Report;
-                string outcome = r.Winner switch
-                {
-                    BattleWinner.Attacker => "VICTORY",
-                    BattleWinner.Defender => "DEFEAT",
-                    _ => "STALEMATE",
-                };
+                // Perspective: on a DEFENSE report the rival is the Attacker side,
+                // so their win is your defeat (this used to read as your VICTORY).
+                bool defending = battle.Defending;
+                bool deflected = IsDeflection(battle);
+                bool draw = r.Winner == BattleWinner.Draw;
+                bool playerWon = defending ? r.Winner == BattleWinner.Defender : r.Winner == BattleWinner.Attacker;
+                string outcome = deflected ? "DEFLECTED" : draw ? "STALEMATE" : playerWon ? "VICTORY" : "DEFEAT";
                 var head = Widgets.Text(outcome, 18,
-                    r.Winner == BattleWinner.Attacker ? UiTheme.Good : UiTheme.Bad, bold: true);
+                    draw ? UiTheme.Energy : playerWon ? UiTheme.Good : UiTheme.Bad, bold: true);
                 head.style.marginTop = 8;
                 content.Add(head);
+                if (deflected)
+                {
+                    var note = Widgets.Text("The raid broke on your Aegis Shield — no battle, nothing lost.", 11, UiTheme.Dim);
+                    note.style.whiteSpace = WhiteSpace.Normal;
+                    content.Add(note);
+                }
 
                 // Fleet breakdown: a labeled section with ONE hull per line (user
                 // spec: don't crunch every ship type onto one run-on line).
@@ -203,9 +251,18 @@ namespace GalaxyRoyale.Game.UI
                     if (!any) content.Add(Widgets.Text("none", 11, UiTheme.Dim));
                 }
 
-                FleetSection("YOUR FLEET", r.Attacker);
-                FleetSection("SURVIVORS", r.AttackerSurvivors);
-                FleetSection("DEFENDERS", r.Defender);
+                if (defending)
+                {
+                    FleetSection("YOUR DEFENDERS", r.Defender);
+                    if (!deflected) FleetSection("YOUR SURVIVORS", r.DefenderSurvivors);
+                    FleetSection("RAIDERS", r.Attacker);
+                }
+                else
+                {
+                    FleetSection("YOUR FLEET", r.Attacker);
+                    FleetSection("SURVIVORS", r.AttackerSurvivors);
+                    FleetSection("DEFENDERS", r.Defender);
+                }
 
                 var roundsLine = Widgets.HBox(Justify.SpaceBetween);
                 roundsLine.style.marginTop = 10;
@@ -217,10 +274,10 @@ namespace GalaxyRoyale.Game.UI
                 {
                     var lootLine = Widgets.HBox(Justify.SpaceBetween);
                     lootLine.style.marginTop = 6;
-                    lootLine.Add(Widgets.Text("Loot", 11, UiTheme.Dim));
+                    lootLine.Add(Widgets.Text(defending ? "Plundered from you" : "Loot", 11, UiTheme.Dim));
                     lootLine.Add(Widgets.Text(
                         $"{UiTheme.FmtAmount(loot.Gold)} G  {UiTheme.FmtAmount(loot.Quartz)} Q  {UiTheme.FmtAmount(loot.Helium)} H",
-                        11, UiTheme.Good));
+                        11, defending ? UiTheme.Bad : UiTheme.Good));
                     content.Add(lootLine);
                 }
             }
@@ -348,7 +405,9 @@ namespace GalaxyRoyale.Game.UI
             // not trailing the (variable-length) report text (user spec).
             var buttons = Widgets.HBox(Justify.SpaceAround);
 
-            var favBtn = Widgets.TextButton(report.Favorite ? "★ SAVED" : "☆ SAVE", () =>
+            // Painted star — "☆ SAVE" was outside the runtime font's glyph set.
+            var favBtn = Widgets.IconButton(report.Favorite ? Icon.Star : Icon.StarOutline,
+                report.Favorite ? "SAVED" : "SAVE", () =>
             {
                 report.Favorite = !report.Favorite;
                 OpenDetail(ctx, report); // rebuild with the new star state

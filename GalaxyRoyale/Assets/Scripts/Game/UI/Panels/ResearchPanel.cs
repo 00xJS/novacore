@@ -79,13 +79,18 @@ namespace GalaxyRoyale.Game.UI
             catRow.style.marginBottom = 10;
             bool combat = false; // false = ECONOMY page, true = COMBAT page
             TechId? selected = null;
-            string cache = "";
+            // Three independent change-keys (tree / detail sheet / progress strips).
+            // The old single key included the tick + gold, so the WHOLE tree and its
+            // buttons were torn down and rebuilt every second — a tap landing across
+            // a rebuild could be lost. Now each part rebuilds only when it changes.
+            string treeCache = "", detailCache = "", progressCache = "";
+            void Invalidate() { treeCache = ""; detailCache = ""; progressCache = ""; }
             var econTab = Widgets.TextButton("ECONOMY", null!, 12);
             var combatTab = Widgets.TextButton("COMBAT", null!, 12);
             econTab.style.width = Length.Percent(47f);
             combatTab.style.width = Length.Percent(47f);
-            econTab.clicked += () => { combat = false; selected = null; cache = ""; };
-            combatTab.clicked += () => { combat = true; selected = null; cache = ""; };
+            econTab.clicked += () => { combat = false; selected = null; Invalidate(); };
+            combatTab.clicked += () => { combat = true; selected = null; Invalidate(); };
             catRow.Add(econTab);
             catRow.Add(combatTab);
             content.Add(catRow);
@@ -151,17 +156,41 @@ namespace GalaxyRoyale.Game.UI
                 card.style.borderTopRightRadius = 8;
                 card.style.borderBottomLeftRadius = 8;
                 card.style.borderBottomRightRadius = 8;
-                card.RegisterCallback<PointerUpEvent>(_ => { selected = id; cache = ""; });
+                card.RegisterCallback<PointerUpEvent>(_ => { selected = id; Invalidate(); });
+
+                // Tech emblem (drop-in Resources/Research art, else a painted badge).
+                var emblem = ResearchArt.Emblem(id, 34f, dim: locked);
+                emblem.style.marginRight = 10;
+                card.Add(emblem);
 
                 var left = new VisualElement();
                 left.style.flexGrow = 1f;
                 left.style.flexShrink = 1f;
-                var nameRow = Widgets.Text((locked ? "[locked] " : "") + def.Name, 12,
-                    locked ? UiTheme.Dim : UiTheme.Text, bold: true);
-                nameRow.style.whiteSpace = WhiteSpace.Normal;
+                // Locked techs get a real LOCKED tag instead of "[locked]" text.
+                var nameRow = Widgets.HBox(Justify.FlexStart, Align.Center);
+                nameRow.style.flexWrap = Wrap.Wrap;
+                var name = Widgets.Text(def.Name, 12, locked ? UiTheme.Dim : UiTheme.Text, bold: true);
+                name.style.whiteSpace = WhiteSpace.Normal;
+                name.style.flexShrink = 1f;
+                nameRow.Add(name);
+                if (locked)
+                {
+                    var tag = Widgets.Text("LOCKED", 8, UiTheme.Energy, bold: true);
+                    tag.style.marginLeft = 6;
+                    tag.style.paddingLeft = 4;
+                    tag.style.paddingRight = 4;
+                    tag.style.paddingTop = 1;
+                    tag.style.paddingBottom = 1;
+                    Widgets.SetBorder(tag, UiTheme.Energy, 1f);
+                    tag.style.borderTopLeftRadius = 3;
+                    tag.style.borderTopRightRadius = 3;
+                    tag.style.borderBottomLeftRadius = 3;
+                    tag.style.borderBottomRightRadius = 3;
+                    nameRow.Add(tag);
+                }
                 left.Add(nameRow);
                 string effLine = maxed ? "fully researched"
-                    : $"{EffectDesc(def)}  {EffectLabel(id, level)} -> {EffectLabel(id, level + 1)}";
+                    : $"{EffectDesc(def)}  {EffectLabel(id, level)} › {EffectLabel(id, level + 1)}";
                 var effText = Widgets.Text(effLine, 9, locked ? UiTheme.Stroke : color);
                 effText.style.whiteSpace = WhiteSpace.Normal;
                 effText.style.marginTop = 2;
@@ -174,8 +203,9 @@ namespace GalaxyRoyale.Game.UI
                 badge.style.alignItems = Align.Center;
                 string badgeTop = maxed ? "MAX" : $"{level}/{def.MaxLevel}";
                 badge.Add(Widgets.Text(badgeTop, 12, color, bold: true));
-                if (researching) badge.Add(Widgets.Text("...", 11, UiTheme.Good, bold: true));
-                else if (sel) badge.Add(Widgets.Text(">", 12, color, bold: true));
+                // Painted state marks (were "..." / ">" text).
+                if (researching) badge.Add(Icons.Make(Icon.Rotate, 13, UiTheme.Good));
+                else badge.Add(Icons.Make(Icon.ChevronRight, 12, sel ? color : UiTheme.Stroke));
                 card.Add(badge);
                 return card;
             }
@@ -240,19 +270,43 @@ namespace GalaxyRoyale.Game.UI
                 // Card content goes straight into the pinned sheet (no nested Row).
                 var card = detail;
                 var head = Widgets.HBox(Justify.SpaceBetween);
-                head.Add(Widgets.Text(def.Name, 14, ResearchAccent, bold: true));
+                var headLeft = Widgets.HBox();
+                headLeft.style.flexShrink = 1f;
+                var bigEmblem = ResearchArt.Emblem(id, 44f);
+                bigEmblem.style.marginRight = 10;
+                headLeft.Add(bigEmblem);
+                var titleCol = new VisualElement();
+                titleCol.style.flexShrink = 1f;
+                var title = Widgets.Text(def.Name, 14, ResearchAccent, bold: true);
+                title.style.whiteSpace = WhiteSpace.Normal;
+                titleCol.Add(title);
+                titleCol.Add(Widgets.Text(def.Category.ToString().ToUpper(), 9,
+                    ResearchArt.CategoryColor(def.Category), bold: true));
+                headLeft.Add(titleCol);
+                head.Add(headLeft);
                 var headRight = Widgets.HBox();
                 headRight.Add(Widgets.Text($"Lv {level}/{def.MaxLevel}", 12, UiTheme.Text, bold: true));
-                var closeBtn = Widgets.TextButton("×", () => { selected = null; cache = ""; }, 11);
+                var closeBtn = Widgets.TextButton("×", () => { selected = null; Invalidate(); }, 11);
                 closeBtn.style.marginLeft = 8;
                 closeBtn.style.minWidth = 30;
                 headRight.Add(closeBtn);
                 head.Add(headRight);
                 card.Add(head);
 
+                string lore = TechLore.DescOf(id);
+                if (lore.Length > 0)
+                {
+                    var flavor = Widgets.Text(lore, 11, UiTheme.Dim);
+                    flavor.style.whiteSpace = WhiteSpace.Normal;
+                    flavor.style.marginTop = 6;
+                    card.Add(flavor);
+                }
+
                 string now = EffectLabel(id, level);
                 string next = maxed ? "MAX" : EffectLabel(id, level + 1);
-                card.Add(Widgets.Text($"{EffectDesc(def)}: {now} -> {next}", 12, UiTheme.Good));
+                var effectLine = Widgets.Text($"{EffectDesc(def)}: {now} › {next}", 12, UiTheme.Good);
+                effectLine.style.marginTop = 6;
+                card.Add(effectLine);
 
                 if (def.Requires is { } req && ResearchSystem.TechLevel(state, req.Tech) < req.Level)
                 {
@@ -304,7 +358,7 @@ namespace GalaxyRoyale.Game.UI
                     {
                         var res = ResearchSystem.StartResearch(ctx.State!, id);
                         ui.Toast(res.Ok ? $"Researching {def.Name}…" : res.Reason ?? "Cannot research");
-                        cache = "";
+                        Invalidate();
                     }, 12);
                     Widgets.SetButtonEnabled(research,
                         check.Ok && !ResearchSystem.IsResearching(state, id));
@@ -321,21 +375,37 @@ namespace GalaxyRoyale.Game.UI
                 // card IS the pinned sheet now — nothing more to attach.
             }
 
+            // In-progress strips are rebuilt only when the queue changes; their
+            // countdowns are re-texted each tick (no button churn under a finger).
+            var progressTimes = new List<(Label label, int index)>();
+            string ProgressText(GalaxyRoyale.Sim.GameState s, int i)
+            {
+                var o = s.ResearchQueue[i];
+                return $"{Techs.Defs[o.TechId].Name} › Lv {o.ToLevel} · " +
+                       UiTheme.FmtDuration(Math.Max(0, o.EndsAtTick - s.Tick));
+            }
+            void UpdateProgressTimes()
+            {
+                var s = ctx.State!;
+                foreach (var (label, index) in progressTimes)
+                    if (index < s.ResearchQueue.Count) label.text = ProgressText(s, index);
+            }
+
             void RenderProgress()
             {
                 progressList.Clear();
+                progressTimes.Clear();
                 var state = ctx.State!;
                 int slots = ResearchSystem.ResearchSlots(state);
                 for (int i = 0; i < state.ResearchQueue.Count; i++)
                 {
                     int index = i;
-                    var order = state.ResearchQueue[i];
                     var strip = Widgets.HBox(Justify.SpaceBetween);
                     strip.style.marginTop = 3;
-                    strip.Add(Widgets.Text(
-                        $"{Techs.Defs[order.TechId].Name} -> Lv {order.ToLevel} · " +
-                        $"{UiTheme.FmtDuration(Math.Max(0, order.EndsAtTick - state.Tick))}",
-                        11, UiTheme.Good));
+                    var timeLabel = Widgets.Text(ProgressText(state, i), 11, UiTheme.Good);
+                    timeLabel.style.flexShrink = 1f;
+                    progressTimes.Add((timeLabel, index));
+                    strip.Add(timeLabel);
                     var btns = Widgets.HBox();
                     var speed = Widgets.TextButton("SPEED", () =>
                         SpeedUpPanel.OpenForResearch(ctx, index), 9);
@@ -354,28 +424,50 @@ namespace GalaxyRoyale.Game.UI
                         $"{slots - state.ResearchQueue.Count} research slot(s) idle", 10, UiTheme.Dim));
             }
 
+            int lastTick = -1;
             refresh = () =>
             {
                 var state = ctx.State!;
                 int lab = state.Buildings[BuildingId.ResearchLab].Level;
+
+                // What the TREE shows: page, selection, lab gate, levels, what's running.
                 var sb = new System.Text.StringBuilder();
                 sb.Append(combat).Append('|').Append(selected).Append('|').Append(lab).Append('|');
                 foreach (var t in Techs.All) sb.Append(ResearchSystem.TechLevel(state, t)).Append(',');
                 sb.Append('|');
-                foreach (var o in state.ResearchQueue) sb.Append(o.TechId).Append(':').Append(o.EndsAtTick).Append(',');
-                sb.Append('|').Append(state.Resources.Gold).Append('|').Append(state.Tick);
-                string key = sb.ToString();
-                if (key == cache) return;
-                cache = key;
+                foreach (var o in state.ResearchQueue) sb.Append(o.TechId).Append(':').Append(o.ToLevel).Append(',');
+                string treeKey = sb.ToString();
 
-                labLine.text = lab >= 1
-                    ? $"Research Lab Lv {lab} — techs cap at your lab level"
-                    : "Build a Research Lab to unlock the tech tree";
-                Widgets.SetButtonHighlight(econTab, !combat);
-                Widgets.SetButtonHighlight(combatTab, combat);
-                RenderProgress();
-                RenderTree();
-                RenderDetail();
+                // The DETAIL sheet also cares whether RESEARCH is currently allowed
+                // (affordability, free slot) — not the raw resource numbers.
+                string detailKey = treeKey;
+                if (selected is TechId sel)
+                {
+                    var check = ResearchSystem.CheckResearch(state, sel);
+                    detailKey += $"|{check.Ok}|{check.Reason}";
+                }
+
+                // Strips rebuild when the queue's shape changes (start/finish/
+                // cancel/speed-up); otherwise the countdowns tick in place.
+                sb.Clear();
+                foreach (var o in state.ResearchQueue) sb.Append(o.TechId).Append(':').Append(o.EndsAtTick).Append(',');
+                sb.Append('|').Append(ResearchSystem.ResearchSlots(state));
+                string progressKey = sb.ToString();
+
+                if (treeKey != treeCache)
+                {
+                    treeCache = treeKey;
+                    labLine.text = lab >= 1
+                        ? $"Research Lab Lv {lab} — techs cap at your lab level"
+                        : "Build a Research Lab to unlock the tech tree";
+                    Widgets.SetButtonHighlight(econTab, !combat);
+                    Widgets.SetButtonHighlight(combatTab, combat);
+                    RenderTree();
+                }
+                if (detailKey != detailCache) { detailCache = detailKey; RenderDetail(); }
+                if (progressKey != progressCache) { progressCache = progressKey; RenderProgress(); }
+                else if (state.Tick != lastTick) UpdateProgressTimes();
+                lastTick = state.Tick;
             };
             refresh();
             return blocker;

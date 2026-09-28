@@ -164,7 +164,7 @@ repo.
 - `Balance.TestMode = true` — you start rich (1M premium currency, 500K
   resources). Deliberate, for exploration; flip it off in `Balance.cs`.
 - Fully offline — no accounts, no server, no analytics. Saves live on-device.
-- Tested on iPhone (iOS 15+ target) and in-editor on macOS. Android compiles
+- Tested on iPhone (iOS 13+ target) and in-editor on macOS. Android compiles
   from the same project but was never a focus.
 - No license has been chosen yet — if you want to build on this, open an
   issue/ask first.

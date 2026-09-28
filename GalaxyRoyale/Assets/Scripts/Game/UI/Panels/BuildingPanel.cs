@@ -41,6 +41,9 @@ namespace GalaxyRoyale.Game.UI
             }
 
             bool chart = false;
+            // The in-progress face's bar, ticked in place by Refresh (see below).
+            VisualElement? liveFill = null;
+            Label? liveLabel = null;
 
             void Close() { ui.CloseModal(); onClosed?.Invoke(); }
             var (blocker, content) = Widgets.ModalPanel(title, Close, 62f);
@@ -73,7 +76,7 @@ namespace GalaxyRoyale.Game.UI
                 var head = Widgets.HBox(Justify.SpaceBetween);
                 head.style.marginBottom = 6;
                 head.Add(Widgets.Text($"Levels 1–{def.MaxLevel}  (current L{level})", 12, UiTheme.Dim));
-                head.Add(Widgets.TextButton("‹ BACK", () => { chart = false; }, 10));
+                head.Add(Widgets.IconButton(Icon.ChevronLeft, "BACK", () => { chart = false; }, 10));
                 body.Add(head);
 
                 // Fixed columns so every resource lines up vertically down the chart.
@@ -123,10 +126,11 @@ namespace GalaxyRoyale.Game.UI
                 bool atMax = level >= def.MaxLevel;
                 int toLevel = level + 1;
 
-                // Header row: "Lv N" left, ⓘ LEVELS right (v1 folds Lv into the title).
+                // Header row: "Lv N" left, LEVELS chart button right (v1 folds Lv into
+                // the title). Painted icon — the old "ⓘ" glyph rendered as a □ box.
                 var head = Widgets.HBox(Justify.SpaceBetween);
                 head.Add(Widgets.Text(level == 0 ? "Not yet built" : $"Lv {level}", 15, UiTheme.Text, bold: true));
-                head.Add(Widgets.TextButton("ⓘ LEVELS", () => { chart = true; }, 10));
+                head.Add(Widgets.IconButton(Icon.Chart, "LEVELS", () => { chart = true; }, 10));
                 body.Add(head);
 
                 // Description (v1 def.desc, dim).
@@ -293,14 +297,14 @@ namespace GalaxyRoyale.Game.UI
                 }
                 else
                 {
-                    long remain = Math.Max(0, order.EndsAtTick - s.Tick);
-                    int total = BuildingSystem.GetBuildTime(s, id, order.ToLevel);
-                    var (bar, fill, barLabel) = Widgets.ProgressBar();
+                    var (bar, fill, label) = Widgets.ProgressBar();
                     bar.style.marginTop = 16;
-                    float pct = total > 0 ? 100f * (1f - remain / (float)total) : 0f;
-                    fill.style.width = Length.Percent(Math.Clamp(pct, 0f, 100f));
-                    barLabel.text = UiTheme.FmtDuration(remain);
                     body.Add(bar);
+                    // Kept so Refresh can tick the bar in place — the panel used to
+                    // rebuild ALL its buttons every second just to move this bar.
+                    liveFill = fill;
+                    liveLabel = label;
+                    UpdateLiveBar(s);
                 }
 
                 // v1: SPEED UP (left) | CANCEL (right), split row.
@@ -343,9 +347,31 @@ namespace GalaxyRoyale.Game.UI
                 body.Add(actions);
             }
 
-            // ---------- refresh loop (v1 cache key: level|resources|order|tick) ----------
+            // ---------- refresh loop ----------
+            //
+            // Rebuild only when something the panel SHOWS changes: level, queue
+            // state, whether the upgrade is allowed, which cost lines are short,
+            // and the lab/shipyard summaries. The old key included raw resources
+            // + the tick, so every button was torn down and rebuilt each second
+            // (a tap spanning a rebuild could be lost); the progress bar now ticks
+            // in place instead.
+
+            void UpdateLiveBar(GameState s)
+            {
+                if (liveFill == null || liveLabel == null) return;
+                int i = OrderIdx(s);
+                if (i < 0) return;
+                var order = s.BuildQueue[i];
+                if (order.EndsAtTick <= 0) return;
+                long remain = Math.Max(0, order.EndsAtTick - s.Tick);
+                int total = BuildingSystem.GetBuildTime(s, id, order.ToLevel);
+                float pct = total > 0 ? 100f * (1f - remain / (float)total) : 0f;
+                liveFill.style.width = Length.Percent(Math.Clamp(pct, 0f, 100f));
+                liveLabel.text = UiTheme.FmtDuration(remain);
+            }
 
             string cache = "";
+            int lastTick = -1;
             void Refresh()
             {
                 var s = ctx.State!;
@@ -353,16 +379,42 @@ namespace GalaxyRoyale.Game.UI
                 if (level < 0) { Close(); return; } // mine was removed (cancelled placement)
                 int idx = OrderIdx(s);
 
-                // Chart is static per level — skip the per-tick rebuild there.
-                string key = chart
-                    ? $"c|{level}"
-                    : $"{level}|{s.Resources.Gold}|{s.Resources.Quartz}|{s.Resources.Helium}|{idx}|{s.Tick}";
-                if (key == cache) return;
-                cache = key;
+                string key;
+                if (chart) key = $"c|{level}"; // chart is static per level
+                else
+                {
+                    var check = Check(s);
+                    var cost = BuildingSystem.GetUpgradeCost(id, level + 1);
+                    bool running = idx >= 0 && s.BuildQueue[idx].EndsAtTick > 0;
+                    string extras = "";
+                    if (id == BuildingId.ResearchLab)
+                    {
+                        int researched = 0;
+                        foreach (var kv in s.Research) if (kv.Value > 0) researched++;
+                        extras = $"{researched}:{s.ResearchQueue.Count}";
+                    }
+                    else if (id == BuildingId.Shipyard)
+                    {
+                        long sig = 0; int h = 1;
+                        foreach (var hull in Ships.All)
+                            sig += (h++) * (long)(s.Ships.TryGetValue(hull, out var n) ? n : 0);
+                        extras = sig.ToString();
+                    }
+                    key = $"{level}|{idx}|{running}|{check.Ok}|{check.Reason}|" +
+                          $"{s.Resources.Gold >= cost.Gold}{s.Resources.Quartz >= cost.Quartz}{s.Resources.Helium >= cost.Helium}|{extras}";
+                }
 
-                body.Clear();
-                if (chart) RenderChart(s, level);
-                else RenderMain(s, level);
+                if (key != cache)
+                {
+                    cache = key;
+                    liveFill = null;
+                    liveLabel = null;
+                    body.Clear();
+                    if (chart) RenderChart(s, level);
+                    else RenderMain(s, level);
+                }
+                else if (s.Tick != lastTick) UpdateLiveBar(s);
+                lastTick = s.Tick;
             }
 
             ui.OpenModal(blocker, Refresh);

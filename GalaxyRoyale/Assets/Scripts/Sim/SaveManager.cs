@@ -84,8 +84,9 @@ namespace GalaxyRoyale.Sim
 
             var before = state.Resources.Clone();
             events.Suppressed = true;
-            engine.Advance(elapsedSec);
-            events.Suppressed = false;
+            // finally: a throw mid catch-up must not leave the bus muted forever.
+            try { engine.Advance(elapsedSec); }
+            finally { events.Suppressed = false; }
 
             var gained = new ResourceBag();
             foreach (var res in Resources.All)

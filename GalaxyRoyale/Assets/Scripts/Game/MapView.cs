@@ -105,28 +105,64 @@ namespace GalaxyRoyale.Game
         }
 
         int? _followMarchId; // camera chases this fleet while its callout is open
+        // …or another commander's flight (user request: rival fleets flying
+        // around the map were untappable). Key into _rivalFlights, or into
+        // _contactVisuals when _followContact (a radar-tracked inbound hostile).
+        long? _followRivalKey;
+        bool _followContact;
         SpriteRenderer? _homeDisc, _homeGlow, _homeShield;
         BurnFx? _homeBurn;
         string _homeSkinCache = "";
         TileXY _coordsCacheTile = new(-1, -1);
         bool _novaStatic; // user art supplies the core — no pulsing
 
-        // Runs AFTER MapCameraController so follow-cam wins the frame.
+        // Runs AFTER MapCameraController so follow-cam wins the frame; labels
+        // are placed last, against the camera pose this frame actually renders.
         void LateUpdate()
         {
-            if (!_active || _mapCam == null || _followMarchId is not int followId) return;
+            if (!_active || _mapCam == null) { _labels?.Clear(); return; }
             var state = _ctx.State;
             if (state == null) return;
-            var followed = state.Marches.Find(m => m.Id == followId);
-            if (followed == null)
+            FollowTick(state);
+            PlaceLabels(state);
+        }
+
+        void FollowTick(GameState state)
+        {
+            if (_followMarchId is int followId)
             {
-                _followMarchId = null;
-                UI.UIController.Instance?.CloseNodeCallout();
+                March? followed = null;
+                foreach (var m in state.Marches)
+                    if (m.Id == followId) { followed = m; break; }
+                if (followed == null) { StopFollowing(); return; }
+                var p = MarchSystem.GetPositionSmooth(followed, _ctx.PreciseTick);
+                var w = TileToWorld(p.X, p.Y);
+                _camCtl!.Frame(new Vector2(w.x, w.y));
                 return;
             }
-            var p = MarchSystem.GetPositionSmooth(followed, _ctx.PreciseTick);
-            var w = TileToWorld(p.X, p.Y);
-            _camCtl!.Frame(new Vector2(w.x, w.y));
+
+            if (_followRivalKey is long key)
+            {
+                Transform? dot = null;
+                if (_followContact)
+                {
+                    if (_contactVisuals.TryGetValue(key, out var contact)) dot = contact.Dot;
+                }
+                else if (_rivalFlights.TryGetValue(key, out var flight)) dot = flight.Dot;
+                // Landed, returned home, or dropped off radar — the chase is over.
+                if (dot == null) { StopFollowing(); return; }
+                var d = dot.position;
+                _camCtl!.Frame(new Vector2(d.x, d.y));
+            }
+        }
+
+        /// <summary>End any follow-cam and close its callout.</summary>
+        void StopFollowing()
+        {
+            bool wasFollowing = _followMarchId != null || _followRivalKey != null;
+            _followMarchId = null;
+            _followRivalKey = null;
+            if (wasFollowing) UI.UIController.Instance?.CloseNodeCallout();
         }
         readonly Dictionary<int, RemoteVisual> _remotes = new();
         const float RemotePollSeconds = 5f; // cheap local refresh (skins/new galaxy)
@@ -159,8 +195,11 @@ namespace GalaxyRoyale.Game
         readonly Dictionary<int, MarchVisual> _marchVisuals = new();
         Material? _lineMat;
 
-        string _notice = "";
-        float _noticeUntil;
+        // Commander / HQ names (UI Toolkit layer under the HUD — see WorldLabelLayer).
+        UI.WorldLabelLayer? _labels;
+        /// <summary>Rival ids, strongest first — the biggest names win label space.
+        /// Re-sorted on the 5 s rival sync, not per frame.</summary>
+        readonly List<int> _labelOrder = new();
 
         // Targeting modes (Precision Warp relocation / spy-probe redirect).
         bool _relocating;
@@ -237,6 +276,8 @@ namespace GalaxyRoyale.Game
         {
             _active = false;
             _followMarchId = null;
+            _followRivalKey = null;
+            _labels?.Clear();
             UI.UIController.Instance?.SetHqOverride(null); // header HQ line back to normal
             _coordsCacheTile = new TileXY(-1, -1);
             ClearSelection();
@@ -634,7 +675,7 @@ namespace GalaxyRoyale.Game
             if (_relocating) { HandleRelocationTap(state, tile); return; }
             if (_redirectMarchId is int marchId) { HandleRedirectTap(state, marchId, tile); return; }
 
-            _followMarchId = null; // any new tap breaks fleet-follow
+            StopFollowing(); // any new tap breaks fleet-follow
 
             // Pick radii MATCH the drawn marker size (world units), so tapping
             // anywhere on the visible orb selects it — not just its exact tile.
@@ -662,6 +703,16 @@ namespace GalaxyRoyale.Game
                     UI.MarchCallout.Open(_ctx, id, onClose: () => _followMarchId = null);
                     return;
                 }
+            }
+
+            // Another commander's flight? Radar-tracked inbound hostiles first, then
+            // bot raids / spy probes / gather runs — follow them like your own.
+            if (TryPickRivalFlight(world, grab, out long flightKey, out bool isContact))
+            {
+                _followRivalKey = flightKey;
+                _followContact = isContact;
+                OpenRivalFlightCallout(flightKey, isContact);
+                return;
             }
 
             // Nearest live node whose orb covers the tap point.
@@ -697,6 +748,40 @@ namespace GalaxyRoyale.Game
                 SelectTile(tile);
                 UI.BlankCallout.Open(_ctx, tile);
             }
+        }
+
+        /// <summary>Nearest visible rival flight dot within <paramref name="grab"/> world
+        /// units of the tap. Inbound radar contacts win ties — they're the threat.</summary>
+        bool TryPickRivalFlight(Vector3 world, float grab, out long key, out bool isContact)
+        {
+            key = 0;
+            isContact = false;
+            float best = grab * grab;
+            bool found = false;
+            foreach (var kv in _contactVisuals)
+            {
+                var p = kv.Value.Dot.position;
+                float d2 = (p.x - world.x) * (p.x - world.x) + (p.y - world.y) * (p.y - world.y);
+                if (d2 > best) continue;
+                best = d2; key = kv.Key; isContact = true; found = true;
+            }
+            if (found) return true;
+            foreach (var kv in _rivalFlights)
+            {
+                var p = kv.Value.Dot.position;
+                float d2 = (p.x - world.x) * (p.x - world.x) + (p.y - world.y) * (p.y - world.y);
+                if (d2 > best) continue;
+                best = d2; key = kv.Key; found = true;
+            }
+            return found;
+        }
+
+        void OpenRivalFlightCallout(long key, bool isContact)
+        {
+            void OnClosed() => _followRivalKey = null; // the card's ×: stop chasing
+            if (isContact) UI.RivalFlightCallout.OpenContact(_ctx, (int)key, OnClosed);
+            else if (key >= GatherKeyBase) UI.RivalFlightCallout.OpenGatherRun(_ctx, (int)(key - GatherKeyBase), OnClosed);
+            else UI.RivalFlightCallout.OpenRaid(_ctx, (int)key, OnClosed);
         }
 
         // ---------- targeting modes ----------
@@ -885,16 +970,7 @@ namespace GalaxyRoyale.Game
             if (_selectRing != null) _selectRing.SetActive(false);
         }
 
-        void Notify(string msg)
-        {
-            if (UI.UIController.Instance != null)
-            {
-                UI.UIController.Instance.Toast(msg);
-                return;
-            }
-            _notice = msg;
-            _noticeUntil = Time.time + 3f;
-        }
+        void Notify(string msg) => UI.UIController.Instance?.Toast(msg, UI.Icon.Info, UI.UiTheme.Accent);
 
         // ---------- per-frame ----------
 
@@ -1170,6 +1246,23 @@ namespace GalaxyRoyale.Game
             return vis;
         }
 
+        // Bot activity (a personality trait) is fixed per (seed, bot) but costs a
+        // fresh closure-based RNG to derive — it used to be recomputed for all 249
+        // rivals every frame. Cached per galaxy seed instead.
+        readonly Dictionary<int, double> _activityCache = new();
+        int _activitySeed = int.MinValue;
+
+        double ActivityOf(int seed, int botId)
+        {
+            if (seed != _activitySeed) { _activityCache.Clear(); _activitySeed = seed; }
+            if (!_activityCache.TryGetValue(botId, out var activity))
+            {
+                activity = GalaxyRoyale.Sim.Bots.BotSystem.PersonalityOf(seed, botId).Activity;
+                _activityCache[botId] = activity;
+            }
+            return activity;
+        }
+
         void UpdateRivalFlights(GameState state, Camera cam)
         {
             _flightLive.Clear(); var live = _flightLive;
@@ -1237,15 +1330,18 @@ namespace GalaxyRoyale.Game
                 }
 
                 // --- cosmetic gather loops: awake rivals shuttling to nearby nodes ---
-                if (size <= HideGatherLoopsAbove)
+                // Hidden when zoomed far out — except one the camera is following.
+                long followedGather = !_followContact && _followRivalKey is long fk && fk >= GatherKeyBase ? fk : -1;
+                if (size <= HideGatherLoopsAbove || followedGather >= 0)
                 {
                     var gatherColor = new Color(0.5f, 0.83f, 1f);
                     int hour = state.Tick / 3600;
                     foreach (var bot in galaxy.Bots)
                     {
-                        var personality = GalaxyRoyale.Sim.Bots.BotSystem.PersonalityOf(state.Seed, bot.Id);
+                        long key = GatherKeyBase + bot.Id;
+                        if (size > HideGatherLoopsAbove && key != followedGather) continue;
                         if (!GalaxyRoyale.Sim.Bots.BotSystem.IsAwake(
-                            state.Seed, bot.Id, personality.Activity, state.Tick))
+                            state.Seed, bot.Id, ActivityOf(state.Seed, bot.Id), state.Tick))
                             continue;
                         uint s = unchecked((uint)state.Seed * 97u + (uint)bot.Id);
                         double ang = Rng.Hash2d(s, hour, 11) * System.Math.PI * 2;
@@ -1255,7 +1351,6 @@ namespace GalaxyRoyale.Game
                             (float)(System.Math.Cos(ang) * dist), (float)(System.Math.Sin(ang) * dist), 0f);
                         // 10-min loop, phase-shifted per bot: fly out, sit, fly home.
                         double phase = ((now + bot.Id * 37) % 600) / 600.0;
-                        long key = GatherKeyBase + bot.Id;
                         if (phase < 0.42)
                             Draw(key, homeW, nodeW, phase / 0.42, gatherColor, 0.20f);
                         else if (phase < 0.58)
@@ -1351,33 +1446,51 @@ namespace GalaxyRoyale.Game
             }
         }
 
-        // ---------- IMGUI overlay (placeholder UI until B.4's UI Toolkit panels) ----------
+        // ---------- name labels (UI Toolkit layer under the HUD) ----------
+        //
+        // Were IMGUI: they painted over the header (a rival's name printed across
+        // the commander pill in the user's screenshots), sized text in raw pixels,
+        // and piled up. Now they're occluded by the HUD, scale with the screen,
+        // and declutter with the home label + strongest commanders placed first.
 
-        void OnGUI()
+        static readonly Color HomeLabelColor = new(0.55f, 0.87f, 1f, 0.97f);
+        static readonly Color RemoteLabelColor = new(0.84f, 0.66f, 1f, 0.97f);
+
+        void PlaceLabels(GameState state)
         {
-            if (!_active || _mapCam == null) return;
-            var state = _ctx.State;
-            if (state == null) return;
+            _labels ??= UI.UIController.Instance?.CreateWorldLabelLayer("map-labels");
+            if (_labels == null || _mapCam == null) return;
+            if (UI.UIController.Instance?.HasModal == true) { _labels.Clear(); return; } // panel up: no clutter
+            _labels.Begin();
 
-            MapCameraController.BlockRects.Clear();
-
-            // IMGUI draws over UI Toolkit — keep map text out of open panels.
-            if (UI.UIController.Instance != null && UI.UIController.Instance.HasModal) return;
-
-            // Sector name labels removed (user feedback) — coords in the header
-            // and the tier rings carry the orientation load now.
-            EnsureLabelStyles();
-            DrawRemoteLabels();
-            DrawHomeLabel(state);
-
-            if (Time.time < _noticeUntil)
+            if (_home != null)
             {
-                var noticeStyle = new GUIStyle(GUI.skin.box) { fontSize = 14, alignment = TextAnchor.MiddleCenter };
-                GUI.Box(new Rect(Screen.width / 2f - 170f, 60f, 340f, 30f), _notice, noticeStyle);
+                // Might only moves when the sim ticks — rebuild the string 1×/s, not 60×.
+                if (state.Tick != _homeLabelTick)
+                {
+                    _homeLabelTick = state.Tick;
+                    long might = GalaxyRoyale.Sim.Systems.PowerSystem.ComputePower(state);
+                    _homeLabelText =
+                        $"{state.Profile.Name} · CC {state.Buildings[BuildingId.CommandCenter].Level}" +
+                        $" · might {might:N0}";
+                }
+                _labels.Place(LabelAnchor(_home.position, _home.localScale.y), _homeLabelText,
+                    11, HomeLabelColor, above: true, declutter: false);
             }
+
+            if (_mapCam.orthographicSize <= HideNameLabelsAbove)
+            {
+                foreach (int id in _labelOrder)
+                {
+                    if (!_remotes.TryGetValue(id, out var vis)) continue;
+                    _labels.Place(LabelAnchor(vis.Root.position, vis.Root.localScale.y), vis.Name,
+                        10, RemoteLabelColor, above: true);
+                }
+            }
+            _labels.End();
         }
 
-        /// <summary>Above this zoom the 99 rival name labels are unreadable soup —
+        /// <summary>Above this zoom the rival name labels are unreadable soup —
         /// the whole-universe view shows planets only.</summary>
         const float HideNameLabelsAbove = 420f;
 
@@ -1390,55 +1503,8 @@ namespace GalaxyRoyale.Game
             return _mapCam.WorldToScreenPoint(top);
         }
 
-        static void DrawOutlinedLabel(Rect rect, string text, GUIStyle style, GUIStyle shadow)
-        {
-            GUI.Label(new Rect(rect.x + 1, rect.y + 1, rect.width, rect.height), text, shadow);
-            GUI.Label(rect, text, style);
-        }
-
-        // IMGUI label styles are cached — building GUIStyles per frame was pure
-        // GC churn (they can only be constructed in OnGUI, hence the lazy init).
-        GUIStyle? _homeLabelStyle, _remoteLabelStyle, _labelShadow;
         int _homeLabelTick = -1;
         string _homeLabelText = "";
-
-        void EnsureLabelStyles()
-        {
-            if (_homeLabelStyle != null) return;
-            _homeLabelStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 15, // bumped + bold (user feedback: titles read too small)
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = new Color(0.55f, 0.87f, 1f, 0.97f) },
-            };
-            _remoteLabelStyle = new GUIStyle(_homeLabelStyle)
-            {
-                fontSize = 14,
-            };
-            _remoteLabelStyle.normal.textColor = new Color(0.84f, 0.66f, 1f, 0.97f);
-            _labelShadow = new GUIStyle(_homeLabelStyle);
-            _labelShadow.normal.textColor = new Color(0f, 0f, 0f, 0.9f);
-        }
-
-        /// <summary>Commander name + CC level floating above the home planet.</summary>
-        void DrawHomeLabel(GameState state)
-        {
-            if (_home == null) return;
-            var sp = LabelAnchor(_home.position, _home.localScale.y);
-            if (sp.z < 0f) return;
-            // Might only moves when the sim ticks — rebuild the string 1×/s, not 60×.
-            if (state.Tick != _homeLabelTick)
-            {
-                _homeLabelTick = state.Tick;
-                long might = GalaxyRoyale.Sim.Systems.PowerSystem.ComputePower(state);
-                _homeLabelText =
-                    $"{state.Profile.Name} · CC {state.Buildings[BuildingId.CommandCenter].Level}" +
-                    $" · ⚔ {might:N0}";
-            }
-            DrawOutlinedLabel(new Rect(sp.x - 120f, Screen.height - sp.y - 22f, 240f, 22f),
-                _homeLabelText, _homeLabelStyle!, _labelShadow!);
-        }
 
         // ---------- rival planets (the simulated commanders) ----------
 
@@ -1487,21 +1553,24 @@ namespace GalaxyRoyale.Game
                 Destroy(_remotes[id].Root.gameObject);
                 _remotes.Remove(id);
             }
+
+            // Label priority for the declutter pass: strongest commanders first.
+            // (Snapshot might once — BotGalaxy.Find is a linear scan.)
+            _labelOrder.Clear();
+            _mightSnapshot.Clear();
+            foreach (var bot in galaxy.Bots)
+            {
+                _labelOrder.Add(bot.Id);
+                _mightSnapshot[bot.Id] = bot.CachedMight;
+            }
+            _labelOrder.Sort(_byMightDesc ??= (a, b) =>
+            {
+                int byMight = _mightSnapshot[b].CompareTo(_mightSnapshot[a]);
+                return byMight != 0 ? byMight : a.CompareTo(b);
+            });
         }
 
-        void DrawRemoteLabels()
-        {
-            if (_remotes.Count == 0) return;
-            if (_mapCam!.orthographicSize > HideNameLabelsAbove) return; // universe view = planets only
-            foreach (var kv in _remotes)
-            {
-                var sp = LabelAnchor(kv.Value.Root.position, kv.Value.Root.localScale.y);
-                if (sp.z < 0f) continue;
-                if (sp.x < -120f || sp.x > Screen.width + 120f
-                    || sp.y < -30f || sp.y > Screen.height + 30f) continue; // offscreen
-                DrawOutlinedLabel(new Rect(sp.x - 100f, Screen.height - sp.y - 20f, 200f, 20f),
-                    kv.Value.Name, _remoteLabelStyle!, _labelShadow!);
-            }
-        }
+        readonly Dictionary<int, long> _mightSnapshot = new();
+        System.Comparison<int>? _byMightDesc;
     }
 }

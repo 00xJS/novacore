@@ -172,11 +172,17 @@ namespace GalaxyRoyale.Data
             })
             {
                 string idLabel = label.Replace(" min", "m").Replace(" hr", "h");
+                // Spelled out from the seconds. The old chained Replace() turned
+                // "1 min" into "1 minute", then matched " min" inside THAT —
+                // "Cuts 1 minutesute off the active timer" (user screenshot).
+                string spelled = sec >= 3600
+                    ? (sec == 3600 ? "1 hour" : $"{sec / 3600} hours")
+                    : (sec == 60 ? "1 minute" : $"{sec / 60} minutes");
                 items.Add(new ShopItemDef
                 {
                     Id = $"speed-{idLabel}",
                     Name = $"Speed-Up · {label}",
-                    Description = $"Cuts {label.Replace("1 min", "1 minute").Replace(" min", " minutes").Replace("1 hr", "1 hour").Replace(" hr", " hours")} off the active timer",
+                    Description = $"Cuts {spelled} off the active timer",
                     Category = ShopCategory.Speedups,
                     PriceDM = price,
                     Effect = ShopEffect.Speedup,
