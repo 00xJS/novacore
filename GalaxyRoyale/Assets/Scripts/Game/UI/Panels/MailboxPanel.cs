@@ -1,12 +1,14 @@
 // MAILBOX — UI Toolkit port of v1's MailboxPanel + MailDetailPanel: per-kind
 // tabs (ALL / BATTLES / SPY / ★ SAVED), tappable report rows, and a detail
-// view with favorite / view-on-map / delete (favorites are delete-protected).
+// view with favorite / view-on-map / delete (favorites are delete-protected),
+// plus STRIKE BACK / RAID / SPY shortcuts when the report is about a rival.
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.UIElements;
 using GalaxyRoyale.Data;
 using GalaxyRoyale.Sim;
+using GalaxyRoyale.Sim.Bots;
 using GalaxyRoyale.Sim.Combat;
 
 namespace GalaxyRoyale.Game.UI
@@ -38,6 +40,48 @@ namespace GalaxyRoyale.Game.UI
         /// tofu-boxes on device — radar rows get a painted icon instead.</summary>
         static string DisplaySubject(MailItem item) =>
             item.Subject.StartsWith("⚠ ", StringComparison.Ordinal) ? item.Subject.Substring(2) : item.Subject;
+
+        /// <summary>
+        /// The rival commander a report is about: whoever raided you (stored id,
+        /// or the name in an older report's subject), the commander you raided or
+        /// scanned, or a radar contact your station identified. Null for pirate
+        /// camps and unidentified contacts.
+        /// </summary>
+        static BotEmpire? RivalOf(GameContext ctx, MailItem item)
+        {
+            var galaxy = ctx.Bots;
+            if (galaxy == null) return null;
+            string? name = null;
+            switch (item)
+            {
+                case BattleMailReport { Defending: true } defense:
+                    if (defense.AttackerBotId > 0) return galaxy.Find(defense.AttackerBotId);
+                    name = NameAfter(defense.Subject, "Colony raided by ")
+                        ?? NameAfter(defense.Subject, "Raid repelled — ")
+                        ?? NameAfter(defense.Subject, "Raid deflected — ", " hit your Aegis Shield");
+                    break;
+                case BattleMailReport battle: // camps are "Pirate camp LvN" — never a commander
+                    name = battle.Report.DefenderName;
+                    break;
+                case SpyReport spy when spy.Intel.Buildings != null || spy.Intel.LootableMilli != null:
+                    name = NameAfter(spy.Subject, "Recon: ");
+                    break;
+                case RadarWarning warn:
+                    name = warn.AttackerName;
+                    break;
+            }
+            if (string.IsNullOrEmpty(name)) return null;
+            return galaxy.Bots.Find(b => b.Name == name);
+        }
+
+        static string? NameAfter(string subject, string prefix, string suffix = "")
+        {
+            if (!subject.StartsWith(prefix, StringComparison.Ordinal)) return null;
+            string rest = subject.Substring(prefix.Length);
+            if (suffix.Length == 0) return rest;
+            int cut = rest.IndexOf(suffix, StringComparison.Ordinal);
+            return cut < 0 ? null : rest.Substring(0, cut);
+        }
 
         static string IntelLine(GameState state, MailItem item)
         {
@@ -221,6 +265,7 @@ namespace GalaxyRoyale.Game.UI
 
             var (blocker, content, footer) = Widgets.ModalPanelFooter(DisplaySubject(report), ui.OpenMailbox, 70f);
             var state = ctx.State!;
+            var rival = RivalOf(ctx, report);
 
             content.Add(Widgets.Text(
                 $"Target {report.Target.X},{report.Target.Y} · {UiTheme.FmtDuration(state.Tick - report.AtTick)} ago",
@@ -296,6 +341,16 @@ namespace GalaxyRoyale.Game.UI
                         $"{UiTheme.FmtAmount(loot.Gold)} G  {UiTheme.FmtAmount(loot.Quartz)} Q  {UiTheme.FmtAmount(loot.Helium)} H",
                         11, defending ? UiTheme.Bad : UiTheme.Good));
                     content.Add(lootLine);
+                }
+
+                // The grudge a won raid earns (BotSystem.ApplyPlayerRaid marks it).
+                if (!defending && playerWon && rival != null && BotSystem.HoldsGrudge(rival, state.Tick))
+                {
+                    var grudge = Widgets.IconText(Icon.Warning,
+                        $"{rival.Name} wants revenge — expect a counter-raid once they can win.", 11, UiTheme.Bad);
+                    grudge.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                    grudge.style.marginTop = 10;
+                    content.Add(grudge);
                 }
             }
             else if (report is SpyReport spy)
@@ -420,6 +475,44 @@ namespace GalaxyRoyale.Game.UI
 
             // Actions live in the pinned footer — always at the bottom of the box,
             // not trailing the (variable-length) report text (user spec).
+            if (rival != null)
+            {
+                // Answer a raid (or follow up your own) without hunting the
+                // commander down on the map or in the rankings. A radar contact
+                // hasn't landed yet — hitting their colony while the fleet is
+                // out is a counter-raid.
+                bool struck = report is BattleMailReport { Defending: true };
+                bool incoming = report is RadarWarning;
+                bool recon = report is SpyReport;
+                int rivalId = rival.Id;
+                string rivalName = rival.Name;
+                var rivalRow = Widgets.HBox(Justify.SpaceAround);
+                rivalRow.style.marginBottom = 8;
+                var raidBtn = Widgets.IconButton(Icon.Swords,
+                    struck ? "STRIKE BACK" : incoming ? "COUNTER-RAID" : recon ? "RAID" : "RAID AGAIN", () =>
+                {
+                    ui.CloseModal();
+                    RaidPanel.Open(ctx, rivalId);
+                }, 11);
+                raidBtn.style.width = Length.Percent(48f);
+                rivalRow.Add(raidBtn);
+                var second = recon
+                    ? Widgets.TextButton("PROFILE", () =>
+                    {
+                        ui.CloseModal();
+                        PlayerProfilePanel.Open(ctx, rivalId, rivalName);
+                    }, 11)
+                    : Widgets.IconButton(Icon.Eye, "SPY", () =>
+                    {
+                        var target = ctx.Bots?.Find(rivalId);
+                        if (target == null) { ui.Toast("No telemetry on that commander"); return; }
+                        ui.Toast(RaidService.SpyBot(ctx, BotSystem.SnapshotOf(target)).message);
+                    }, 11);
+                second.style.width = Length.Percent(48f);
+                rivalRow.Add(second);
+                footer.Add(rivalRow);
+            }
+
             var buttons = Widgets.HBox(Justify.SpaceAround);
 
             // Painted star — "☆ SAVE" was outside the runtime font's glyph set.

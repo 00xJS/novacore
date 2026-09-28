@@ -2,8 +2,9 @@
 // retired NetBootstrap): boot lands on the TITLE SCREEN (user spec — the old
 // login page's slot): CONTINUE GAME resumes the saved galaxy, NEW GAME founds
 // a fresh one (double-confirmed when a save exists). Afterwards: autosave
-// every 30 s (atomic write + rotating backup) and save-on-background, since
-// mobile lifecycles never fire a clean quit.
+// every 30 s (atomic write + rotating backup, written off the main thread) and
+// a synchronous save-on-background, since mobile lifecycles never fire a clean
+// quit.
 using System;
 using UnityEngine;
 using GalaxyRoyale.Local;
@@ -124,7 +125,8 @@ namespace GalaxyRoyale.Game
             if (!_booted || _ctx.State == null) return;
             if (Time.time < _nextAutosave) return;
             _nextAutosave = Time.time + AutosaveSeconds;
-            SaveNow();
+            LocalSave.SaveInBackground(_ctx.State!, _ctx.Bots,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         }
 
         void OnApplicationPause(bool paused)

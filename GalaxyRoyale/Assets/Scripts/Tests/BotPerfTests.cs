@@ -33,13 +33,20 @@ namespace GalaxyRoyale.Sim.Tests
             long catchUpMs = sw.ElapsedMilliseconds;
             events.DrainSuppressed();
 
+            // Autosave splits here: the snapshot tree is built on the main thread,
+            // the text on a worker (LocalSave.SaveInBackground).
             sw.Restart();
-            string json = SaveCodec.Encode(SaveManager.Wrap(player, 0, galaxy));
-            long encodeMs = sw.ElapsedMilliseconds;
+            var tree = SaveCodec.EncodeTree(SaveManager.Wrap(player, 0, galaxy));
+            long treeMs = sw.ElapsedMilliseconds;
+            sw.Restart();
+            string json = Json.Write(tree);
+            long textMs = sw.ElapsedMilliseconds;
+            long encodeMs = treeMs + textMs;
 
             TestContext.Out.WriteLine(
                 $"create({BotSystem.BotCount} bots, pre-sim)={createMs}ms  catchUp(8h)={catchUpMs}ms  " +
-                $"encode={encodeMs}ms  saveSize={json.Length / 1024}KB");
+                $"encode={encodeMs}ms (main-thread snapshot {treeMs}ms + worker text {textMs}ms)  " +
+                $"saveSize={json.Length / 1024}KB");
 
             // Loose ceilings — a phone is ~3-5× slower than an editor Mono run,
             // so these bounds keep the worst device case inside a launch screen.

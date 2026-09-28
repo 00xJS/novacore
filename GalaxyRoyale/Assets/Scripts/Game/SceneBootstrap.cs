@@ -66,6 +66,8 @@ namespace GalaxyRoyale.Game
 
         GameContext? _ctx;
         int _visualSeedCache;
+        /// <summary>The generated albedo on the planet material (null until the first Update).</summary>
+        Texture2D? _planetTex;
 
         void Awake()
         {
@@ -83,6 +85,11 @@ namespace GalaxyRoyale.Game
         // item re-rolls the planet's look — "a new world".
         void Update()
         {
+            // First paint happens here, not in Awake: a returning player's save is
+            // adopted in LocalBootstrap.Start (which regenerates for the loaded
+            // seed), so an Awake-time texture was a ~1M-pixel bake thrown away
+            // before the first frame ever rendered.
+            if (_planetTex == null) { RequestPlanetRefresh(); return; }
             if (_ctx?.State == null) return;
             if (_ctx.VisualSeed == _visualSeedCache) return;
             RequestPlanetRefresh(); // also re-syncs _visualSeedCache
@@ -101,7 +108,12 @@ namespace GalaxyRoyale.Game
             var mesh = GameObject.Find("Home Planet")?.transform.Find("Planet Mesh");
             var renderer = mesh != null ? mesh.GetComponent<Renderer>() : null;
             if (renderer == null || renderer.sharedMaterial == null) return;
-            renderer.sharedMaterial.mainTexture = inst.GeneratePlanetTexture();
+            var tex = inst.GeneratePlanetTexture();
+            renderer.sharedMaterial.mainTexture = tex;
+            // Runtime textures aren't garbage-collected — every relocation /
+            // resurfacing / new game used to leak the previous ~2.7 MB bake.
+            if (inst._planetTex != null) Destroy(inst._planetTex);
+            inst._planetTex = tex;
         }
 
         /// <summary>
@@ -187,7 +199,8 @@ namespace GalaxyRoyale.Game
             var mat = MapVisuals.LitOpaque();
             if (mat != null)
             {
-                mat.mainTexture = GeneratePlanetTexture();
+                // Albedo arrives on the first Update (see there) — once, for the
+                // seed that is actually in play.
                 mat.SetFloat("_Smoothness", 0.2f);
                 mesh.GetComponent<Renderer>().sharedMaterial = mat;
             }
@@ -309,6 +322,7 @@ namespace GalaxyRoyale.Game
 
             var tex = new Texture2D(width, height, TextureFormat.RGBA32, mipChain: true);
             var pixels = new Color[width * height];
+            var weights = new float[picks.Count]; // reused per pixel (was 0.5M tiny allocations)
 
             for (int y = 0; y < height; y++)
             {
@@ -324,7 +338,6 @@ namespace GalaxyRoyale.Game
                     {
                         // Weighted blend of N reference samples — SEAMLESS weights.
                         float totalW = 0f;
-                        var weights = new float[picks.Count];
                         for (int i = 0; i < picks.Count; i++)
                         {
                             weights[i] = TileNoise(u, v, mixNoiseScale, noiseOffsets[i].x, noiseOffsets[i].y);

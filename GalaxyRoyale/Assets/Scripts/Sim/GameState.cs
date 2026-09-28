@@ -118,6 +118,9 @@ namespace GalaxyRoyale.Sim
         /// must flip perspective — it used to show a lost raid as a green
         /// "VICTORY" with the raider's ships under YOUR FLEET.</summary>
         public bool Defending;
+        /// <summary>Defense reports: the raiding bot's id, for STRIKE BACK
+        /// (0 = unknown — reports filed before the field existed).</summary>
+        public int AttackerBotId;
     }
 
     /// <summary>

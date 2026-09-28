@@ -536,6 +536,8 @@ namespace GalaxyRoyale.Sim.Systems
 
             if (march.Mission == MarchMission.Attack && node.Kind == NodeKind.Camp)
             {
+                // The camp composer's forecast (BattleForecast.Predict) makes this
+                // same call at launch — keep the inputs in step.
                 var report = CombatResolver.Resolve(
                     march.Ships,
                     CampGarrison(node),

@@ -1116,6 +1116,7 @@ namespace GalaxyRoyale.Sim.Bots
                         Target = player.HomeTile,
                         Subject = $"Raid deflected — {bot.Name} hit your Aegis Shield",
                         Defending = true,
+                        AttackerBotId = bot.Id,
                         Report = new BattleReport
                         {
                             Attacker = new Dictionary<HullId, int>(atk.Ships),
@@ -1190,6 +1191,7 @@ namespace GalaxyRoyale.Sim.Bots
                         ? $"Colony raided by {bot.Name}"
                         : $"Raid repelled — {bot.Name}",
                     Defending = true,
+                    AttackerBotId = bot.Id,
                     Report = report,
                 });
                 events.Emit(new ColonyRaided(report, bot.Name));
@@ -1402,6 +1404,12 @@ namespace GalaxyRoyale.Sim.Bots
                 Buildings = buildings,
             };
         }
+
+        /// <summary>True while this bot means to pay the player back for a raid:
+        /// ApplyPlayerRaid marks it, and the mark holds until ActOnFocus settles
+        /// it with a counter-raid or it lapses after FocusExpiryTicks.</summary>
+        public static bool HoldsGrudge(BotEmpire bot, int nowTick) =>
+            bot.FocusTargetId == 0 && nowTick - bot.FocusSetTick <= FocusExpiryTicks;
 
         /// <summary>Apply a player raid's outcome to the defending bot (+ news + battle
         /// scar). A bot the player keeps farming counts those losses toward its

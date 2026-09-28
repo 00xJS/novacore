@@ -1,6 +1,7 @@
 // Public profile of a rival (simulated) commander — opened from rankings or
-// their planet on the map. Shows only PUBLIC intel (name, might, HQ, presence)
-// — resources and fleets stay hidden until you spy (v1 rule, kept).
+// their planet on the map. Shows only PUBLIC intel (name, might, HQ, presence,
+// and whether they're out for revenge) — resources and fleets stay hidden
+// until you spy (v1 rule, kept).
 using UnityEngine.UIElements;
 using GalaxyRoyale.Sim.Bots;
 
@@ -55,6 +56,16 @@ namespace GalaxyRoyale.Game.UI
             Line("MIGHT", bot.CachedMight.ToString("N0"), UiTheme.Energy);
             Line("HQ", $"{bot.HomeTile.X}, {bot.HomeTile.Y}", UiTheme.Accent);
             Line("BATTLES", $"{bot.State.Stats.BattlesWon}W · {bot.State.Stats.BattlesLost}L", UiTheme.Text);
+            // Your won raid marked them (BotSystem.ApplyPlayerRaid): the counter-
+            // raid comes once they can win it, unless the grudge lapses first.
+            if (BotSystem.HoldsGrudge(bot, ctx.State!.Tick))
+            {
+                var grudge = Widgets.IconText(Icon.Warning,
+                    "OUT FOR REVENGE — they'll counter-raid you once they can win", 11, UiTheme.Bad, bold: true);
+                grudge.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                grudge.style.marginTop = 10;
+                body.Add(grudge);
+            }
 
             var actions = Widgets.HBox(Justify.SpaceBetween);
             actions.style.marginTop = 14;
