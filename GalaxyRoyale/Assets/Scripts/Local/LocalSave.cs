@@ -9,7 +9,9 @@
 //   - Load falls back to the .bak automatically if the main file is missing
 //     or corrupt — the empire survives anything short of losing both files.
 //   - persistentDataPath is included in iOS device backups (iCloud/iTunes) by
-//     default, so the OS-level backup story rides along for free.
+//     default, so the OS-level backup story rides along for free — and every
+//     few minutes the save is also mirrored to the app's own iCloud store
+//     (CloudSave), which a reinstall or a new phone can restore from.
 //   - The 30 s autosave snapshots the state on the main thread, then builds
 //     the JSON text and writes the file on a worker (the text is over half the
 //     encode cost); pause/quit/new-game saves stay synchronous so they're on
@@ -40,13 +42,15 @@ namespace GalaxyRoyale.Local
         static long s_lastSeq;
         static long s_writtenSeq;
 
-        /// <summary>Encode and write right now — for pause, quit and new game.</summary>
-        public static void Save(GameState state, BotGalaxy? bots, long nowMs)
+        /// <summary>Encode and write right now — for pause, quit and new game.
+        /// <paramref name="cloud"/>: also stage it for the iCloud backup.</summary>
+        public static void Save(GameState state, BotGalaxy? bots, long nowMs, bool cloud = false)
         {
             try
             {
                 string json = SaveCodec.Encode(SaveManager.Wrap(state, nowMs, bots));
-                WriteAtomic(json, ++s_lastSeq);
+                if (WriteAtomic(json, ++s_lastSeq) && cloud)
+                    CloudSave.Stage(json, CloudSave.HeaderFor(state, nowMs));
             }
             catch (Exception e)
             {
@@ -55,14 +59,17 @@ namespace GalaxyRoyale.Local
         }
 
         /// <summary>Autosave: snapshot now (the sim mutates state on this thread),
-        /// write on a worker.</summary>
-        public static void SaveInBackground(GameState state, BotGalaxy? bots, long nowMs)
+        /// write on a worker — and pack the iCloud backup there too when
+        /// <paramref name="cloud"/> asks for one.</summary>
+        public static void SaveInBackground(GameState state, BotGalaxy? bots, long nowMs, bool cloud = false)
         {
             System.Collections.Generic.Dictionary<string, object?> tree;
+            CloudSave.Header? header;
             try
             {
                 _ = Dir; // resolve the path here, on the main thread
                 tree = SaveCodec.EncodeTree(SaveManager.Wrap(state, nowMs, bots));
+                header = cloud ? CloudSave.HeaderFor(state, nowMs) : null;
             }
             catch (Exception e)
             {
@@ -72,16 +79,21 @@ namespace GalaxyRoyale.Local
             long seq = ++s_lastSeq;
             Task.Run(() =>
             {
-                try { WriteAtomic(Json.Write(tree), seq); }
+                try
+                {
+                    string json = Json.Write(tree);
+                    if (WriteAtomic(json, seq) && header != null) CloudSave.Stage(json, header);
+                }
                 catch (Exception e) { Debug.LogWarning($"[Save] Background save failed: {e.Message}"); }
             });
         }
 
-        static void WriteAtomic(string json, long seq)
+        /// <summary>False when a newer snapshot already landed (nothing written).</summary>
+        static bool WriteAtomic(string json, long seq)
         {
             lock (s_writeLock)
             {
-                if (seq < s_writtenSeq) return; // a newer snapshot already landed
+                if (seq < s_writtenSeq) return false; // a newer snapshot already landed
                 File.WriteAllText(PathTemp, json);
                 // Rotate: current good save becomes the backup, temp becomes current.
                 if (File.Exists(PathMain))
@@ -91,6 +103,7 @@ namespace GalaxyRoyale.Local
                 }
                 File.Move(PathTemp, PathMain);
                 s_writtenSeq = seq;
+                return true;
             }
         }
 

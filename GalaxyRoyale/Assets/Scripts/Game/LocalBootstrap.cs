@@ -1,10 +1,11 @@
 // Boot + persistence orchestration for the single-player game (replaces the
 // retired NetBootstrap): boot lands on the TITLE SCREEN (user spec — the old
 // login page's slot): CONTINUE GAME resumes the saved galaxy, NEW GAME founds
-// a fresh one (double-confirmed when a save exists). Afterwards: autosave
-// every 30 s (atomic write + rotating backup, written off the main thread) and
-// a synchronous save-on-background, since mobile lifecycles never fire a clean
-// quit.
+// a fresh one (double-confirmed when a save exists), RESTORE brings back an
+// iCloud backup. Afterwards: autosave every 30 s (atomic write + rotating
+// backup, written off the main thread), mirrored to iCloud every few minutes
+// (CloudSave), and a synchronous save + backup on going to the background,
+// since mobile lifecycles never fire a clean quit.
 using System;
 using UnityEngine;
 using GalaxyRoyale.Data;
@@ -20,6 +21,9 @@ namespace GalaxyRoyale.Game
     public sealed class LocalBootstrap : MonoBehaviour
     {
         public const float AutosaveSeconds = 30f;
+        /// <summary>An iCloud backup this much newer than the device's save (played
+        /// on another device) is offered at boot instead of silently ignored.</summary>
+        const long NewerCloudMarginMs = 2 * 60 * 1000;
 
         public static LocalBootstrap? Instance { get; private set; }
 
@@ -40,14 +44,67 @@ namespace GalaxyRoyale.Game
             // Back from another app: GameContext caught the galaxy up — say so.
             _ctx.Resumed += debrief => { if (_booted) ReportAway(debrief); };
 
+            CloudSave.Sync(); // the iCloud backup's latest values land asynchronously
             _pendingLoad = LocalSave.Load();
             if (_pendingLoad is { } peek && peek.bots == null)
                 _pendingLoad = null; // unreadable/pre-pivot leftovers → treat as no save
             // Returning commanders resume STRAIGHT into the base view (user spec
             // 2026-07-07) — the title page only greets a fresh install (or a
             // post-reset boot); starting over lives behind the profile's RESET.
-            if (_pendingLoad != null) ContinueGame();
-            else UI.TitlePanel.Open(_ctx);
+            if (_pendingLoad is not { } local) { UI.TitlePanel.Open(_ctx); return; }
+
+            // Played on another device since this one last saved? Offer that.
+            var cloud = CloudSave.Peek();
+            if (cloud != null && cloud.SavedAtMs > local.savedAtMs + NewerCloudMarginMs)
+            {
+                UI.ChoicePanel.Open("NEWER ICLOUD BACKUP",
+                    $"iCloud holds a newer save: {CloudSummary(cloud)}.\n" +
+                    $"This device: Commander {local.state.Profile.Name}, saved {Ago(local.savedAtMs)} ago.",
+                    ("RESTORE ICLOUD BACKUP", () => { if (!RestoreFromCloud()) ContinueGame(); }),
+                    ("KEEP THIS DEVICE'S SAVE", ContinueGame),
+                    ContinueGame);
+                return;
+            }
+            ContinueGame();
+        }
+
+        /// <summary>The iCloud backup's header, if there is one (title screen).</summary>
+        public CloudSave.Header? CloudBackup => CloudSave.Peek();
+
+        public static string CloudSummary(CloudSave.Header h) =>
+            $"Commander {h.Name} · might {h.Might:N0} · backed up {Ago(h.SavedAtMs)} ago";
+
+        static string Ago(long ms) => UI.UiTheme.FmtLong(
+            Math.Max(0, (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - ms) / 1000));
+
+        /// <summary>Adopt the iCloud backup (title screen / boot prompt).
+        /// Whatever this device held rotates to the .bak on the next save.</summary>
+        public bool RestoreFromCloud()
+        {
+            var found = CloudSave.FetchSave();
+            if (found == null || found.Value.bots == null)
+            {
+                UI.UIController.Instance?.Toast("The iCloud backup couldn't be read", UI.Icon.Warning, UI.UiTheme.Bad);
+                return false;
+            }
+            var backup = found.Value;
+            // Device-local side tables belong to whatever galaxy was here before.
+            RaidArrivals.ClearPending();
+            DailyObjectives.ResetProgress();
+            UI.RankingsPanel.ForgetLastRank();
+            _pendingLoad = backup;
+            ContinueGame();
+            SaveNow(); // land it on disk now, not on the next autosave
+            UI.UIController.Instance?.Toast($"Empire restored from iCloud — welcome back, Commander {backup.state.Profile.Name}",
+                UI.Icon.Check, UI.UiTheme.Good);
+            return true;
+        }
+
+        /// <summary>BACK UP NOW (profile): save and push the backup immediately.</summary>
+        public void BackUpNow()
+        {
+            if (!_booted || _ctx.State == null) return;
+            SaveNow(forceCloud: true);
         }
 
         /// <summary>The title screen asks; the placeholder sim idles until a choice lands.</summary>
@@ -126,21 +183,22 @@ namespace GalaxyRoyale.Game
 
         void Update()
         {
+            CloudSave.Flush(); // a backup packed on the save worker goes up from here
             if (!_booted || _ctx.State == null) return;
             if (Time.time < _nextAutosave) return;
             _nextAutosave = Time.time + AutosaveSeconds;
-            LocalSave.SaveInBackground(_ctx.State!, _ctx.Bots,
-                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            LocalSave.SaveInBackground(_ctx.State!, _ctx.Bots, now, cloud: CloudSave.Due(now, force: false));
         }
 
         void OnApplicationPause(bool paused)
         {
-            if (paused && _booted && _ctx.State != null) SaveNow();
+            if (paused && _booted && _ctx.State != null) SaveNow(forceCloud: true);
         }
 
         void OnApplicationQuit()
         {
-            if (_booted && _ctx.State != null) SaveNow();
+            if (_booted && _ctx.State != null) SaveNow(forceCloud: true);
         }
 
         /// <summary>Immediate save — profile edits call this so nothing rides on the 30 s timer.</summary>
@@ -151,10 +209,11 @@ namespace GalaxyRoyale.Game
             inst.SaveNow();
         }
 
-        void SaveNow()
+        void SaveNow(bool forceCloud = false)
         {
-            LocalSave.Save(_ctx.State!, _ctx.Bots,
-                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            LocalSave.Save(_ctx.State!, _ctx.Bots, now, cloud: CloudSave.Due(now, forceCloud));
+            CloudSave.Flush(); // synchronous: iOS may suspend us right after
         }
 
         /// <summary>"While you were away": the full report when something happened
