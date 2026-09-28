@@ -504,7 +504,9 @@ namespace GalaxyRoyale.Sim.Systems
         {
             march.Phase = MarchPhase.Gathering;
             march.LegFrom = march.LegTo;
-            march.DepartedAtTick = state.Tick;
+            // Stamp the landing tick (not "now"): the systems that settle held marches
+            // replay them in the order they landed.
+            march.DepartedAtTick = Math.Min(state.Tick, march.ArrivesAtTick);
             march.ArrivesAtTick = int.MaxValue;
         }
 
@@ -572,10 +574,12 @@ namespace GalaxyRoyale.Sim.Systems
 
         static void ArriveAtNode(GameState state, SimEventBus events, March march)
         {
-            // Intercepts and garrisons hold where they land — StrikeSystem fights
-            // the intercept, BotSystem fights a raid on the guarded colony — even
-            // when the spot happens to be a resource node or a camp.
-            if (march.Mission == MarchMission.Intercept || march.Mission == MarchMission.Garrison)
+            // Intercepts, garrisons and core assaults hold where they land —
+            // StrikeSystem fights the intercept, BotSystem a raid on the guarded
+            // colony, CoreSystem the core — even when the spot happens to be a
+            // resource node or a camp.
+            if (march.Mission == MarchMission.Intercept || march.Mission == MarchMission.Garrison
+                || march.Mission == MarchMission.Core)
             {
                 Hold(state, march);
                 events.Emit(new MarchPhaseChanged(march.Id, march.Phase));

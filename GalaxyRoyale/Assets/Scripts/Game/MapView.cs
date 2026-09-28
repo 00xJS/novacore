@@ -705,6 +705,16 @@ namespace GalaxyRoyale.Game
                 }
             }
 
+            // The Galactic Core: a tap on the station itself opens it (the traffic
+            // crossing it can still be tapped anywhere else along its path).
+            float dx = world.x - _coreWorld.x, dy = world.y - _coreWorld.y;
+            if (dx * dx + dy * dy <= CoreTapRadius * CoreTapRadius)
+            {
+                _selected = null;
+                UI.CorePanel.OpenCallout(_ctx);
+                return;
+            }
+
             // Another commander's flight? Radar-tracked inbound hostiles first, then
             // bot raids / spy probes / gather runs — follow them like your own.
             if (TryPickRivalFlight(world, grab, out long flightKey, out bool isContact))
@@ -1150,6 +1160,7 @@ namespace GalaxyRoyale.Game
                     MarchMission.Spy       => new Color(0.75f, 0.63f, 0.91f),
                     MarchMission.Intercept => new Color(1f, 0.66f, 0.25f),
                     MarchMission.Garrison  => new Color(0.45f, 0.9f, 0.55f),
+                    MarchMission.Core      => new Color(0.95f, 0.82f, 0.35f),
                     _                      => new Color(0.5f, 0.83f, 1f),
                 };
                 vis.Line.startColor = WithAlpha(color, 0.55f);
@@ -1314,6 +1325,7 @@ namespace GalaxyRoyale.Game
                 var spyColor = new Color(0.75f, 0.63f, 0.91f); // matches player spy missions
                 var wingColor = new Color(0.35f, 0.9f, 0.8f);
                 var guardColor = new Color(0.45f, 0.9f, 0.55f); // matches your own garrisons
+                var coreColor = new Color(0.98f, 0.72f, 0.3f);  // an assault on the Galactic Core
                 foreach (var m in galaxy.Marches)
                 {
                     var color = m.Kind switch
@@ -1321,6 +1333,7 @@ namespace GalaxyRoyale.Game
                         GalaxyRoyale.Sim.Bots.BotMarchKind.Spy => spyColor,
                         GalaxyRoyale.Sim.Bots.BotMarchKind.Escort => wingColor,
                         GalaxyRoyale.Sim.Bots.BotMarchKind.Garrison => guardColor,
+                        GalaxyRoyale.Sim.Bots.BotMarchKind.CoreAssault => coreColor,
                         _ => raidColor,
                     };
                     string art = m.IsSpy ? "probe" : "fleet";
@@ -1489,6 +1502,18 @@ namespace GalaxyRoyale.Game
                     11, HomeLabelColor, above: true, declutter: false);
             }
 
+            // Who holds the Galactic Core (rebuilt 1×/s with the sim clock).
+            if (_novaCore != null && _ctx.Bots != null)
+            {
+                if (state.Tick != _coreLabelTick)
+                {
+                    _coreLabelTick = state.Tick;
+                    _coreLabelText = $"GALACTIC CORE · held by {GalaxyRoyale.Sim.Systems.CoreSystem.HolderName(state, _ctx.Bots)}";
+                }
+                _labels.Place(LabelAnchor(_novaCore.position, _novaCore.localScale.y * 0.5f), _coreLabelText,
+                    12, CoreLabelColor, above: true, declutter: false);
+            }
+
             if (_mapCam.orthographicSize <= HideNameLabelsAbove)
             {
                 foreach (int id in _labelOrder)
@@ -1516,6 +1541,11 @@ namespace GalaxyRoyale.Game
 
         int _homeLabelTick = -1;
         string _homeLabelText = "";
+        int _coreLabelTick = -1;
+        string _coreLabelText = "";
+        /// <summary>World units (≈ tiles) around the core centre that open the core.</summary>
+        const float CoreTapRadius = 110f;
+        static readonly Color CoreLabelColor = new(0.98f, 0.82f, 0.45f, 0.97f);
 
         // ---------- rival planets (the simulated commanders) ----------
 

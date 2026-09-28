@@ -331,6 +331,8 @@ namespace GalaxyRoyale.Sim.Systems
             public int BotId;
             /// <summary>Who it's raiding: 0 = you, a bot id, or -1 when it's flying home.</summary>
             public int TargetId;
+            /// <summary>An assault on the Galactic Core (outbound).</summary>
+            public bool TargetsCore;
             /// <summary>0 = outbound to the target, 1 = homeward with its plunder.</summary>
             public int Leg;
             public Position From, To;
@@ -356,7 +358,8 @@ namespace GalaxyRoyale.Sim.Systems
                 };
             }
             var m = galaxy.Marches.Find(x => x.Id == fleetId);
-            if (m == null || m.Kind != BotMarchKind.Raid) return null;
+            if (m == null || (m.Kind != BotMarchKind.Raid && m.Kind != BotMarchKind.CoreAssault)) return null;
+            bool core = m.Kind == BotMarchKind.CoreAssault;
             return m.Resolved
                 ? new FleetTrack
                 {
@@ -366,7 +369,8 @@ namespace GalaxyRoyale.Sim.Systems
                 }
                 : new FleetTrack
                 {
-                    FleetId = m.Id, BotId = m.BotId, TargetId = m.TargetBotId, Leg = 0,
+                    FleetId = m.Id, BotId = m.BotId, TargetId = core ? -1 : m.TargetBotId, Leg = 0,
+                    TargetsCore = core,
                     From = m.From, To = m.To, DepartTick = m.LaunchTick, ArriveTick = m.ArrivesAtTick,
                     Ships = m.Ships,
                 };
@@ -529,12 +533,13 @@ namespace GalaxyRoyale.Sim.Systems
             enemy.FocusTargetId = 0;
             enemy.FocusSetTick = at;
 
-            string victim = track.TargetId switch
+            string victim = track.TargetsCore ? "the Galactic Core" : track.TargetId switch
             {
                 0 => "your colony",
                 > 0 => galaxy.Find(track.TargetId)?.Name ?? "their target",
                 _ => "",
             };
+            string raid = track.TargetsCore ? "assault" : "raid";
             galaxy.AddBulletin(at, broken
                 ? $"{ClanSystem.Tagged(player, galaxy, 0, player.Profile.Name)} intercepted {ClanSystem.Tagged(player, galaxy, enemy.Id, enemy.Name)}'s fleet"
                 : $"{ClanSystem.Tagged(player, galaxy, enemy.Id, enemy.Name)}'s fleet fought through an intercept");
@@ -544,8 +549,8 @@ namespace GalaxyRoyale.Sim.Systems
                 AtTick = at,
                 Target = pointTile,
                 Subject = won
-                    ? track.Leg == 1 ? $"Intercept — plunder retaken from {enemy.Name}" : $"Intercept — {enemy.Name}'s raid on {victim} broken"
-                    : broken ? $"Intercept — {enemy.Name}'s raid turned back"
+                    ? track.Leg == 1 ? $"Intercept — plunder retaken from {enemy.Name}" : $"Intercept — {enemy.Name}'s {raid} on {victim} broken"
+                    : broken ? $"Intercept — {enemy.Name}'s {raid} turned back"
                     : $"Intercept failed — {enemy.Name}'s fleet held",
                 Report = report,
                 AllyShips = allyShips,
@@ -757,11 +762,12 @@ namespace GalaxyRoyale.Sim.Systems
                 var m = galaxy.Marches[i];
                 if (m.Resolved || m.Kind != BotMarchKind.Escort) continue;
                 bool orphan;
-                if (m.TargetBotId == 0)
+                if (m.TargetBotId <= 0)
                 {
-                    // An intercept wing follows its march: recalled or gone → home.
+                    // An intercept or core-assault wing follows its march: recalled or gone → home.
                     var lead = player.Marches.Find(x => x.Id == m.LinkId);
-                    orphan = lead == null || lead.Recalled || lead.Mission != MarchMission.Intercept
+                    var mission = m.TargetBotId == 0 ? MarchMission.Intercept : MarchMission.Core;
+                    orphan = lead == null || lead.Recalled || lead.Mission != mission
                         || lead.Phase == MarchPhase.Returning;
                 }
                 // A joint-strike wing is settled by the raid (RaidArrivals); this is the net.

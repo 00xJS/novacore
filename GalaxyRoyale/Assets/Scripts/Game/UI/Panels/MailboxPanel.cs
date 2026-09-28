@@ -10,6 +10,7 @@ using GalaxyRoyale.Data;
 using GalaxyRoyale.Sim;
 using GalaxyRoyale.Sim.Bots;
 using GalaxyRoyale.Sim.Combat;
+using GalaxyRoyale.Sim.Systems;
 
 namespace GalaxyRoyale.Game.UI
 {
@@ -91,6 +92,10 @@ namespace GalaxyRoyale.Game.UI
 
         static string IntelLine(GameState state, MailItem item)
         {
+            if (item is BattleMailReport { Defending: true, GuardedBotId: CoreSystem.CoreGuardId } core)
+                return core.Report.Winner == BattleWinner.Attacker
+                    ? "Core lost — your garrison fell"
+                    : "Core held — the assault was beaten off";
             if (item is BattleMailReport { Defending: true, GuardedBotId: > 0 } guard)
                 // Your garrison at a clanmate's colony — their loss isn't yours.
                 return guard.Report.Winner == BattleWinner.Attacker

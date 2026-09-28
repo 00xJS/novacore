@@ -36,6 +36,8 @@ namespace GalaxyRoyale.Sim.Systems
                 AchievementGoal.ClanWarsWon => state.Stats.ClanWarsWon,
                 AchievementGoal.EventsCompleted => state.Stats.EventsCompleted,
                 AchievementGoal.Might => PowerSystem.ComputePower(state),
+                AchievementGoal.CoresSeized => state.Stats.CoresSeized,
+                AchievementGoal.CoreHoursHeld => state.Stats.CoreHoursHeld,
                 _ => 0,
             };
             return (Math.Min(have, a.Target), a.Target);

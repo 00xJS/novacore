@@ -10,6 +10,7 @@ namespace GalaxyRoyale.Data
         BattlesWon, CampsCleared, RaidsWon, DefensesWon, ShipsBuilt, LootWhole,
         CommandCenter, ResearchLevels, DefenseResearchLevels, QuestsDone,
         ClanJoined, ClanSize, ClanWarsWon, SeasonTop, EventsCompleted, Might,
+        CoresSeized, CoreHoursHeld,
     }
 
     public sealed class AchievementDef
@@ -56,6 +57,8 @@ namespace GalaxyRoyale.Data
             A("contender", "Contender", "Finish a season in the top 10", AchievementGoal.SeasonTop, 10, 200, "Contender"),
             A("champion", "Champion", "Win a season", AchievementGoal.SeasonTop, 1, 500, "Champion"),
             A("rising-power", "Rising Power", "Reach 50,000 might", AchievementGoal.Might, 50_000, 200, "Rising Power"),
+            A("core-breacher", "Core Breacher", "Seize the Galactic Core", AchievementGoal.CoresSeized, 1, 250, "Core Breacher"),
+            A("warden", "Warden of the Core", "Collect 24 hours of Core tribute", AchievementGoal.CoreHoursHeld, 24, 500, "Warden of the Core"),
         };
 
         public static AchievementDef? ById(string id)

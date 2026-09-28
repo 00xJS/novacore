@@ -185,6 +185,7 @@ namespace GalaxyRoyale.Game.UI
             _root.Add(_leftStack);
             BuildQuestTracker();
             BuildEventChip();
+            BuildCoreChip();
 
             _calloutLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             _calloutLayer.style.position = Position.Absolute;
@@ -435,6 +436,7 @@ namespace GalaxyRoyale.Game.UI
                 return b;
             }
             // Stacked bottom-up visually; add in top-down order.
+            MiniFab(Icon.Target, "CORE", () => CorePanel.Open(_ctx));
             _clanFab = MiniFab(Icon.Pact, "CLAN", OpenClan);
             MiniFab(Icon.Trophy, "AWARDS", OpenAchievements);
             _eventsFab = MiniFab(Icon.Bolt, "EVENTS", () => OpenEvents());
@@ -736,7 +738,8 @@ namespace GalaxyRoyale.Game.UI
                 case MarchPhaseChanged mpc when mpc.Phase == MarchPhase.Gathering:
                 {
                     var held = _ctx.State?.Marches.Find(m => m.Id == mpc.MarchId);
-                    if (held?.Mission == MarchMission.Intercept) break; // the battle report follows at once
+                    // The battle report (or the garrison merge) follows at once.
+                    if (held?.Mission == MarchMission.Intercept || held?.Mission == MarchMission.Core) break;
                     Toast(held?.Mission == MarchMission.Garrison
                         ? $"Your garrison is on guard at {_ctx.Bots?.Find(held.GuardEmpireId)?.Name ?? "your clanmate"}'s colony"
                         : "Fleet on station — gathering",
@@ -753,6 +756,42 @@ namespace GalaxyRoyale.Game.UI
                 case InterceptMissed missed:
                     Toast($"Intercept missed — {missed.TargetName} changed course. Your fleet is heading home.", Icon.Info, UiTheme.Dim);
                     break;
+                case CoreSeized seized when _ctx.State != null && _ctx.Bots != null:
+                {
+                    string holder = CoreSystem.HolderName(_ctx.State, _ctx.Bots);
+                    if (seized.HolderId == 0)
+                    {
+                        Toast("You hold the Galactic Core — tribute every hour", Icon.Target, UiTheme.Good);
+                        GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                    }
+                    else if (seized.PreviousHolderId == 0)
+                    {
+                        Toast(seized.HolderId == CoreSystem.GuardiansId
+                            ? "You no longer hold the Galactic Core — the guardians returned"
+                            : $"The Galactic Core fell to {holder}", Icon.Target, UiTheme.Bad);
+                        GameAudio.Feedback(Sfx.Defeat, Haptic.Warning);
+                    }
+                    else if (CoreSystem.ClanHolds(_ctx.State, _ctx.Bots))
+                        Toast($"Your clanmate {holder} seized the Galactic Core", Icon.Pact, UiTheme.Good);
+                    break;
+                }
+                case CoreTributePaid tribute:
+                {
+                    var r = tribute.Resources;
+                    string dm = tribute.DarkMatter > 0 ? $" · +{tribute.DarkMatter} DM" : "";
+                    Toast($"{(tribute.Clan ? "Clan core tribute" : "Core tribute")}: +{UiTheme.FmtAmount(r.Gold)} gold · " +
+                        $"+{UiTheme.FmtAmount(r.Quartz)} quartz · +{UiTheme.FmtAmount(r.Helium)} helium{dm}", Icon.Target, UiTheme.Energy);
+                    GameAudio.Play(Sfx.Coins, 0.5f);
+                    break;
+                }
+                case CoreUnderAttack attack:
+                {
+                    string who = _ctx.Bots?.Find(attack.AttackerId)?.Name ?? "A commander";
+                    int eta = Math.Max(0, attack.ArrivesAtTick - (_ctx.State?.Tick ?? 0));
+                    Toast($"{who} is assaulting your core — lands in {UiTheme.FmtDuration(eta)}", Icon.Warning, UiTheme.Bad);
+                    GameAudio.Feedback(Sfx.Alert, Haptic.Warning);
+                    break;
+                }
                 case ClanGarrisonArrived arrived:
                     Toast(arrived.Wings == 1 ? "A clan garrison is on guard at your colony"
                         : $"{arrived.Wings} clan garrisons are on guard at your colony", Icon.Shield, UiTheme.Good);
@@ -1113,10 +1152,78 @@ namespace GalaxyRoyale.Game.UI
             _questKey = "";
         }
 
+        // ---------- Galactic Core chip (base view) ----------
+        // Shown while you (or a clanmate) hold the core, or an assault is on its way to yours.
+
+        VisualElement _coreChip = null!;
+        Label _coreChipTitle = null!, _coreChipInfo = null!;
+        string _coreKey = "";
+
+        void BuildCoreChip()
+        {
+            var c = _coreChip = new VisualElement();
+            c.style.maxWidth = 300;
+            c.style.marginTop = 6;
+            c.style.flexDirection = FlexDirection.Row;
+            c.style.alignItems = Align.Center;
+            c.style.paddingLeft = 10;
+            c.style.paddingRight = 10;
+            c.style.paddingTop = 5;
+            c.style.paddingBottom = 5;
+            c.style.backgroundColor = new Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.92f);
+            Widgets.SetBorder(c, UiTheme.Good, 1.5f);
+            c.style.borderTopLeftRadius = 12;
+            c.style.borderTopRightRadius = 12;
+            c.style.borderBottomLeftRadius = 12;
+            c.style.borderBottomRightRadius = 12;
+            var icon = Icons.Make(Icon.Target, 14f, UiTheme.Energy);
+            icon.style.marginRight = 7;
+            c.Add(icon);
+            var col = new VisualElement { pickingMode = PickingMode.Ignore };
+            col.style.flexShrink = 1f;
+            _coreChipTitle = Widgets.Text("", 10, UiTheme.Energy, bold: true);
+            _coreChipTitle.pickingMode = PickingMode.Ignore;
+            _coreChipInfo = Widgets.Text("", 9, UiTheme.Dim);
+            _coreChipInfo.pickingMode = PickingMode.Ignore;
+            col.Add(_coreChipTitle);
+            col.Add(_coreChipInfo);
+            c.Add(col);
+            c.style.display = DisplayStyle.None;
+            c.RegisterCallback<ClickEvent>(_ => CorePanel.Open(_ctx));
+            _leftStack.Add(c);
+        }
+
+        void RefreshCoreChip(GameState state)
+        {
+            var galaxy = _ctx.Bots;
+            if (galaxy == null) return;
+            bool mine = CoreSystem.PlayerHolds(galaxy);
+            bool clan = !mine && CoreSystem.ClanHolds(state, galaxy);
+            int assault = int.MaxValue;
+            if (mine)
+                foreach (var m in galaxy.Marches)
+                    if (m.Kind == GalaxyRoyale.Sim.Bots.BotMarchKind.CoreAssault && !m.Resolved)
+                        assault = Math.Min(assault, m.ArrivesAtTick);
+            int tribute = Math.Max(0, galaxy.Core.NextTributeTick - state.Tick);
+            string key = $"{mine}|{clan}|{(assault != int.MaxValue ? assault - state.Tick : -1)}|{tribute / 60}";
+            if (key == _coreKey) return;
+            _coreKey = key;
+            _coreChip.style.display = mine || clan ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!mine && !clan) return;
+            _coreChipTitle.text = mine ? "YOU HOLD THE GALACTIC CORE" : "YOUR CLAN HOLDS THE CORE";
+            bool underAttack = assault != int.MaxValue;
+            _coreChipInfo.text = underAttack
+                ? $"Assault inbound — lands in {UiTheme.FmtDuration(Math.Max(0, assault - state.Tick))}"
+                : $"Next tribute in {UiTheme.FmtDuration(tribute)}";
+            _coreChipInfo.style.color = underAttack ? UiTheme.Bad : UiTheme.Dim;
+            Widgets.SetBorder(_coreChip, underAttack ? UiTheme.Bad : UiTheme.Good, 1.5f);
+        }
+
         void RefreshHeader(GameState state)
         {
             RefreshQuestTracker(state);
             RefreshEventChip(state);
+            RefreshCoreChip(state);
             for (int i = 0; i < 3; i++)
             {
                 var res = Resources_All[i];

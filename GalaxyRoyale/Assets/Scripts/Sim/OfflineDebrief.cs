@@ -109,8 +109,9 @@ namespace GalaxyRoyale.Sim
                 d.NewMail++;
                 switch (mail)
                 {
-                    case BattleMailReport { Defending: true, GuardedBotId: > 0 } guard:
-                        // Your garrison fought at a clanmate's colony — a battle, not a raid on you.
+                    case BattleMailReport { Defending: true, GuardedBotId: not 0 } guard:
+                        // Your garrison fought at a clanmate's colony or the Galactic Core
+                        // — a battle, not a raid on you.
                         if (guard.Report.Winner == BattleWinner.Attacker) d.BattlesLost++;
                         else d.BattlesWon++;
                         break;
