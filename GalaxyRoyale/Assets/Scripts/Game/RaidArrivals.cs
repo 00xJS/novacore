@@ -139,7 +139,7 @@ namespace GalaxyRoyale.Game
             // RaidPanel's forecast (BattleForecast.Predict) makes this same call
             // at launch — keep the inputs in step.
             var report = CombatResolver.Resolve(entry.Sent, snapshot.Ships,
-                ResearchSystem.CombatMods(state));
+                ResearchSystem.CombatMods(state), ResearchSystem.DefenseMods(bot.State));
             report.Location = tile;
             report.DefenderName = snapshot.CommanderName;
 

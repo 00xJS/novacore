@@ -18,26 +18,30 @@ namespace GalaxyRoyale.Sim.Combat
         /// <summary>Your ships lost, per hull (absent = none lost).</summary>
         public Dictionary<HullId, int> YourLossesByHull = new();
 
-        /// <summary>Nothing docked to fight — the raid lands unopposed.</summary>
-        public bool Unopposed => EnemyShips == 0;
+        /// <summary>Nothing docked to fight and no batteries — the raid lands unopposed.</summary>
+        public bool Unopposed => EnemyShips == 0 && Battery == 0;
+        /// <summary>The defender's Orbital Batteries level (0 = none).</summary>
+        public int Battery;
         /// <summary>Your whole fleet is destroyed.</summary>
         public bool Wiped => YourShips > 0 && YourLosses >= YourShips;
 
         /// <summary>
-        /// Forecast `fleet` attacking `defenders` with the attacker's research
-        /// `mods` — the same call the arrival battle makes (MarchSystem for camps,
-        /// RaidArrivals for rival colonies).
+        /// Forecast `fleet` attacking `defenders` — `atkMods` your research,
+        /// `defMods` theirs (a rival's home defenses; pirates have none). The same
+        /// call the arrival battle makes (MarchSystem for camps, RaidArrivals for
+        /// rival colonies).
         /// </summary>
         public static BattleForecast Predict(Dictionary<HullId, int> fleet,
-            Dictionary<HullId, int> defenders, AttackerMods mods)
+            Dictionary<HullId, int> defenders, FleetMods atkMods, FleetMods defMods = default)
         {
-            var report = CombatResolver.Resolve(fleet, defenders, mods);
+            var report = CombatResolver.Resolve(fleet, defenders, atkMods, defMods);
             var forecast = new BattleForecast
             {
                 Winner = report.Winner,
                 Rounds = report.Rounds.Count,
                 YourShips = CombatResolver.FleetCount(report.Attacker),
                 EnemyShips = CombatResolver.FleetCount(report.Defender),
+                Battery = report.DefenderBattery,
             };
             foreach (var hull in Ships.All)
             {

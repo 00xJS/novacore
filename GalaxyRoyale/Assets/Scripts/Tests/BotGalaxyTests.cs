@@ -132,7 +132,7 @@ namespace GalaxyRoyale.Sim.Tests
             var attacker = new Dictionary<HullId, int> { [HullId.Cruiser] = 60 };
             var snapshot = BotSystem.SnapshotOf(bot);
             var report = GalaxyRoyale.Sim.Combat.CombatResolver.Resolve(
-                attacker, snapshot.Ships, GalaxyRoyale.Sim.Combat.AttackerMods.None);
+                attacker, snapshot.Ships, GalaxyRoyale.Sim.Combat.FleetMods.None);
             Assert.AreEqual(GalaxyRoyale.Sim.Combat.BattleWinner.Attacker, report.Winner);
 
             var loot = new ResourceBag(1_000_000, 0, 0);

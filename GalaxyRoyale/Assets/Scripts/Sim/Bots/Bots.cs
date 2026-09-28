@@ -690,7 +690,7 @@ namespace GalaxyRoyale.Sim.Bots
             foreach (var id in Techs.All)
             {
                 var def = Techs.Defs[id];
-                bool isEconomy = def.Category != TechCategory.Military;
+                bool isEconomy = def.Category != TechCategory.Military && def.Category != TechCategory.Defense;
                 if (isEconomy != economyFirst) continue;
                 if (ResearchSystem.CheckResearch(state, id).Ok)
                 {
@@ -836,7 +836,7 @@ namespace GalaxyRoyale.Sim.Bots
                 if (other.Id == bot.Id) continue;
                 if (other.CachedMight < PlayerShieldMight) continue; // young empires shielded
                 if (other.CachedMight > reachCap) continue;         // too big to bite
-                if (myPower < (long)(EstimateFleetPower(other.State.Ships) * BeatabilityEdge))
+                if (myPower < (long)(EstimateDefensePower(other.State) * BeatabilityEdge))
                     continue;                                       // a fight they'd lose
                 candidates.Add((other.Id, LootableTotal(other.State)));
             }
@@ -845,7 +845,7 @@ namespace GalaxyRoyale.Sim.Bots
                 && playerMight >= PlayerShieldMight
                 && playerMight <= reachCap
                 && player.Buffs.ShieldUntilTick <= rollTick // Aegis Shield: untargetable
-                && myPower >= (long)(EstimateFleetPower(player.Ships) * BeatabilityEdge);
+                && myPower >= (long)(EstimateDefensePower(player) * BeatabilityEdge);
             if (playerEligible)
                 candidates.Add((0, LootableTotal(player)));
             if (candidates.Count == 0) return;
@@ -885,6 +885,21 @@ namespace GalaxyRoyale.Sim.Bots
 
         /// <summary>Crude battle strength of a fleet — enough signal for raiders to
         /// tell a soft target from a fortress without running a full resolver pass.</summary>
+        /// <summary>What a raider has to beat at <paramref name="target"/>'s home: the
+        /// docked fleet scaled by the research it defends with, plus the Orbital
+        /// Batteries' fire (damage × the rounds they get with no fleet home).</summary>
+        public static long EstimateDefensePower(GameState target)
+        {
+            // Global scalars only: this runs for every candidate on every attack
+            // roll, and the per-hull DefenseMods tables made catch-up ~2× slower.
+            double scale = (ResearchSystem.AtkMult(target) + ResearchSystem.HpMult(target)
+                + ResearchSystem.EffectTotal(target, TechEffectKind.DefAtkMult)
+                + ResearchSystem.EffectTotal(target, TechEffectKind.DefHpMult)) * 0.5;
+            long battery = (long)ResearchSystem.BatteryLevel(target)
+                * Balance.BatteryDamagePerLevel * Balance.BatteryOnlyRounds;
+            return (long)(EstimateFleetPower(target.Ships) * scale) + battery;
+        }
+
         public static long EstimateFleetPower(Dictionary<HullId, int> comp)
         {
             long power = 0;
@@ -932,7 +947,7 @@ namespace GalaxyRoyale.Sim.Bots
                 if (rollTick < galaxy.NextInboundWindowTick) return true; // wait for a slot
                 if (player.Buffs.ShieldUntilTick > rollTick) return true; // wait out the Aegis
                 // Revenge is patient: it waits until the fight is winnable.
-                if (myPower < (long)(EstimateFleetPower(player.Ships) * BeatabilityEdge))
+                if (myPower < (long)(EstimateDefensePower(player) * BeatabilityEdge))
                     return false;
                 galaxy.NextInboundWindowTick = rollTick + InboundCooldownTicks;
                 AddLootHaulers(bot, fleet, LootableTotal(player));
@@ -945,7 +960,7 @@ namespace GalaxyRoyale.Sim.Bots
             if (mark == null) { bot.FocusTargetId = -1; return false; }
             if (mark.CachedMight > reachCap) return false; // outgrew the grudge — for now
             if (mark.CachedMight < PlayerShieldMight) { bot.FocusTargetId = -1; return false; }
-            if (myPower < (long)(EstimateFleetPower(mark.State.Ships) * BeatabilityEdge))
+            if (myPower < (long)(EstimateDefensePower(mark.State) * BeatabilityEdge))
                 return false; // the mark keeps a strong garrison — bide time
 
             double dist = TileXY.Distance(bot.HomeTile, mark.HomeTile);
@@ -1136,7 +1151,7 @@ namespace GalaxyRoyale.Sim.Bots
                 // a real dodge window, exactly like the old PvP arrival rule.
                 var defenders = new Dictionary<HullId, int>(player.Ships);
                 var report = CombatResolver.Resolve(atk.Ships, defenders,
-                    ResearchSystem.CombatMods(bot.State));
+                    ResearchSystem.CombatMods(bot.State), ResearchSystem.DefenseMods(player));
                 report.Location = player.HomeTile;
                 report.DefenderName = player.Profile.Name;
 
@@ -1279,7 +1294,7 @@ namespace GalaxyRoyale.Sim.Bots
 
                     var defending = new Dictionary<HullId, int>(defender.State.Ships);
                     var report = CombatResolver.Resolve(march.Ships, defending,
-                        ResearchSystem.CombatMods(attacker.State));
+                        ResearchSystem.CombatMods(attacker.State), ResearchSystem.DefenseMods(defender.State));
 
                     foreach (var hull in Ships.All)
                     {

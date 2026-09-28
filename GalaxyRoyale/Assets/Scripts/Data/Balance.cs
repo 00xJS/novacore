@@ -68,6 +68,13 @@ namespace GalaxyRoyale.Data
         /// <summary>The galaxy news feed keeps this many battle reports.</summary>
         public const int NewsCap = 100;
 
+        // Defense research: Orbital Batteries (planetary guns). Damage per round
+        // per level, split across the raiders by HP share, through ship shields.
+        public const int BatteryDamagePerLevel = 250;
+        /// <summary>With no defending fleet docked, the batteries still get this
+        /// many rounds of fire before the raiders land.</summary>
+        public const int BatteryOnlyRounds = 3;
+
         // Prototype/testing conveniences. Testing economy per user request
         // (2026-07-07): 500K of each resource + 1M Dark Matter + a stack of
         // every speed-up token so nothing gates a playtest. ALL of this must be

@@ -41,7 +41,7 @@ namespace GalaxyRoyale.Sim.Tests
             // Cruiser mirror: 700 raw − 400 shields = 300 through each way.
             // Tripled attacker shields (400→1200) absorb everything → attacker wins.
             var fleet = new Dictionary<HullId, int> { [HullId.Cruiser] = 10 };
-            var mods = new AttackerMods(1f, 1f, shieldMult: 3f);
+            var mods = new FleetMods(1f, 1f, shieldMult: 3f);
             var report = CombatResolver.Resolve(fleet, new Dictionary<HullId, int>(fleet), mods);
             Assert.AreEqual(BattleWinner.Attacker, report.Winner);
         }

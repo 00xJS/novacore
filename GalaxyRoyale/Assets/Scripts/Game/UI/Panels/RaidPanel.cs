@@ -63,6 +63,14 @@ namespace GalaxyRoyale.Game.UI
                 content.Add(g);
                 content.Add(Widgets.Text(
                     $"Unshielded loot: ~{UiTheme.FmtAmount(target.LootableMilli.Total)}", 11, UiTheme.Dim));
+                int battery = ResearchSystem.BatteryLevel(bot.State);
+                if (battery > 0)
+                {
+                    var guns = Widgets.IconText(Icon.Target,
+                        $"Orbital Batteries Lv {battery} — they fire on raiders every round", 11, UiTheme.Bad);
+                    guns.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                    content.Add(guns);
+                }
             }
             else
             {
@@ -210,7 +218,8 @@ namespace GalaxyRoyale.Game.UI
                 // Same inputs the arrival battle uses (RaidArrivals.ResolveRaid):
                 // the picked fleet + your research vs their docked garrison.
                 if (hasIntel)
-                    forecast.Show(BattleForecast.Predict(fleet, target.Ships, ResearchSystem.CombatMods(state)),
+                    forecast.Show(BattleForecast.Predict(fleet, target.Ships, ResearchSystem.CombatMods(state),
+                            ResearchSystem.DefenseMods(bot.State)),
                         "Rivals keep building — their garrison can grow before you arrive.");
                 else
                     forecast.NeedsIntel("Send a spy probe first — the forecast needs their garrison.");

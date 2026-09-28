@@ -6,6 +6,11 @@
 // all damage goes there at CounterMultiplier. Otherwise damage splits across
 // enemy stacks proportional to remaining HP. Haulers take a flat vulnerability
 // bonus. HP carries over between rounds within a stack.
+//
+// Both sides fight with their research (FleetMods): military research counts
+// in every battle, and a defender at home adds the Defense branch — including
+// Orbital Batteries, planetary guns that hit every attacking stack each round
+// straight through ship shields, even when no defending fleet is docked.
 using System;
 using System.Collections.Generic;
 using GalaxyRoyale.Data;
@@ -101,6 +106,25 @@ namespace GalaxyRoyale.Sim.Combat
             d[h] = (d.TryGetValue(h, out var cur) ? cur : 0f) + amount;
         }
 
+        /// <summary>Area fire split across every stack by remaining HP share, with
+        /// freighters drawing extra — the Orbital Batteries' pattern.</summary>
+        static Dictionary<HullId, float> SpreadByHp(Dictionary<HullId, int> pools, float damage)
+        {
+            var spread = new Dictionary<HullId, float>();
+            int total = 0;
+            foreach (var h in Ships.All)
+                if (pools.TryGetValue(h, out var p)) total += p;
+            if (total <= 0) return spread;
+            foreach (var h in Ships.All)
+            {
+                int pool = pools.TryGetValue(h, out var p) ? p : 0;
+                if (pool <= 0) continue;
+                float mult = h == HullId.Hauler || h == HullId.Atlas ? Balance.HaulerVulnMultiplier : 1f;
+                Add(spread, h, damage * pool / total * mult);
+            }
+            return spread;
+        }
+
         /// <summary>
         /// Regenerating shields (fleet expansion, 2026-07-05): each round a stack
         /// projects `survivors × Shield` of protection. Damage burns the shield
@@ -149,30 +173,40 @@ namespace GalaxyRoyale.Sim.Combat
         public static BattleReport Resolve(
             Dictionary<HullId, int> attacker,
             Dictionary<HullId, int> defender,
-            AttackerMods mods = default)
+            FleetMods atkMods = default,
+            FleetMods defMods = default)
         {
             var atkPools = InitPools(attacker);
             var defPools = InitPools(defender);
             var rounds = new List<RoundLog>();
+            int battery = Math.Max(0, defMods.BatteryLevel);
+            float batteryDamage = battery * (float)Balance.BatteryDamagePerLevel;
 
             int round = 0;
             while (round < Balance.MaxCombatRounds
                 && TotalSurvivors(atkPools) > 0
-                && TotalSurvivors(defPools) > 0)
+                // The batteries keep firing a few rounds even with no fleet home.
+                && (TotalSurvivors(defPools) > 0 || (battery > 0 && round < Balance.BatteryOnlyRounds)))
             {
                 round++;
                 var atkBefore = Survivors(atkPools);
                 var defBefore = Survivors(defPools);
 
-                // Shields soak raw damage first (defender shields are unmodded pre-C.0;
-                // the attacker's ride Deflector Array research), THEN armor research
-                // shrinks what reaches each attacker hull.
-                var dmgToDef = AbsorbShields(
-                    DamageAgainst(atkPools, defPools, mods.AtkFor), defBefore, 1f);
+                // Each side's shields soak raw damage first (Deflector Array, and
+                // Planetary Deflectors at home), THEN armor research shrinks what
+                // reaches each hull.
+                var dmgToDefRaw = AbsorbShields(
+                    DamageAgainst(atkPools, defPools, atkMods.AtkFor), defBefore, defMods.ShieldFor());
                 var dmgToAtkRaw = AbsorbShields(
-                    DamageAgainst(defPools, atkPools), atkBefore, mods.ShieldFor());
+                    DamageAgainst(defPools, atkPools, defMods.AtkFor), atkBefore, atkMods.ShieldFor());
+                var dmgToDef = new Dictionary<HullId, float>();
+                foreach (var kv in dmgToDefRaw) dmgToDef[kv.Key] = kv.Value / defMods.HpFor(kv.Key);
                 var dmgToAtk = new Dictionary<HullId, float>();
-                foreach (var kv in dmgToAtkRaw) dmgToAtk[kv.Key] = kv.Value / mods.HpFor(kv.Key);
+                foreach (var kv in dmgToAtkRaw) dmgToAtk[kv.Key] = kv.Value / atkMods.HpFor(kv.Key);
+                // Planetary guns are capital-scale: straight through ship shields.
+                if (batteryDamage > 0f)
+                    foreach (var kv in SpreadByHp(atkPools, batteryDamage))
+                        Add(dmgToAtk, kv.Key, kv.Value / atkMods.HpFor(kv.Key));
                 ApplyDamage(defPools, dmgToDef);
                 ApplyDamage(atkPools, dmgToAtk);
 
@@ -186,8 +220,10 @@ namespace GalaxyRoyale.Sim.Combat
 
             bool atkAlive = TotalSurvivors(atkPools) > 0;
             bool defAlive = TotalSurvivors(defPools) > 0;
+            // A raid that outlasts the batteries still takes an empty colony; one
+            // the batteries wipe out is repelled.
             var winner = (atkAlive && !defAlive) ? BattleWinner.Attacker
-                       : (defAlive && !atkAlive) ? BattleWinner.Defender
+                       : (!atkAlive && (defAlive || battery > 0)) ? BattleWinner.Defender
                        : BattleWinner.Draw;
 
             return new BattleReport
@@ -198,6 +234,7 @@ namespace GalaxyRoyale.Sim.Combat
                 Rounds = rounds,
                 AttackerSurvivors = Survivors(atkPools),
                 DefenderSurvivors = Survivors(defPools),
+                DefenderBattery = battery,
             };
         }
     }

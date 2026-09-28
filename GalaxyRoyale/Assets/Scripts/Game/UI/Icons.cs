@@ -15,7 +15,7 @@ namespace GalaxyRoyale.Game.UI
         Swords, Star, StarOutline, Info, Warning, Check,
         ChevronRight, ChevronDown, ChevronLeft, ArrowUp, ArrowDown,
         Close, Menu, More, Search, Rotate, Chart, Dot, Ring, Eye,
-        Play, FastForward, Skip,
+        Play, FastForward, Skip, Shield, Target,
     }
 
     /// <summary>A square element that paints one <see cref="Icon"/> in a tint color.</summary>
@@ -254,6 +254,28 @@ namespace GalaxyRoyale.Game.UI
                     Path(true, 0.14f, 0.2f, 0.64f, 0.5f, 0.14f, 0.8f);
                     p.lineWidth = Mathf.Max(1.4f, s * 0.13f);
                     Line(0.8f, 0.22f, 0.8f, 0.78f);
+                    break;
+                case Icon.Shield: // heater-shield crest (defense research)
+                    p.lineWidth = Mathf.Max(1f, s * 0.09f);
+                    p.BeginPath();
+                    p.MoveTo(P(0.5f, 0.1f));
+                    p.LineTo(P(0.84f, 0.22f));
+                    p.LineTo(P(0.82f, 0.52f));
+                    p.BezierCurveTo(P(0.78f, 0.74f), P(0.64f, 0.84f), P(0.5f, 0.92f));
+                    p.BezierCurveTo(P(0.36f, 0.84f), P(0.22f, 0.74f), P(0.18f, 0.52f));
+                    p.LineTo(P(0.16f, 0.22f));
+                    p.ClosePath();
+                    p.Stroke();
+                    Line(0.5f, 0.28f, 0.5f, 0.74f);
+                    break;
+                case Icon.Target: // crosshair (Orbital Batteries)
+                    p.lineWidth = Mathf.Max(1f, s * 0.08f);
+                    Circle(0.5f, 0.5f, 0.3f, fill: false);
+                    Circle(0.5f, 0.5f, 0.07f, fill: true);
+                    Line(0.5f, 0.06f, 0.5f, 0.26f);
+                    Line(0.5f, 0.74f, 0.5f, 0.94f);
+                    Line(0.06f, 0.5f, 0.26f, 0.5f);
+                    Line(0.74f, 0.5f, 0.94f, 0.5f);
                     break;
             }
         }
