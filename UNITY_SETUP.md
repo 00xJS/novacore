@@ -45,10 +45,28 @@ this file is the "what do I set/click once the project is open" reference.
 
 ## Building
 
-**iOS**
+**iOS (device)**
 1. Menu `GalaxyRoyale → Build iOS (Xcode project)` (or Build Settings → iOS →
    Build). Produces `GalaxyRoyale/Builds/iOS/Unity-iPhone.xcodeproj`.
 2. Open in Xcode → Archive → TestFlight from there.
+
+Signing without editing tracked files: `BuildScript` reads your identity from
+the environment and restores the committed placeholders after the build, so
+`ProjectSettings.asset` never picks up a real bundle id or team:
+
+```bash
+GR_BUNDLE_ID=com.you.galaxyroyale GR_TEAM_ID=ABCDE12345 \
+  Unity -batchmode -projectPath GalaxyRoyale -buildTarget iOS \
+  -executeMethod BuildScript.BuildIos
+```
+
+**iOS Simulator** (Apple silicon, no signing needed)
+1. Menu `GalaxyRoyale → Build iOS Simulator (Xcode project)` or
+   `-executeMethod BuildScript.BuildIosSimulator`. Produces
+   `GalaxyRoyale/Builds/iOS-Sim/Unity-iPhone.xcodeproj`.
+2. `xcodebuild -project Builds/iOS-Sim/Unity-iPhone.xcodeproj -scheme Unity-iPhone
+   -configuration ReleaseForRunning -sdk iphonesimulator build`, then install the
+   `.app` with `xcrun simctl install booted <path>`.
 
 **Android**
 1. `File → Build Settings → Android → Switch Platform`.
@@ -63,6 +81,16 @@ this file is the "what do I set/click once the project is open" reference.
 - The simulated galaxy's pacing knobs are consts on `BotSystem`
   (`Assets/Scripts/Sim/Bots/Bots.cs`) — think cadence, aggression multiplier,
   inbound raid cooldown, pre-sim head start.
+
+## Ship & research art (drop-in)
+
+Every hull and tech shows a picture — a painted schematic / emblem until real
+art exists. To replace one, drop a PNG at `Assets/Resources/Ships/<HullId>.png`
+(e.g. `Leviathan.png`) or `Assets/Resources/Research/<TechId>.png` (e.g.
+`IonThrusters.png`); no code changes. Raw renders with a baked transparency
+checkerboard or a white background can go in `Assets/Textures/Ships/` /
+`Assets/Textures/Research/` (named after the id) and be cleaned up with
+`GalaxyRoyale → Process Ship & Research Art`.
 
 ## Troubleshooting
 

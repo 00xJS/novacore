@@ -49,3 +49,6 @@ crashlytics-build.properties
 
 # Unity — Asset meta data should be committed for tracked assets;
 # never ignore *.meta globally.
+
+# Unity/Mono native crash dumps (batch-mode shutdown crashes on macOS 27)
+mono_crash.*.json
