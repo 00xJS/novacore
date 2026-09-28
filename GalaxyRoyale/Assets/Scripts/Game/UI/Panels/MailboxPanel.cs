@@ -74,6 +74,12 @@ namespace GalaxyRoyale.Game.UI
             return galaxy.Bots.Find(b => b.Name == name);
         }
 
+        /// <summary>Who you fought: the defender you hit, or the rival who raided you.</summary>
+        internal static string EnemyNameOf(GameContext ctx, BattleMailReport mail) =>
+            mail.Defending
+                ? RivalOf(ctx, mail)?.Name ?? "Raiders"
+                : mail.Report.DefenderName ?? "Defenders";
+
         static string? NameAfter(string subject, string prefix, string suffix = "")
         {
             if (!subject.StartsWith(prefix, StringComparison.Ordinal)) return null;
@@ -290,6 +296,14 @@ namespace GalaxyRoyale.Game.UI
                     var note = Widgets.Text("The raid broke on your Aegis Shield — no battle, nothing lost.", 11, UiTheme.Dim);
                     note.style.whiteSpace = WhiteSpace.Normal;
                     content.Add(note);
+                }
+                if (BattleReplayPanel.CanReplay(battle))
+                {
+                    var watch = Widgets.IconButton(Icon.Play, "WATCH REPLAY", () =>
+                        BattleReplayPanel.Open(ctx, battle, () => OpenDetail(ctx, battle)), 12);
+                    watch.style.marginTop = 8;
+                    watch.style.height = 38;
+                    content.Add(watch);
                 }
 
                 // Fleet breakdown: a labeled section with ONE hull per line (user
