@@ -9,9 +9,10 @@ namespace GalaxyRoyale.Sim
 {
     public enum MarchPhase { Outbound, Gathering, Returning }
     /// <summary>Intercept: meet a rival fleet in flight (StrikeSystem). Garrison:
-    /// stand guard at a clanmate's colony until recalled. Both hold where they
-    /// land (Phase Gathering, no due tick) until StrikeSystem or BotSystem settles them.</summary>
-    public enum MarchMission { Gather, Attack, Spy, Intercept, Garrison }
+    /// stand guard at a clanmate's colony until recalled. Core: assault (then,
+    /// if it wins, garrison) the Galactic Core (CoreSystem). All three hold where
+    /// they land (Phase Gathering, no due tick) until their system settles them.</summary>
+    public enum MarchMission { Gather, Attack, Spy, Intercept, Garrison, Core }
 
     public sealed class March
     {
@@ -43,7 +44,8 @@ namespace GalaxyRoyale.Sim
         public bool TargetInbound;
         public int TargetLeg;
         public int EngageTick;
-        /// <summary>Garrison: the clanmate whose colony it guards.</summary>
+        /// <summary>Garrison: the clanmate whose colony it guards. Core: -1 once the
+        /// assault has won and the march stands as the core's garrison.</summary>
         public int GuardEmpireId;
     }
 
@@ -258,6 +260,9 @@ namespace GalaxyRoyale.Sim
         /// <summary>Largest clan the player has belonged to, and clan wars won.</summary>
         public int BestClanSize;
         public int ClanWarsWon;
+        /// <summary>Galactic Core: times you seized it, and hours of tribute it paid you.</summary>
+        public int CoresSeized;
+        public int CoreHoursHeld;
     }
 
     /// <summary>A finished season: where you placed and what it paid.</summary>

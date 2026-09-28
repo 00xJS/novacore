@@ -42,6 +42,12 @@ namespace GalaxyRoyale.Sim
     public sealed record InterceptMissed(string TargetName) : SimEvent;
     /// <summary>Clanmates' garrison wings reached your colony.</summary>
     public sealed record ClanGarrisonArrived(int Wings) : SimEvent;
+    /// <summary>The Galactic Core changed hands (HolderId: -1 guardians, 0 you, &gt;0 a bot).</summary>
+    public sealed record CoreSeized(int HolderId, int PreviousHolderId) : SimEvent;
+    /// <summary>An hour of Core tribute landed (Clan = paid because a clanmate holds it). Milli.</summary>
+    public sealed record CoreTributePaid(ResourceBag Resources, int DarkMatter, bool Clan) : SimEvent;
+    /// <summary>A commander launched an assault on the core you hold (arriving at ArrivesAtTick).</summary>
+    public sealed record CoreUnderAttack(int AttackerId, int ArrivesAtTick) : SimEvent;
 
     public sealed class SimEventBus
     {

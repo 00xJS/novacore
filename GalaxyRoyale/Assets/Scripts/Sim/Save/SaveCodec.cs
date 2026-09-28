@@ -108,6 +108,17 @@ namespace GalaxyRoyale.Sim.Save
             }),
             ["nextClanId"] = (long)g.NextClanId,
             ["nextPoliticsTick"] = (long)g.NextPoliticsTick,
+            ["core"] = new Dictionary<string, object?>
+            {
+                ["holder"] = (long)g.Core.HolderId,
+                ["heldSince"] = (long)g.Core.HeldSinceTick,
+                ["garrison"] = Comp(g.Core.Garrison),
+                ["guardians"] = Comp(g.Core.Guardians),
+                ["rebuild"] = (long)g.Core.GuardiansRebuildTick,
+                ["nextRoll"] = (long)g.Core.NextRollTick,
+                ["nextTribute"] = (long)g.Core.NextTributeTick,
+                ["seized"] = (long)g.Core.TimesSeized,
+            },
             ["empires"] = Arr(g.Bots, b => (object?)new Dictionary<string, object?>
             {
                 ["id"] = (long)b.Id,
@@ -216,6 +227,18 @@ namespace GalaxyRoyale.Sim.Save
                 }
             if (d.TryGetValue("nextClanId", out var nci) && nci != null) g.NextClanId = ToI32(nci);
             if (d.TryGetValue("nextPoliticsTick", out var npt) && npt != null) g.NextPoliticsTick = ToI32(npt);
+            // The Galactic Core (2026-09-28) — older galaxies start with the guardians holding it.
+            if (d.TryGetValue("core", out var rawCore) && rawCore is Dictionary<string, object?> co)
+            {
+                g.Core.HolderId = I32(co, "holder");
+                g.Core.HeldSinceTick = I32(co, "heldSince");
+                if (co.TryGetValue("garrison", out var cg) && cg is Dictionary<string, object?> cgd) g.Core.Garrison = DecComp(cgd);
+                if (co.TryGetValue("guardians", out var cu) && cu is Dictionary<string, object?> cud) g.Core.Guardians = DecComp(cud);
+                g.Core.GuardiansRebuildTick = I32(co, "rebuild");
+                g.Core.NextRollTick = I32(co, "nextRoll");
+                g.Core.NextTributeTick = I32(co, "nextTribute");
+                g.Core.TimesSeized = I32(co, "seized");
+            }
 
             foreach (var raw in AsArr(d["empires"], "bots.empires"))
             {
@@ -549,6 +572,8 @@ namespace GalaxyRoyale.Sim.Save
                 BestSeasonRank = Opt("bestSeasonRank"),
                 BestClanSize = Opt("bestClanSize"),
                 ClanWarsWon = Opt("clanWarsWon"),
+                CoresSeized = Opt("coresSeized"),
+                CoreHoursHeld = Opt("coreHoursHeld"),
             };
 
             if (d.TryGetValue("achievements", out var ach) && ach != null)
@@ -888,6 +913,8 @@ namespace GalaxyRoyale.Sim.Save
             Opt("bestSeasonRank", st.BestSeasonRank);
             Opt("bestClanSize", st.BestClanSize);
             Opt("clanWarsWon", st.ClanWarsWon);
+            Opt("coresSeized", st.CoresSeized);
+            Opt("coreHoursHeld", st.CoreHoursHeld);
             return d;
         }
 
@@ -1221,6 +1248,7 @@ namespace GalaxyRoyale.Sim.Save
             MarchMission.Spy => "spy",
             MarchMission.Intercept => "intercept",
             MarchMission.Garrison => "garrison",
+            MarchMission.Core => "core",
             _ => throw new InvalidOperationException($"unknown MarchMission {m}"),
         };
 
@@ -1231,6 +1259,7 @@ namespace GalaxyRoyale.Sim.Save
             "spy" => MarchMission.Spy,
             "intercept" => MarchMission.Intercept,
             "garrison" => MarchMission.Garrison,
+            "core" => MarchMission.Core,
             _ => throw new FormatException($"unknown mission '{s}'"),
         };
 
@@ -1239,6 +1268,7 @@ namespace GalaxyRoyale.Sim.Save
             Bots.BotMarchKind.Spy => "spy",
             Bots.BotMarchKind.Escort => "escort",
             Bots.BotMarchKind.Garrison => "garrison",
+            Bots.BotMarchKind.CoreAssault => "core",
             _ => "raid",
         };
 
@@ -1247,6 +1277,7 @@ namespace GalaxyRoyale.Sim.Save
             "spy" => Bots.BotMarchKind.Spy,
             "escort" => Bots.BotMarchKind.Escort,
             "garrison" => Bots.BotMarchKind.Garrison,
+            "core" => Bots.BotMarchKind.CoreAssault,
             "raid" => Bots.BotMarchKind.Raid,
             _ => spy ? Bots.BotMarchKind.Spy : Bots.BotMarchKind.Raid, // a newer kind: fly it as what it resembles
         };

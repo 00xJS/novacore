@@ -88,10 +88,12 @@ namespace GalaxyRoyale.Sim.Bots
     }
 
     /// <summary>Raid: a battle at arrival. Spy: a lone recon probe. Escort: a
-    /// clanmate's wing flying with the player's joint strike or intercept — it
-    /// waits at the target until the player's battle settles it. Garrison: a
-    /// clanmate's wing standing guard at the player's colony (StrikeSystem).</summary>
-    public enum BotMarchKind { Raid, Spy, Escort, Garrison }
+    /// clanmate's wing flying with the player's joint strike, intercept or core
+    /// assault — it waits at the target until the player's battle settles it.
+    /// Garrison: a clanmate's wing standing guard at the player's colony
+    /// (StrikeSystem). CoreAssault: a commander's (or its clanmates') fleet
+    /// bound for the Galactic Core; wings of one assault share a LinkId (CoreSystem).</summary>
+    public enum BotMarchKind { Raid, Spy, Escort, Garrison, CoreAssault }
 
     /// <summary>
     /// A bot fleet flying between two points in real time (visible on the galaxy
@@ -198,6 +200,8 @@ namespace GalaxyRoyale.Sim.Bots
         public int NextClanId = 1;
         /// <summary>Galaxy time of the next clan-politics pass (ClanSystem.Politics).</summary>
         public int NextPoliticsTick;
+        /// <summary>The Galactic Core (CoreSystem).</summary>
+        public CoreState Core = new();
 
         public BotEmpire? Find(int botId) => Bots.Find(b => b.Id == botId);
         public Clan? FindClan(int clanId) => clanId == 0 ? null : Clans.Find(c => c.Id == clanId);
@@ -500,6 +504,7 @@ namespace GalaxyRoyale.Sim.Bots
             // Intercepts fight first — always before the raid they were sent to stop —
             // and garrisons change the guard only after the raids of their watch.
             StrikeSystem.BeforeRaids(player, galaxy, events);
+            CoreSystem.Tick(player, galaxy, events);
             ResolveBotMarches(player, galaxy, events);
             ResolveInbound(player, galaxy, events);
             StrikeSystem.AfterRaids(player, galaxy, events, prevTick);
@@ -1092,7 +1097,7 @@ namespace GalaxyRoyale.Sim.Bots
         }
 
         /// <summary>Up to `fraction` of each docked combat hull.</summary>
-        static Dictionary<HullId, int> CombatFleetOf(GameState state, double fraction)
+        public static Dictionary<HullId, int> CombatFleetOf(GameState state, double fraction)
         {
             var fleet = new Dictionary<HullId, int>();
             foreach (var kv in state.Ships)
@@ -1355,8 +1360,10 @@ namespace GalaxyRoyale.Sim.Bots
                 if (attacker == null) { galaxy.Marches.RemoveAt(i); continue; }
 
                 // Joint-strike wings wait for your battle; garrison wings stand guard
-                // (StrikeSystem and RaidArrivals send them home).
-                bool wing = march.Kind == BotMarchKind.Escort || march.Kind == BotMarchKind.Garrison;
+                // (StrikeSystem and RaidArrivals send them home); core assaults are
+                // fought by CoreSystem.
+                bool wing = march.Kind == BotMarchKind.Escort || march.Kind == BotMarchKind.Garrison
+                    || march.Kind == BotMarchKind.CoreAssault;
                 if (!march.Resolved && !wing && player.Tick >= march.ArrivesAtTick)
                 {
                     var defender = galaxy.Find(march.TargetBotId);

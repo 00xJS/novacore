@@ -146,9 +146,7 @@ namespace GalaxyRoyale.Game.UI
 
             if (MarchSystem.InCoreExclusion(tile))
             {
-                ui.OpenCalloutElement(CalloutChrome.Strip(
-                    "FORBIDDEN SPACE", $"{tile.X},{tile.Y} — the supernova core is off-limits",
-                    CalloutChrome.Close));
+                CorePanel.OpenCallout(ctx); // the Galactic Core: assault it, or hold it
                 return;
             }
 
@@ -216,8 +214,9 @@ namespace GalaxyRoyale.Game.UI
         /// rival flies as an Attack march (RaidArrivals files its intel), but it
         /// is a spy run — it used to be listed as "Attack".</summary>
         public static string MissionLabel(March m) =>
-            m.Mission == MarchMission.Attack && m.Ships.Count == 1 && m.Ships.ContainsKey(HullId.Probe)
-                ? "Spy" : m.Mission.ToString();
+            m.Mission == MarchMission.Attack && m.Ships.Count == 1 && m.Ships.ContainsKey(HullId.Probe) ? "Spy"
+            : m.Mission == MarchMission.Core ? (m.GuardEmpireId == CoreSystem.CoreGuardId ? "Core garrison" : "Core assault")
+            : m.Mission.ToString();
 
         public static void Open(GameContext ctx, int marchId, Action onClose)
         {
@@ -316,6 +315,7 @@ namespace GalaxyRoyale.Game.UI
                                                         : "waiting at the target with your strike",
                         BotMarchKind.Garrison => left > 0 ? $"coming to guard your colony · arrives in {UiTheme.FmtDuration(left)}"
                                                           : "standing guard at your colony",
+                        BotMarchKind.CoreAssault => $"assaulting the Galactic Core · arrives in {UiTheme.FmtDuration(left)}",
                         _ => $"{(m.IsSpy ? "scouting" : "raiding")} {target} · arrives in {UiTheme.FmtDuration(left)}",
                     };
                 }
@@ -327,15 +327,18 @@ namespace GalaxyRoyale.Game.UI
             void Close() { onClose(); CalloutChrome.Close(); }
             var actions = new List<CalloutAction>
             {
-                CalloutChrome.Act(kind == BotMarchKind.Raid || kind == BotMarchKind.Spy ? "ATTACKER" : "COMMANDER",
+                CalloutChrome.Act(kind == BotMarchKind.Raid || kind == BotMarchKind.Spy || kind == BotMarchKind.CoreAssault
+                        ? "ATTACKER" : "COMMANDER",
                     () => { Close(); PlayerProfilePanel.Open(ctx, attackerId, attacker); }, icon: Icon.Swords),
             };
             if (kind == BotMarchKind.Raid || kind == BotMarchKind.Spy)
                 actions.Add(CalloutChrome.Act("TARGET", () => { Close(); PlayerProfilePanel.Open(ctx, targetId, target); }));
+            else if (kind == BotMarchKind.CoreAssault)
+                actions.Add(CalloutChrome.Act("CORE", () => { Close(); CorePanel.Open(ctx); }));
             // Raid fleets (outbound or carrying plunder home) can be intercepted —
             // not your clanmates', and not probes.
-            if (kind == BotMarchKind.Raid && ctx.State is { } st && ctx.Bots?.Find(attackerId) is { } owner
-                && !ClanSystem.SameClanAsPlayer(st, owner))
+            if ((kind == BotMarchKind.Raid || kind == BotMarchKind.CoreAssault) && ctx.State is { } st
+                && ctx.Bots?.Find(attackerId) is { } owner && !ClanSystem.SameClanAsPlayer(st, owner))
                 actions.Add(CalloutChrome.Act("INTERCEPT", () => { Close(); InterceptPanel.Open(ctx, false, marchId); },
                     icon: Icon.Target));
 
@@ -346,6 +349,7 @@ namespace GalaxyRoyale.Game.UI
                     BotMarchKind.Spy => $"{attacker}'s spy probe",
                     BotMarchKind.Escort => $"{attacker}'s strike wing · {ships} ships",
                     BotMarchKind.Garrison => $"{attacker}'s garrison · {ships} ships",
+                    BotMarchKind.CoreAssault => $"{attacker}'s core assault · {ships} ships",
                     _ => $"{attacker}'s raid fleet · {ships} ships",
                 },
                 $"{Status(march)} · following",

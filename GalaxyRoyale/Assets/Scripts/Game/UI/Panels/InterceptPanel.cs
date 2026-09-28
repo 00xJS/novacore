@@ -50,6 +50,7 @@ namespace GalaxyRoyale.Game.UI
                 int eta = Math.Max(0, track.ArriveTick - ctx.State!.Tick);
                 if (track.Leg == 1)
                     return $"Flying home with {UiTheme.FmtAmount(track.Loot.Total)} plunder · home in {UiTheme.FmtDuration(eta)}";
+                if (track.TargetsCore) return $"Assaulting the Galactic Core · lands in {UiTheme.FmtDuration(eta)}";
                 if (track.TargetId == 0) return $"Raiding YOUR colony · lands in {UiTheme.FmtDuration(eta)}";
                 return $"Raiding {(clanmateTarget ? "your clanmate " : "")}{victim?.Name ?? "a colony"} · lands in {UiTheme.FmtDuration(eta)}";
             }
@@ -81,7 +82,7 @@ namespace GalaxyRoyale.Game.UI
             else content.Add(Note("Your Radar Station can't read their fleet yet — no forecast until it can (Lv 15).", 6));
 
             content.Add(Note(track.Leg == 0
-                ? "Meet them on their flight path. Wipe them out and the raid is off; a close fight still turns them back."
+                ? $"Meet them on their flight path. Wipe them out and the {(track.TargetsCore ? "assault" : "raid")} is off; a close fight still turns them back."
                 : "Catch them before they get home. Win, and your ships carry off as much of their plunder as they can hold.", 8));
 
             // ---- your fleet ----

@@ -83,6 +83,8 @@ namespace GalaxyRoyale.Game
                         MarchMission.Spy => "Your probe is on station — recon incoming",
                         MarchMission.Intercept => "Your fleet has caught its target — intercept underway",
                         MarchMission.Garrison => "Your garrison has taken up its post",
+                        MarchMission.Core => CoreSystem.PlayerGarrison(state) != null ? "Reinforcements have joined your core garrison"
+                            : "Your fleet has reached the Galactic Core — assault underway",
                         _ => "Your fleet has arrived and started gathering",
                     },
                     MarchPhase.Gathering => "Gathering complete — your fleet is heading home",
@@ -118,6 +120,13 @@ namespace GalaxyRoyale.Game
                         $"Radar: {what} inbound — impact in {UI.UiTheme.FmtDuration(lead)}");
                 }
             }
+
+            // Assaults already flying at the Galactic Core you hold.
+            if (galaxy != null && galaxy.Core.HolderId == 0)
+                foreach (var m in galaxy.Marches)
+                    if (m.Kind == GalaxyRoyale.Sim.Bots.BotMarchKind.CoreAssault && !m.Resolved && m.LinkId == m.Id)
+                        Schedule($"core-assault-{m.Id}", m.ArrivesAtTick - now,
+                            $"{galaxy.Find(m.BotId)?.Name ?? "A commander"}'s assault has reached the Galactic Core — check your garrison");
 
             // Aegis Shield about to lapse.
             long shieldLeft = state.Buffs.ShieldUntilTick - now;

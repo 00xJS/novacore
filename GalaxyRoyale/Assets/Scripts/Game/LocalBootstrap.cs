@@ -155,7 +155,11 @@ namespace GalaxyRoyale.Game
             UI.UIController.Instance?.CloseModal(); // drop the title page
             _booted = true;
             _nextAutosave = Time.time + AutosaveSeconds;
+            DebugLaunch.Run(_ctx);
         }
+
+        /// <summary>True once a galaxy is loaded or founded (the title page is gone).</summary>
+        public static bool Booted => Instance != null && Instance._booted;
 
         /// <summary>Found a brand-new galaxy: rim spawn for the player, then the rivals.</summary>
         public void StartFreshGalaxy(bool testMode)
