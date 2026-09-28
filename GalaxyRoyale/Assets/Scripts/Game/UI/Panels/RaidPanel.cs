@@ -38,8 +38,9 @@ namespace GalaxyRoyale.Game.UI
             var (blocker, content, footer) = Widgets.ModalPanelFooter("RAID TARGET", ui.CloseModal, 82f);
 
             // ---- target intel (compact) ----
+            var galaxy = ctx.Bots!;
             var headRow = Widgets.HBox(Justify.SpaceBetween);
-            headRow.Add(Widgets.Text(targetName, 15, UiTheme.Text, bold: true));
+            headRow.Add(Widgets.Text(ClanSystem.Tagged(state, galaxy, bot.Id, targetName), 15, UiTheme.Text, bold: true));
             headRow.Add(Widgets.Text($"MIGHT {target.Might:N0}", 12, UiTheme.Energy, bold: true));
             content.Add(headRow);
             content.Add(Widgets.Text($"HQ {target.HomeX}, {target.HomeY}", 11, UiTheme.Accent));
@@ -100,6 +101,38 @@ namespace GalaxyRoyale.Game.UI
             intelRow.Add(spyBtn);
             content.Add(intelRow);
 
+            if (ClanSystem.SameClanAsPlayer(state, bot))
+            {
+                var mate = Widgets.IconText(Icon.Pact, "Your clanmate — clanmates never raid each other.", 12, UiTheme.Good, bold: true);
+                mate.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                mate.style.marginTop = 12;
+                content.Add(mate);
+                ui.OpenModal(blocker);
+                return;
+            }
+
+            // Their clan answers the call: clanmates in range reinforce the garrison.
+            var theirHelpers = ClanSystem.DefenseHelpers(state, galaxy, bot.Id, 0);
+            if (galaxy.FindClan(bot.ClanId) is { } theirClan)
+            {
+                int helperShips = 0;
+                foreach (var (_, sent) in theirHelpers) helperShips += MarchSystem.FleetCount(sent);
+                bool enemy = ClanSystem.AtWarWith(galaxy, state.ClanId, theirClan.Id);
+                var clanLine = Widgets.IconText(Icon.Shield, theirHelpers.Count > 0
+                        ? $"{ClanSystem.Label(theirClan)}: {theirHelpers.Count} clanmate{(theirHelpers.Count == 1 ? "" : "s")} in range will send ~{helperShips} warships to defend"
+                        : $"{ClanSystem.Label(theirClan)}: no clanmates close enough to help",
+                    11, theirHelpers.Count > 0 ? UiTheme.Bad : UiTheme.Dim);
+                clanLine.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                clanLine.style.marginTop = 6;
+                content.Add(clanLine);
+                if (enemy)
+                {
+                    var war = Widgets.IconText(Icon.Swords, "At war with your clan — a win scores for your side", 11, UiTheme.Energy, bold: true);
+                    war.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                    content.Add(war);
+                }
+            }
+
             if (RaidService.IsShielded(target.Might))
             {
                 var shield = Widgets.Text(
@@ -111,6 +144,11 @@ namespace GalaxyRoyale.Game.UI
                 ui.OpenModal(blocker);
                 return;
             }
+
+            // Clanmates who'd fly along (the CALL YOUR CLAN toggle below). Declared
+            // before the sliders: their callbacks run Refresh, which reads these.
+            bool callClan = false;
+            var support = ClanSystem.RaidSupport(state, galaxy, targetBotId);
 
             // ---- fleet selection (per-hull sliders; probes stay home) ----
             var fleetHeader = Widgets.Text("SELECT YOUR RAIDING FLEET", 10, UiTheme.Dim, bold: true);
@@ -191,6 +229,38 @@ namespace GalaxyRoyale.Game.UI
             quick.Add(clearBtn);
             content.Add(quick);
 
+            // ---- call your clan ----
+            Button? clanBtn = null;
+            if (state.ClanId != 0)
+            {
+                int supportShips = 0;
+                foreach (var (_, sent) in support) supportShips += MarchSystem.FleetCount(sent);
+                if (support.Count > 0)
+                {
+                    string Caption() => callClan
+                        ? $"CLAN CALLED: {support.Count} · +{supportShips} WARSHIPS"
+                        : $"CALL YOUR CLAN ({support.Count} ready · +{supportShips} warships)";
+                    clanBtn = Widgets.IconButton(Icon.Pact, Caption(), () =>
+                    {
+                        callClan = !callClan;
+                        Widgets.SetCaption(clanBtn!, Caption());
+                        Widgets.SetButtonHighlight(clanBtn!, callClan);
+                        Refresh();
+                    }, 11);
+                    clanBtn.style.marginTop = 10;
+                    content.Add(clanBtn);
+                }
+                else
+                {
+                    var none = Widgets.Text("No clanmates ready to fly with you (they need to be within " +
+                        $"{ClanSystem.ReinforceRange:N0} tiles, with warships docked, and rested since their last sortie).",
+                        10, UiTheme.Dim);
+                    none.style.whiteSpace = WhiteSpace.Normal;
+                    none.style.marginTop = 8;
+                    content.Add(none);
+                }
+            }
+
             content.Add(preview);
             content.Add(status);
             content.Add(forecast.Root);
@@ -218,9 +288,16 @@ namespace GalaxyRoyale.Game.UI
                 // Same inputs the arrival battle uses (RaidArrivals.ResolveRaid):
                 // the picked fleet + your research vs their docked garrison.
                 if (hasIntel)
-                    forecast.Show(BattleForecast.Predict(fleet, target.Ships, ResearchSystem.CombatMods(state),
-                            ResearchSystem.DefenseMods(bot.State)),
+                {
+                    // Same lines the arrival battle uses (RaidArrivals.ResolveRaid).
+                    var attackers = new List<Dictionary<HullId, int>> { fleet };
+                    if (callClan) foreach (var (_, sent) in support) attackers.Add(sent);
+                    var defenders = new List<Dictionary<HullId, int>> { target.Ships };
+                    foreach (var (_, sent) in theirHelpers) defenders.Add(sent);
+                    forecast.Show(BattleForecast.Predict(ClanSystem.Combine(attackers), ClanSystem.Combine(defenders),
+                            ResearchSystem.CombatMods(state), ResearchSystem.DefenseMods(bot.State)),
                         "Rivals keep building — their garrison can grow before you arrive.");
+                }
                 else
                     forecast.NeedsIntel("Send a spy probe first — the forecast needs their garrison.");
                 var p = MarchSystem.PreviewMarch(state, fleet, tile);
@@ -240,7 +317,7 @@ namespace GalaxyRoyale.Game.UI
             launchBtn = Widgets.TextButton("LAUNCH RAID", () =>
             {
                 var fleet = Fleet();
-                var (ok, message) = RaidService.LaunchRaid(ctx, target, fleet);
+                var (ok, message) = RaidService.LaunchRaid(ctx, target, fleet, callClan);
                 ui.Toast(message);
                 if (ok) ui.CloseModal();
             }, 14);

@@ -327,30 +327,34 @@ namespace GalaxyRoyale.Game.UI
                     if (!any) content.Add(Widgets.Text("none", 11, UiTheme.Dim));
                 }
 
+                // Clanmates who fought in either line (their ships are counted in
+                // the fleets below).
+                void SupportLine(Dictionary<HullId, int>? ships, string? names, string label, UnityEngine.Color color)
+                {
+                    if (ships == null || names == null) return;
+                    int n = 0;
+                    foreach (var kv in ships) n += kv.Value;
+                    var help = Widgets.IconText(Icon.Pact, $"{label} — {n} warship{(n == 1 ? "" : "s")} from {names}",
+                        11, color, bold: true);
+                    help.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                    help.style.marginTop = 10;
+                    content.Add(help);
+                }
+
                 if (defending)
                 {
-                    // Allied reinforcements fought in the same line (their ships
-                    // are counted in the defenders below).
-                    if (battle.AllyShips != null && battle.AllyNames != null)
-                    {
-                        int allied = 0;
-                        foreach (var kv in battle.AllyShips) allied += kv.Value;
-                        var help = Widgets.IconText(Icon.Pact,
-                            $"ALLIED REINFORCEMENTS — {allied} warship{(allied == 1 ? "" : "s")} from {battle.AllyNames}",
-                            11, UiTheme.Good, bold: true);
-                        help.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
-                        help.style.marginTop = 10;
-                        content.Add(help);
-                    }
-                    FleetSection(battle.AllyShips != null ? "DEFENDERS (YOURS + ALLIES)" : "YOUR DEFENDERS", r.Defender);
+                    SupportLine(battle.AllyShips, battle.AllyNames, "CLAN REINFORCEMENTS", UiTheme.Good);
+                    FleetSection(battle.AllyShips != null ? "DEFENDERS (YOURS + CLAN)" : "YOUR DEFENDERS", r.Defender);
                     if (!deflected) FleetSection("SURVIVORS", r.DefenderSurvivors);
                     FleetSection("RAIDERS", r.Attacker);
                 }
                 else
                 {
-                    FleetSection("YOUR FLEET", r.Attacker);
+                    SupportLine(battle.AllyShips, battle.AllyNames, "CLAN SUPPORT", UiTheme.Good);
+                    SupportLine(battle.EnemyAllyShips, battle.EnemyAllyNames, "THEIR CLAN DEFENDED", UiTheme.Bad);
+                    FleetSection(battle.AllyShips != null ? "YOUR FLEET (+ CLAN)" : "YOUR FLEET", r.Attacker);
                     FleetSection("SURVIVORS", r.AttackerSurvivors);
-                    FleetSection("DEFENDERS", r.Defender);
+                    FleetSection(battle.EnemyAllyShips != null ? "DEFENDERS (+ THEIR CLAN)" : "DEFENDERS", r.Defender);
                 }
 
                 var roundsLine = Widgets.HBox(Justify.SpaceBetween);

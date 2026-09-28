@@ -1,8 +1,9 @@
 // Rankings (MORE → RANK) — the galaxy leaderboard: you versus the simulated
-// commanders, ranked by might — or, on the SEASON tab, by might GAINED this
-// season (SeasonSystem). Your row is highlighted, rivals out for revenge carry
-// a red marker, allies a green one, and tapping a rival opens their public
-// profile. All local — no fetch, no spinner.
+// commanders, ranked by might — on the SEASON tab by might GAINED this season
+// (SeasonSystem), and on the CLANS tab clan by clan. Your row is highlighted,
+// names carry their clan tag, rivals out for revenge a red marker, clanmates a
+// green one; tapping a row opens that commander's (or clan's) profile. All
+// local — no fetch, no spinner.
 using System;
 using System.Collections.Generic;
 using UnityEngine.UIElements;
@@ -28,24 +29,26 @@ namespace GalaxyRoyale.Game.UI
             bool rankStored = false;
             long lastPlayerMight = -1;
 
-            // MIGHT | SEASON tabs.
+            // MIGHT | SEASON | CLANS tabs.
+            int tab = season ? 1 : 0;
             var tabs = Widgets.HBox(Justify.SpaceBetween);
             tabs.style.marginBottom = 10;
-            Button? mightTab = null, seasonTab = null;
+            var tabButtons = new Button[3];
             var body = new VisualElement();
-            void SelectTab(bool toSeason)
+            void SelectTab(int to)
             {
-                season = toSeason;
-                Widgets.SetButtonHighlight(mightTab!, !season);
-                Widgets.SetButtonHighlight(seasonTab!, season);
+                tab = to;
+                for (int t = 0; t < tabButtons.Length; t++) Widgets.SetButtonHighlight(tabButtons[t], t == tab);
                 Render();
             }
-            mightTab = Widgets.IconButton(Icon.Chart, "MIGHT", () => SelectTab(false), 11);
-            seasonTab = Widgets.IconButton(Icon.Trophy, "SEASON", () => SelectTab(true), 11);
-            mightTab.style.width = Length.Percent(49f);
-            seasonTab.style.width = Length.Percent(49f);
-            tabs.Add(mightTab);
-            tabs.Add(seasonTab);
+            tabButtons[0] = Widgets.IconButton(Icon.Chart, "MIGHT", () => SelectTab(0), 11);
+            tabButtons[1] = Widgets.IconButton(Icon.Trophy, "SEASON", () => SelectTab(1), 11);
+            tabButtons[2] = Widgets.IconButton(Icon.Pact, "CLANS", () => SelectTab(2), 11);
+            foreach (var b in tabButtons)
+            {
+                b.style.width = Length.Percent(32f);
+                tabs.Add(b);
+            }
             content.Add(tabs);
             content.Add(body);
 
@@ -57,7 +60,8 @@ namespace GalaxyRoyale.Game.UI
 
                 body.Clear();
                 long playerMight = PowerSystem.ComputePower(state);
-                if (season) { RenderSeason(ctx, state, galaxy, body); return; }
+                if (tab == 1) { RenderSeason(ctx, state, galaxy, body); return; }
+                if (tab == 2) { RenderClans(ctx, state, galaxy, body); return; }
 
                 var rows = new List<(int botId, string name, int avatarSeed, long might, bool grudge)>
                 {
@@ -121,14 +125,14 @@ namespace GalaxyRoyale.Game.UI
                     var avatar = Portraits.Avatar(entry.avatarSeed, entry.name, 20);
                     avatar.style.marginRight = 6;
                     left.Add(avatar);
-                    left.Add(NameBlock(state, entry.botId, entry.name));
+                    left.Add(NameBlock(state, galaxy, entry.botId, entry.name));
                     if (entry.grudge)
                     {
                         var mark = Icons.Make(Icon.Swords, 12, UiTheme.Bad);
                         mark.style.marginLeft = 6;
                         left.Add(mark);
                     }
-                    if (!me && AllianceSystem.IsAlly(state, entry.botId))
+                    if (!me && galaxy.Find(entry.botId) is { } rival && ClanSystem.SameClanAsPlayer(state, rival))
                     {
                         var mark = Icons.Make(Icon.Pact, 13, UiTheme.Good);
                         mark.style.marginLeft = 6;
@@ -156,7 +160,7 @@ namespace GalaxyRoyale.Game.UI
                 }
             }
 
-            SelectTab(season);
+            SelectTab(tab);
             int lastCheckTick = -1;
             refresh = () =>
             {
@@ -173,17 +177,62 @@ namespace GalaxyRoyale.Game.UI
             return blocker;
         }
 
-        /// <summary>Name, plus the worn title under YOUR name.</summary>
-        static VisualElement NameBlock(GalaxyRoyale.Sim.GameState state, int botId, string name)
+        /// <summary>Clan tag + name, plus the worn title under YOUR name.</summary>
+        static VisualElement NameBlock(GalaxyRoyale.Sim.GameState state, BotGalaxy galaxy, int botId, string name)
         {
             bool me = botId == 0;
-            var label = Widgets.Text(name, 12, me ? UiTheme.Accent : UiTheme.Text, bold: me);
+            var label = Widgets.Text(ClanSystem.Tagged(state, galaxy, botId, name), 12,
+                me ? UiTheme.Accent : UiTheme.Text, bold: me);
+            label.style.flexShrink = 1f;
             string? title = me ? AchievementSystem.TitleText(state) : null;
             if (title == null) return label;
             var col = new VisualElement();
             col.Add(label);
             col.Add(Widgets.Text(title, 9, UiTheme.Energy, bold: true));
             return col;
+        }
+
+        /// <summary>CLANS tab: every clan by total might; tap one for its profile.</summary>
+        static void RenderClans(GameContext ctx, GalaxyRoyale.Sim.GameState state, BotGalaxy galaxy, VisualElement body)
+        {
+            var rows = ClanSystem.Standings(state, galaxy);
+            if (rows.Count == 0)
+            {
+                var none = Widgets.Text("No clans yet — they form as the galaxy's politics play out.", 11, UiTheme.Dim);
+                none.style.whiteSpace = WhiteSpace.Normal;
+                body.Add(none);
+                return;
+            }
+            int rank = 0;
+            foreach (var (clan, members, might) in rows)
+            {
+                rank++;
+                bool mine = clan.Id == state.ClanId;
+                var row = Widgets.Row();
+                if (mine) Widgets.SetBorder(row, UiTheme.Accent, 1.5f);
+                var box = Widgets.HBox(Justify.SpaceBetween);
+                var left = Widgets.HBox();
+                left.style.flexShrink = 1f;
+                left.Add(RankLabel(rank));
+                var col = new VisualElement();
+                col.style.flexShrink = 1f;
+                col.Add(Widgets.Text(ClanSystem.Label(clan), 12, mine ? UiTheme.Accent : UiTheme.Text, bold: true));
+                string status = $"{members}/{ClanSystem.MaxMembers} members";
+                if (galaxy.FindClan(clan.WarWithClanId) is { } enemy) status += $" · at war with [{enemy.Tag}]";
+                col.Add(Widgets.Text(status, 10, clan.WarWithClanId != 0 ? UiTheme.Bad : UiTheme.Dim));
+                left.Add(col);
+                box.Add(left);
+                var right = Widgets.HBox();
+                right.Add(Widgets.Text($"{might:N0}", 12, UiTheme.Energy));
+                var chevron = Icons.Make(Icon.ChevronRight, 12, UiTheme.Accent);
+                chevron.style.marginLeft = 8;
+                right.Add(chevron);
+                box.Add(right);
+                row.Add(box);
+                int clanId = clan.Id;
+                row.RegisterCallback<PointerUpEvent>(_ => ClanPanel.OpenProfile(ctx, clanId));
+                body.Add(row);
+            }
         }
 
         /// <summary>SEASON tab: ranked by might gained since the season began.</summary>
@@ -230,8 +279,8 @@ namespace GalaxyRoyale.Game.UI
                 var avatar = Portraits.Avatar(avatarSeed, entry.name, 20);
                 avatar.style.marginRight = 6;
                 left.Add(avatar);
-                left.Add(NameBlock(state, entry.id, entry.name));
-                if (!me && AllianceSystem.IsAlly(state, entry.id))
+                left.Add(NameBlock(state, galaxy, entry.id, entry.name));
+                if (!me && galaxy.Find(entry.id) is { } rival && ClanSystem.SameClanAsPlayer(state, rival))
                 {
                     var mark = Icons.Make(Icon.Pact, 13, UiTheme.Good);
                     mark.style.marginLeft = 6;

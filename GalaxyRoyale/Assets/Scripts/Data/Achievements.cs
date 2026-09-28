@@ -9,7 +9,7 @@ namespace GalaxyRoyale.Data
     {
         BattlesWon, CampsCleared, RaidsWon, DefensesWon, ShipsBuilt, LootWhole,
         CommandCenter, ResearchLevels, DefenseResearchLevels, QuestsDone,
-        Allies, SeasonTop, EventsCompleted, Might,
+        ClanJoined, ClanSize, ClanWarsWon, SeasonTop, EventsCompleted, Might,
     }
 
     public sealed class AchievementDef
@@ -49,7 +49,9 @@ namespace GalaxyRoyale.Data
             A("scholar", "Scholar", "Complete 25 research levels", AchievementGoal.ResearchLevels, 25, 150, "Scholar"),
             A("fortress", "Fortress", "Complete 10 defense research levels", AchievementGoal.DefenseResearchLevels, 10, 150, "Fortress Keeper"),
             A("pathfinder", "Pathfinder", "Finish the Commander's Path", AchievementGoal.QuestsDone, 11, 150, "Pathfinder"),
-            A("diplomat", "Diplomat", "Hold 3 alliances at once", AchievementGoal.Allies, 3, 150, "Diplomat"),
+            A("diplomat", "Diplomat", "Join or found a clan", AchievementGoal.ClanJoined, 1, 50, "Diplomat"),
+            A("full-ranks", "Full Ranks", "Be in a clan of 15 commanders", AchievementGoal.ClanSize, 15, 200, "Clan Captain"),
+            A("warmaster", "Warmaster", "Win 3 clan wars", AchievementGoal.ClanWarsWon, 3, 300, "Warmaster"),
             A("event-hunter", "Event Hunter", "Complete 5 galaxy event goals", AchievementGoal.EventsCompleted, 5, 150, "Event Hunter"),
             A("contender", "Contender", "Finish a season in the top 10", AchievementGoal.SeasonTop, 10, 200, "Contender"),
             A("champion", "Champion", "Win a season", AchievementGoal.SeasonTop, 1, 500, "Champion"),

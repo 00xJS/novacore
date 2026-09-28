@@ -24,9 +24,10 @@ namespace GalaxyRoyale.Game.UI
             // Each wire row's "· 5m ago" line, so ages can tick without rebuilding
             // up to 100 rows every few seconds.
             var ageLabels = new List<(Label meta, NewsItem item)>();
-            string MetaText(NewsItem n, int tick) =>
-                $"{(n.AttackerWon ? $"looted {UiTheme.FmtAmount(n.LootMilli)}" : "raid repelled")}" +
-                $" · {UiTheme.FmtDuration(Math.Max(0, tick - n.Tick))} ago";
+            string MetaText(NewsItem n, int tick) => n.IsBulletin
+                ? $"{UiTheme.FmtDuration(Math.Max(0, tick - n.Tick))} ago"
+                : $"{(n.AttackerWon ? $"looted {UiTheme.FmtAmount(n.LootMilli)}" : "raid repelled")}" +
+                  $" · {UiTheme.FmtDuration(Math.Max(0, tick - n.Tick))} ago";
 
             int lastCount = -1;
             void Render()
@@ -53,7 +54,7 @@ namespace GalaxyRoyale.Game.UI
                 var wins = new Dictionary<int, (int raids, long loot)>();
                 foreach (var n in galaxy.News)
                 {
-                    if (!n.AttackerWon) continue;
+                    if (n.IsBulletin || !n.AttackerWon) continue;
                     var cur = wins.TryGetValue(n.AttackerId, out var w) ? w : (0, 0L);
                     wins[n.AttackerId] = (cur.Item1 + 1, cur.Item2 + n.LootMilli);
                 }
@@ -107,6 +108,22 @@ namespace GalaxyRoyale.Game.UI
                 for (int i = galaxy.News.Count - 1; i >= 0; i--)
                 {
                     var n = galaxy.News[i];
+                    if (n.IsBulletin)
+                    {
+                        // Clan politics and other galaxy-wide bulletins.
+                        var brow = Widgets.Row();
+                        Widgets.SetBorder(brow, UiTheme.Energy, 1f);
+                        var bline = Widgets.IconText(n.Text!.Contains("war") ? Icon.Swords : Icon.Pact, n.Text!, 12,
+                            UiTheme.Energy, bold: true);
+                        bline.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
+                        brow.Add(bline);
+                        var bmeta = Widgets.Text(MetaText(n, state.Tick), 10, UiTheme.Dim);
+                        bmeta.style.marginLeft = 19;
+                        brow.Add(bmeta);
+                        ageLabels.Add((bmeta, n));
+                        body.Add(brow);
+                        continue;
+                    }
                     bool involvesMe = n.AttackerId == 0 || n.DefenderId == 0;
                     bool badForMe = (n.DefenderId == 0 && n.AttackerWon)
                                  || (n.AttackerId == 0 && !n.AttackerWon);
@@ -171,13 +188,23 @@ namespace GalaxyRoyale.Game.UI
         public static string NameOf(GameContext ctx, int empireId) =>
             empireId == 0 ? ctx.State?.Profile.Name ?? "You" : BotNames.NameOf(empireId);
 
+        /// <summary>"[VOID] Moon Moon" for clan members.</summary>
+        public static string TaggedName(GameContext ctx, int empireId)
+        {
+            string name = NameOf(ctx, empireId);
+            return ctx.State != null && ctx.Bots != null
+                ? GalaxyRoyale.Sim.Systems.ClanSystem.Tagged(ctx.State, ctx.Bots, empireId, name)
+                : name;
+        }
+
         /// <summary>One-line headline, shared with the ticker strip. No leading ⚔:
         /// that glyph tofu-boxed on device ("□ □ X raided Y") — callers paint
         /// an Icon.Swords beside it instead.</summary>
         public static string Headline(GameContext ctx, NewsItem n)
         {
-            string atk = NameOf(ctx, n.AttackerId);
-            string def = NameOf(ctx, n.DefenderId);
+            if (n.IsBulletin) return n.Text!;
+            string atk = TaggedName(ctx, n.AttackerId);
+            string def = TaggedName(ctx, n.DefenderId);
             return n.AttackerWon
                 ? $"{atk} raided {def}"
                 : $"{def} repelled {atk}";

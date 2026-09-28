@@ -5,6 +5,7 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 using GalaxyRoyale.Sim;
+using GalaxyRoyale.Sim.Systems;
 
 namespace GalaxyRoyale.Game.UI
 {
@@ -70,7 +71,7 @@ namespace GalaxyRoyale.Game.UI
                 if (d.ShipsBuilt > 0) Line(Icon.Check, $"{N(d.ShipsBuilt, "ship", "ships")} built", UiTheme.Text);
             }
 
-            if (d.Achievements.Count + d.SeasonsEnded.Count + d.SupplyRuns > 0)
+            if (d.Achievements.Count + d.SeasonsEnded.Count + d.SupplyRuns + d.ClanWarsWon > 0)
             {
                 Section("PROGRESS");
                 foreach (var rec in d.SeasonsEnded)
@@ -80,8 +81,11 @@ namespace GalaxyRoyale.Game.UI
                     Line(Icon.Trophy, a.Title != null
                         ? $"Achievement: {a.Name} (+{a.RewardDM} DM, title \"{a.Title}\")"
                         : $"Achievement: {a.Name} (+{a.RewardDM} DM)", UiTheme.Energy);
+                if (d.ClanWarsWon > 0)
+                    Line(Icon.Swords, $"Your clan won {N(d.ClanWarsWon, "war", "wars")} (+{d.ClanWarsWon * ClanSystem.WarWinRewardDM} DM)",
+                        UiTheme.Good);
                 if (d.SupplyRuns > 0)
-                    Line(Icon.Pact, $"{N(d.SupplyRuns, "supply run", "supply runs")} from your allies — collect in MORE › ALLIES",
+                    Line(Icon.Pact, $"{N(d.SupplyRuns, "supply run", "supply runs")} from your clan — collect in MORE › CLAN",
                         UiTheme.Good);
             }
 

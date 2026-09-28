@@ -90,7 +90,7 @@ namespace GalaxyRoyale.Game.UI
         Button _favoritesFab = null!;
         Button _spinToggle = null!; // base-view auto-rotate (default off)
         // MORE-menu shortcuts that light up when something waits to be claimed.
-        Button _dailyFab = null!, _eventsFab = null!, _alliesFab = null!;
+        Button _dailyFab = null!, _eventsFab = null!, _clanFab = null!;
         // Top-left stack on the BASE view: quest tracker, then the event chip.
         VisualElement _leftStack = null!;
         VisualElement _eventChip = null!;
@@ -435,7 +435,7 @@ namespace GalaxyRoyale.Game.UI
                 return b;
             }
             // Stacked bottom-up visually; add in top-down order.
-            _alliesFab = MiniFab(Icon.Pact, "ALLIES", OpenAlliances);
+            _clanFab = MiniFab(Icon.Pact, "CLAN", OpenClan);
             MiniFab(Icon.Trophy, "AWARDS", OpenAchievements);
             _eventsFab = MiniFab(Icon.Bolt, "EVENTS", () => OpenEvents());
             _dailyFab = MiniFab(Icon.Check, "DAILY", OpenDaily);
@@ -633,7 +633,7 @@ namespace GalaxyRoyale.Game.UI
         public void OpenRankings(bool season = false) => OpenModal(RankingsPanel.Build(_ctx, out var r, season), r);
         public void OpenEvents() => OpenModal(EventsPanel.Build(_ctx, out var r), r);
         public void OpenAchievements() => OpenModal(AchievementsPanel.Build(_ctx, out var r), r);
-        public void OpenAlliances() => OpenModal(AlliancePanel.Build(_ctx, out var r), r);
+        public void OpenClan() => OpenModal(ClanPanel.Build(_ctx, out var r), r);
         public void OpenNews() => OpenModal(NewsPanel.Build(_ctx, out var r), r);
         public void OpenDaily() => OpenModal(DailyPanel.Build(_ctx, out var r), r);
         public void OpenResearch() => OpenModal(ResearchPanel.Build(_ctx, out var r), r);
@@ -782,10 +782,39 @@ namespace GalaxyRoyale.Game.UI
                     GameAudio.Feedback(Sfx.Victory, Haptic.Success);
                     break;
                 }
-                case AllySuppliesArrived:
-                    Toast("Supplies from your allies arrived — collect them in MORE › ALLIES", Icon.Pact, UiTheme.Good);
+                case ClanSuppliesArrived:
+                    Toast("Your clan's supply run arrived — collect it in MORE › CLAN", Icon.Pact, UiTheme.Good);
                     GameAudio.Play(Sfx.Coins, 0.6f);
                     break;
+                case ClanInviteReceived invite:
+                    if (_ctx.Bots?.FindClan(invite.ClanId) is { } inviting)
+                    {
+                        Toast($"{ClanSystem.Label(inviting)} invites you to join — MORE › CLAN", Icon.Pact, UiTheme.Good);
+                        GameAudio.Feedback(Sfx.Alert, Haptic.Light);
+                    }
+                    break;
+                case ClanWarDeclared declared:
+                {
+                    var bots = _ctx.Bots;
+                    var other = bots?.FindClan(declared.PlayerClanAttacked ? declared.ClanId : declared.EnemyClanId);
+                    if (other == null) break;
+                    Toast(declared.PlayerClanAttacked
+                        ? $"{ClanSystem.Label(other)} declared war on your clan!"
+                        : $"Your clan declared war on {ClanSystem.Label(other)}", Icon.Swords, UiTheme.Bad);
+                    GameAudio.Feedback(Sfx.Alert, Haptic.Heavy);
+                    break;
+                }
+                case ClanWarEnded ended:
+                {
+                    var other = _ctx.Bots?.FindClan(ended.EnemyClanId);
+                    string them = other != null ? ClanSystem.Label(other) : "the enemy";
+                    Toast(ended.Draw ? $"The war with {them} ended in a draw ({ended.Score}–{ended.EnemyScore})"
+                        : ended.Won ? $"Your clan won the war against {them} ({ended.Score}–{ended.EnemyScore}) · +{ClanSystem.WarWinRewardDM} DM"
+                        : $"Your clan lost the war against {them} ({ended.Score}–{ended.EnemyScore})",
+                        Icon.Swords, ended.Won ? UiTheme.Good : UiTheme.Dim);
+                    GameAudio.Feedback(ended.Won ? Sfx.Victory : Sfx.Defeat, ended.Won ? Haptic.Success : Haptic.Warning);
+                    break;
+                }
             }
         }
 
@@ -872,11 +901,11 @@ namespace GalaxyRoyale.Game.UI
                 RefreshTicker();
                 bool daily = DailyObjectives.AnyClaimable(state);
                 bool eventReady = EventSystem.CanClaim(state);
-                bool supplies = AllianceSystem.PendingTotal(state).Total > 0;
+                bool supplies = state.ClanSupplyRuns > 0 || state.ClanInviteId != 0;
                 Widgets.SetBorder(_moreFab, daily || eventReady || supplies ? UiTheme.Good : UiTheme.Accent, 2f);
                 Widgets.SetBorder(_dailyFab, daily ? UiTheme.Good : UiTheme.Stroke, 2f);
                 Widgets.SetBorder(_eventsFab, eventReady ? UiTheme.Good : UiTheme.Stroke, 2f);
-                Widgets.SetBorder(_alliesFab, supplies ? UiTheme.Good : UiTheme.Stroke, 2f);
+                Widgets.SetBorder(_clanFab, supplies ? UiTheme.Good : UiTheme.Stroke, 2f);
             }
 
             _modalRefresh?.Invoke();

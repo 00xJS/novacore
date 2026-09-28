@@ -27,8 +27,15 @@ namespace GalaxyRoyale.Sim
     public sealed record AchievementUnlocked(AchievementDef Achievement) : SimEvent;
     /// <summary>A season ended — the record holds your finish and its (already paid) reward.</summary>
     public sealed record SeasonEnded(SeasonRecord Record) : SimEvent;
-    /// <summary>Allied supply runs arrived; they wait in the ALLIES panel.</summary>
-    public sealed record AllySuppliesArrived(int Runs) : SimEvent;
+    /// <summary>Clan supply runs arrived; they wait in the CLAN panel.</summary>
+    public sealed record ClanSuppliesArrived(int Runs) : SimEvent;
+    /// <summary>A clan near you invites you to join.</summary>
+    public sealed record ClanInviteReceived(int ClanId) : SimEvent;
+    /// <summary>A war involving the player's clan began (<paramref name="PlayerClanAttacked"/>: the
+    /// other clan declared it).</summary>
+    public sealed record ClanWarDeclared(int ClanId, int EnemyClanId, bool PlayerClanAttacked) : SimEvent;
+    /// <summary>A war involving the player's clan ended (scores are the final tallies).</summary>
+    public sealed record ClanWarEnded(int ClanId, int EnemyClanId, bool Won, bool Draw, int Score, int EnemyScore) : SimEvent;
 
     public sealed class SimEventBus
     {

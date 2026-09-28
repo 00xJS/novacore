@@ -64,6 +64,7 @@ namespace GalaxyRoyale.Sim.Save
                 ["def"] = (long)n.DefenderId,
                 ["won"] = n.AttackerWon,
                 ["loot"] = n.LootMilli,
+                ["text"] = n.Text, // bulletins only (null for battles)
             }),
             ["inbound"] = Arr(g.Inbound, a => (object?)new Dictionary<string, object?>
             {
@@ -91,6 +92,20 @@ namespace GalaxyRoyale.Sim.Save
                 ["loot"] = Bag(m.LootMilli),
             }),
             ["nextMarchId"] = (long)g.NextMarchId,
+            ["clans"] = Arr(g.Clans, c => (object?)new Dictionary<string, object?>
+            {
+                ["id"] = (long)c.Id,
+                ["name"] = c.Name,
+                ["tag"] = c.Tag,
+                ["leader"] = (long)c.LeaderId,
+                ["founded"] = (long)c.FoundedTick,
+                ["warWith"] = (long)c.WarWithClanId,
+                ["warEnds"] = (long)c.WarEndsTick,
+                ["warScore"] = (long)c.WarScore,
+                ["warCooldown"] = (long)c.WarCooldownUntilTick,
+            }),
+            ["nextClanId"] = (long)g.NextClanId,
+            ["nextPoliticsTick"] = (long)g.NextPoliticsTick,
             ["empires"] = Arr(g.Bots, b => (object?)new Dictionary<string, object?>
             {
                 ["id"] = (long)b.Id,
@@ -105,6 +120,8 @@ namespace GalaxyRoyale.Sim.Save
                 ["focusSetTick"] = (long)b.FocusSetTick,
                 ["spyBackAtTick"] = (long)b.SpyBackAtTick,
                 ["seasonStartMight"] = b.SeasonStartMight,
+                ["clanId"] = (long)b.ClanId,
+                ["supportReady"] = (long)b.SupportReadyTick,
                 ["state"] = EncodeState(b.State),
             }),
         };
@@ -129,6 +146,7 @@ namespace GalaxyRoyale.Sim.Save
                         DefenderId = I32(o, "def"),
                         AttackerWon = o.TryGetValue("won", out var w) && w is bool wb && wb,
                         LootMilli = I64(o, "loot"),
+                        Text = o.TryGetValue("text", out var tx) ? tx as string : null,
                     });
                 }
             }
@@ -172,6 +190,26 @@ namespace GalaxyRoyale.Sim.Save
             }
             if (d.TryGetValue("nextMarchId", out var nmi) && nmi != null)
                 g.NextMarchId = ToI32(nmi);
+            // Clans (2026-09-28) — older galaxies seed theirs on the first politics pass.
+            if (d.TryGetValue("clans", out var rawClans) && rawClans is List<object?> clanRows)
+                foreach (var raw in clanRows)
+                {
+                    if (raw is not Dictionary<string, object?> o) continue;
+                    g.Clans.Add(new Bots.Clan
+                    {
+                        Id = I32(o, "id"),
+                        Name = Str(o, "name"),
+                        Tag = Str(o, "tag"),
+                        LeaderId = I32(o, "leader"),
+                        FoundedTick = I32(o, "founded"),
+                        WarWithClanId = I32(o, "warWith"),
+                        WarEndsTick = I32(o, "warEnds"),
+                        WarScore = I32(o, "warScore"),
+                        WarCooldownUntilTick = I32(o, "warCooldown"),
+                    });
+                }
+            if (d.TryGetValue("nextClanId", out var nci) && nci != null) g.NextClanId = ToI32(nci);
+            if (d.TryGetValue("nextPoliticsTick", out var npt) && npt != null) g.NextPoliticsTick = ToI32(npt);
 
             foreach (var raw in AsArr(d["empires"], "bots.empires"))
             {
@@ -191,6 +229,8 @@ namespace GalaxyRoyale.Sim.Save
                     FocusSetTick = o.TryGetValue("focusSetTick", out var fs) && fs != null ? ToI32(fs) : 0,
                     SpyBackAtTick = o.TryGetValue("spyBackAtTick", out var sb) && sb != null ? ToI32(sb) : 0,
                     SeasonStartMight = o.TryGetValue("seasonStartMight", out var ssm) && ssm != null ? ToI64(ssm) : 0,
+                    ClanId = o.TryGetValue("clanId", out var ci) && ci != null ? ToI32(ci) : 0,
+                    SupportReadyTick = o.TryGetValue("supportReady", out var sr) && sr != null ? ToI32(sr) : 0,
                     State = DecodeState(AsObj(o["state"], "empire.state")),
                 });
             }
@@ -333,20 +373,17 @@ namespace GalaxyRoyale.Sim.Save
                         ["gain"] = h.Gain, ["reward"] = (long)h.RewardDM,
                     }),
                 };
-            if (s.Allies.Count > 0)
-                root["allies"] = Arr(s.Allies, a =>
+            if (s.ClanId != 0 || s.ClanInviteId != 0 || s.ClanNextInviteTick != 0)
+                root["clan"] = new Dictionary<string, object?>
                 {
-                    var pact = new Dictionary<string, object?>
-                    {
-                        ["bot"] = (long)a.BotId, ["since"] = (long)a.SinceTick, ["nextAid"] = (long)a.NextAidTick,
-                    };
-                    if (a.PendingRuns > 0)
-                    {
-                        pact["pending"] = Bag(a.Pending);
-                        pact["pendingRuns"] = (long)a.PendingRuns;
-                    }
-                    return (object?)pact;
-                });
+                    ["id"] = (long)s.ClanId,
+                    ["invite"] = (long)s.ClanInviteId,
+                    ["inviteExpires"] = (long)s.ClanInviteExpiresTick,
+                    ["nextInvite"] = (long)s.ClanNextInviteTick,
+                    ["supplyNext"] = (long)s.ClanSupplyNextTick,
+                    ["supplyPending"] = Bag(s.ClanSupplyPending),
+                    ["supplyRuns"] = (long)s.ClanSupplyRuns,
+                };
             return root;
         }
 
@@ -503,6 +540,8 @@ namespace GalaxyRoyale.Sim.Save
                 EventsCompleted = Opt("eventsCompleted"),
                 LootMilli = stats.TryGetValue("lootMilli", out var lm) && lm != null ? ToI64(lm) : 0,
                 BestSeasonRank = Opt("bestSeasonRank"),
+                BestClanSize = Opt("bestClanSize"),
+                ClanWarsWon = Opt("clanWarsWon"),
             };
 
             if (d.TryGetValue("achievements", out var ach) && ach != null)
@@ -531,18 +570,18 @@ namespace GalaxyRoyale.Sim.Save
                     });
                 }
             }
-            if (d.TryGetValue("allies", out var al) && al != null)
-                foreach (var raw in AsArr(al, "allies"))
-                {
-                    var a = AsObj(raw, "allies[]");
-                    s.Allies.Add(new Alliance
-                    {
-                        BotId = I32(a, "bot"), SinceTick = I32(a, "since"), NextAidTick = I32(a, "nextAid"),
-                        Pending = a.TryGetValue("pending", out var pd) && pd is Dictionary<string, object?> pdd
-                            ? DecBag(pdd) : new ResourceBag(),
-                        PendingRuns = a.TryGetValue("pendingRuns", out var pn) && pn != null ? ToI32(pn) : 0,
-                    });
-                }
+            // (Saves from the short-lived pact system carry "allies" — ignored.)
+            if (d.TryGetValue("clan", out var cl) && cl is Dictionary<string, object?> c)
+            {
+                s.ClanId = I32(c, "id");
+                s.ClanInviteId = I32(c, "invite");
+                s.ClanInviteExpiresTick = I32(c, "inviteExpires");
+                s.ClanNextInviteTick = I32(c, "nextInvite");
+                s.ClanSupplyNextTick = I32(c, "supplyNext");
+                s.ClanSupplyPending = c.TryGetValue("supplyPending", out var sp) && sp is Dictionary<string, object?> spd
+                    ? DecBag(spd) : new ResourceBag();
+                s.ClanSupplyRuns = I32(c, "supplyRuns");
+            }
 
             return s;
         }
@@ -693,6 +732,8 @@ namespace GalaxyRoyale.Sim.Save
                     if (battle.AttackerBotId > 0) d["attackerBotId"] = (long)battle.AttackerBotId;
                     if (battle.AllyShips != null) d["allyShips"] = Comp(battle.AllyShips);
                     if (battle.AllyNames != null) d["allyNames"] = battle.AllyNames;
+                    if (battle.EnemyAllyShips != null) d["enemyAllyShips"] = Comp(battle.EnemyAllyShips);
+                    if (battle.EnemyAllyNames != null) d["enemyAllyNames"] = battle.EnemyAllyNames;
                     break;
             }
             d["read"] = item.Read;
@@ -772,6 +813,9 @@ namespace GalaxyRoyale.Sim.Save
                 if (d.TryGetValue("allyShips", out var ash) && ash is Dictionary<string, object?> ashd)
                     mail.AllyShips = DecComp(ashd);
                 if (d.TryGetValue("allyNames", out var anm)) mail.AllyNames = anm as string;
+                if (d.TryGetValue("enemyAllyShips", out var esh) && esh is Dictionary<string, object?> eshd)
+                    mail.EnemyAllyShips = DecComp(eshd);
+                if (d.TryGetValue("enemyAllyNames", out var enm)) mail.EnemyAllyNames = enm as string;
             }
             return item;
         }
@@ -816,6 +860,8 @@ namespace GalaxyRoyale.Sim.Save
             Opt("eventsCompleted", st.EventsCompleted);
             Opt("lootMilli", st.LootMilli);
             Opt("bestSeasonRank", st.BestSeasonRank);
+            Opt("bestClanSize", st.BestClanSize);
+            Opt("clanWarsWon", st.ClanWarsWon);
             return d;
         }
 
