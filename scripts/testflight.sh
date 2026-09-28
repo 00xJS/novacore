@@ -50,10 +50,12 @@ if [[ -n "${GR_ASC_KEY_PATH:-}" ]]; then
 fi
 
 echo "==> Unity release build (build $GR_BUILD_NUMBER)"
-# Unity rewrites ProjectSettings.asset during a build; keep the committed copy.
-SETTINGS="$PROJECT/ProjectSettings/ProjectSettings.asset"
-cp "$SETTINGS" "$OUT/ProjectSettings.asset.orig"
-trap 'cp "$OUT/ProjectSettings.asset.orig" "$SETTINGS"' EXIT
+# A batch build rewrites files under ProjectSettings/ (identity, services
+# toggles): snapshot the folder and put it back however the script ends.
+SETTINGS="$PROJECT/ProjectSettings"
+rm -rf "$OUT/ProjectSettings.orig"
+cp -R "$SETTINGS" "$OUT/ProjectSettings.orig"
+trap 'cp -R "$OUT/ProjectSettings.orig/." "$SETTINGS/"' EXIT
 # Unity can exit non-zero at shutdown after a good build — the log decides.
 "$UNITY" -batchmode -projectPath "$PROJECT" -buildTarget iOS \
   -executeMethod BuildScript.BuildIos -logFile "$OUT/unity.log" || true
