@@ -1,6 +1,7 @@
 // The boot screen — the old login page's slot, rebranded for single-player
 // (user spec): CONTINUE GAME resumes the saved galaxy; NEW GAME founds a
-// fresh one, double-confirmed when a save would be erased. Opaque full-bleed
+// fresh one (STANDARD or TESTING, picked in NewGamePanel), double-confirmed
+// when a save would be erased. Opaque full-bleed
 // page — the placeholder sim idles hidden behind it until a choice is made.
 using UnityEngine.UIElements;
 
@@ -56,9 +57,12 @@ namespace GalaxyRoyale.Game.UI
 
             var fresh = Widgets.TextButton("NEW GAME", () =>
             {
+                // Mode picker (STANDARD / TESTING); backing out returns here and
+                // nothing is erased until START is tapped.
+                void ChooseMode() => NewGamePanel.Open(test => boot?.NewGame(test), () => Open(ctx));
                 if (!hasSave)
                 {
-                    boot?.NewGame();
+                    ChooseMode();
                     return;
                 }
                 // Secondary confirmation (user spec): starting over erases the
@@ -67,7 +71,7 @@ namespace GalaxyRoyale.Game.UI
                     "Start a NEW galaxy?\nYour current empire and all " +
                     $"{GalaxyRoyale.Sim.Bots.BotSystem.BotCount} rival commanders will be erased forever.",
                     "NEW GAME — ERASE SAVE",
-                    () => boot?.NewGame(),
+                    ChooseMode,
                     () => Open(ctx)); // cancel → back to the title screen
             }, hasSave ? 12 : 15);
             fresh.style.height = hasSave ? 44 : 52;

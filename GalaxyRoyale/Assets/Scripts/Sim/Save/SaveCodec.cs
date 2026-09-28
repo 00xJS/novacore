@@ -309,6 +309,8 @@ namespace GalaxyRoyale.Sim.Save
             };
             if (s.BurningUntilTick > 0) root["burningUntilTick"] = (long)s.BurningUntilTick;
             if (s.VisualSeedOffset != 0) root["visualSeedOffset"] = (long)s.VisualSeedOffset;
+            root["testMode"] = s.TestMode;
+            if (s.QuestStep > 0) root["questStep"] = (long)s.QuestStep;
             return root;
         }
 
@@ -326,6 +328,9 @@ namespace GalaxyRoyale.Sim.Save
                     ? ToI32(burn) : 0,
                 VisualSeedOffset = d.TryGetValue("visualSeedOffset", out var vso) && vso != null
                     ? ToI32(vso) : 0,
+                // Saves from before the NEW GAME choice were all test games.
+                TestMode = !d.TryGetValue("testMode", out var tm) || tm is not bool tmb || tmb,
+                QuestStep = d.TryGetValue("questStep", out var qs) && qs != null ? ToI32(qs) : 0,
             };
 
             var profile = AsObj(d["profile"], "profile");

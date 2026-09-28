@@ -128,7 +128,7 @@ namespace GalaxyRoyale.Game.UI
                     int r = now < IntroSec ? 0 : Math.Min(rounds, 1 + (int)((now - IntroSec) / roundSec));
                     roundLabel.text = r == 0 ? "FLEETS ENGAGING" : $"ROUND {r} / {rounds}";
                 }
-                stage.SetTime(now);
+                stage.SetTime(now, sound: !finished);
             }
 
             float CountAt(List<Dictionary<HullId, int>> snaps, float t)
@@ -156,13 +156,15 @@ namespace GalaxyRoyale.Game.UI
                 now = endAt;
                 loop?.Pause();
                 Render();
-                stage.SetTime(1e6f); // clear tracers and blasts
+                stage.SetTime(1e6f, sound: false); // clear tracers and blasts
                 roundLabel.text = rounds == 1 ? "1 ROUND" : $"{rounds} ROUNDS";
 
                 var r = mail.Report;
                 bool draw = r.Winner == BattleWinner.Draw;
                 bool won = mail.Defending ? r.Winner == BattleWinner.Defender : r.Winner == BattleWinner.Attacker;
                 outcome.text = draw ? "STALEMATE" : won ? "VICTORY" : "DEFEAT";
+                if (won) GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                else GameAudio.Feedback(Sfx.Defeat, draw ? Haptic.Warning : Haptic.Error);
                 outcome.style.color = draw ? UiTheme.Energy : won ? UiTheme.Good : UiTheme.Bad;
                 outcome.style.display = DisplayStyle.Flex;
                 int yourLost = BattleTimeline.Count(yours[0]) - BattleTimeline.Count(yours[rounds]);
@@ -436,6 +438,7 @@ namespace GalaxyRoyale.Game.UI
         {
             public HullId Hull;
             public bool Enemy;
+            public bool IsBattery;
             public VisualElement Icon = null!;
             public Vector2 Center;
         }
@@ -491,7 +494,7 @@ namespace GalaxyRoyale.Game.UI
                 var gun = Icons.Make(Icon.Target, 18f, UiTheme.Good);
                 gun.style.position = Position.Absolute;
                 Add(gun);
-                Batteries.Add(new Ship { Hull = HullId.Probe, Enemy = batteriesAreTheirs, Icon = gun });
+                Batteries.Add(new Ship { Hull = HullId.Probe, Enemy = batteriesAreTheirs, IsBattery = true, Icon = gun });
             }
 
             _overlay.pickingMode = PickingMode.Ignore;
@@ -576,11 +579,21 @@ namespace GalaxyRoyale.Game.UI
         {
             ship.Icon.style.opacity = 0.14f;
             ship.Icon.style.scale = new StyleScale(new Scale(new Vector3(0.8f, 0.8f, 1f)));
-            if (blast) _blasts.Add((ship.Center, at));
+            if (!blast) return;
+            _blasts.Add((ship.Center, at));
+            GameAudio.Play(Sfx.Explosion, 1f, UnityEngine.Random.Range(0.85f, 1.15f));
+            GameAudio.Buzz(Haptic.Light);
         }
 
-        public void SetTime(float now)
+        public void SetTime(float now, bool sound = true)
         {
+            // A zap for each shot fired since the last frame (GameAudio throttles
+            // bursts); the planetary guns boom lower.
+            if (sound)
+                foreach (var t in _tracers)
+                    if (t.T0 > _now && t.T0 <= now)
+                        GameAudio.Play(Sfx.Laser, 1f, t.From.IsBattery
+                            ? 0.55f : UnityEngine.Random.Range(0.9f, 1.2f));
             _now = now;
             _overlay.MarkDirtyRepaint();
         }

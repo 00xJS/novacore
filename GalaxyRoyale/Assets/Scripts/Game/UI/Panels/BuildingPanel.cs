@@ -276,8 +276,10 @@ namespace GalaxyRoyale.Game.UI
                     if (res.Ok)
                     {
                         ui.Toast($"{title} upgrade queued");
+                        GameAudio.Feedback(Sfx.Confirm, Haptic.Light);
                         BuildingMarkers.RequestExtraMineSync();
                     }
+                    else GameAudio.Feedback(Sfx.Error, Haptic.Error);
                 });
                 Widgets.SetButtonEnabled(upgrade, check.Ok);
                 upgrade.style.marginTop = 14;

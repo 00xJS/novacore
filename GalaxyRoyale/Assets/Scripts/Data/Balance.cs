@@ -77,9 +77,10 @@ namespace GalaxyRoyale.Data
 
         // Prototype/testing conveniences. Testing economy per user request
         // (2026-07-07): 500K of each resource + 1M Dark Matter + a stack of
-        // every speed-up token so nothing gates a playtest. ALL of this must be
-        // OFF at release.
-        public const bool TestMode = true;
+        // every speed-up token so nothing gates a playtest. Since 2026-09-27 it's
+        // a per-game choice on the NEW GAME screen (GameState.TestMode); this is
+        // only the default for code paths that don't choose (tests, placeholder).
+        public const bool TestModeDefault = true;
         public const int TestModeDarkMatter = 1_000_000;
         public const int TestModeResources = 500_000;
         public const int TestModeSpeedupCount = 10;

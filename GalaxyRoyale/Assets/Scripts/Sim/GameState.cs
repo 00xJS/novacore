@@ -234,6 +234,13 @@ namespace GalaxyRoyale.Sim
         /// look; the Planetary Resurfacing item rerolls it (one-way — rolls are
         /// random and the old surface can't be rolled back).</summary>
         public int VisualSeedOffset;
+        /// <summary>Playtest economy, chosen at NEW GAME (user request 2026-09-27):
+        /// 500K of every resource, 1M Dark Matter, speed-ups, free warps. Saves
+        /// from before the choice existed were all test games.</summary>
+        public bool TestMode;
+        /// <summary>Commander's Path progress — index of the next quest in
+        /// Quests.Chain (runs in both modes).</summary>
+        public int QuestStep;
         public Profile Profile = new();
         /// <summary>Milli-units.</summary>
         public ResourceBag Resources = new();
@@ -276,8 +283,9 @@ namespace GalaxyRoyale.Sim
         };
 
         /// <summary>Factory for a fresh save. Matches v1's createNewGame.</summary>
-        public static GameState CreateNewGame(int seed)
+        public static GameState CreateNewGame(int seed, bool? testMode = null)
         {
+            bool test = testMode ?? Balance.TestModeDefault;
             var startLevels = new Dictionary<BuildingId, int>
             {
                 [BuildingId.CommandCenter] = 1,
@@ -304,14 +312,15 @@ namespace GalaxyRoyale.Sim
                 Resources = Balance.StartResources().Milli(),
                 Premium = new Premium
                 {
-                    DarkMatter = Balance.TestMode ? Balance.TestModeDarkMatter : 0,
+                    DarkMatter = test ? Balance.TestModeDarkMatter : 0,
                 },
+                TestMode = test,
                 Buildings = buildings,
                 BuildingLayout = DefaultLayout(),
                 Ships = ships,
             };
 
-            if (Balance.TestMode)
+            if (test)
             {
                 // Testing economy: fat wallet + a stack of every speed-up token.
                 state.Resources = new ResourceBag(

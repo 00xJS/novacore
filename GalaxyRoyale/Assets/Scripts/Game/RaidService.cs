@@ -45,6 +45,7 @@ namespace GalaxyRoyale.Game
             RaidArrivals.Register(marchId, target.BotId, target.CommanderName,
                 isRaid: true, ships, tile);
 
+            GameAudio.Feedback(Sfx.Launch, Haptic.Medium);
             return (true,
                 $"Fleet away — battle on arrival in {UiTheme.FmtDuration(arrivesInSec)}"
                 + (shieldBroke ? " · your Aegis Shield dropped" : ""));
@@ -72,6 +73,8 @@ namespace GalaxyRoyale.Game
             RaidArrivals.Register(probeMarchId, target.BotId, target.CommanderName,
                 isRaid: false, probeComp, tile);
 
+            GameAudio.Play(Sfx.Launch, 0.6f, 1.25f);
+            GameAudio.Buzz(Haptic.Light);
             return (true, $"Probe away — intel on arrival in {UiTheme.FmtDuration(arrivesInSec)}");
         }
 

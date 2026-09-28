@@ -358,7 +358,7 @@ namespace GalaxyRoyale.Sim.Bots
             for (int i = 1; i <= count; i++)
             {
                 var personality = PersonalityOf(galaxySeed, i);
-                var state = GameState.CreateNewGame(galaxySeed);
+                var state = GameState.CreateNewGame(galaxySeed, testMode: false);
 
                 // Strip the player-only TestMode grants (no DM/speed-ups/buffs, ever),
                 // then seat the bot on its own opening wallet — 250K each (user spec:

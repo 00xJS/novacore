@@ -89,6 +89,12 @@ namespace GalaxyRoyale.Game.UI
         bool _moreOpen;
         Button _favoritesFab = null!;
         Button _spinToggle = null!; // base-view auto-rotate (default off)
+        // Commander's Path tracker (top left of the BASE view).
+        VisualElement _questTracker = null!;
+        Label _questTitle = null!, _questGoal = null!;
+        Label _questClaimPill = null!;
+        string _questKey = "";
+        int _questNudgedStep = -1;
 
         public ViewId View { get; private set; } = ViewId.Base;
 
@@ -161,6 +167,8 @@ namespace GalaxyRoyale.Game.UI
             _spinToggle.style.top = 112; // just under the header (Update tracks the safe area)
             _root.Add(_spinToggle);
 
+            BuildQuestTracker();
+
             _calloutLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             _calloutLayer.style.position = Position.Absolute;
             _calloutLayer.style.left = 10;
@@ -187,7 +195,7 @@ namespace GalaxyRoyale.Game.UI
             _labelBlockers.AddRange(new[]
             {
                 _header, _nav, _ticker, _queuesFab, _moreFab, _moreMenu,
-                _spinToggle, _searchFab, _favoritesFab, _calloutLayer,
+                _spinToggle, _searchFab, _favoritesFab, _calloutLayer, _questTracker,
             });
 
             _ctx.Events!.Subscribe(OnSimEvent);
@@ -199,9 +207,10 @@ namespace GalaxyRoyale.Game.UI
         {
             EnsureBuilt();
             _root.schedule.Execute(() =>
-                Toast("Upgrade the Command Center to raise all building caps")).ExecuteLater(2500);
+                Toast("Follow the Commander's Path — your first quest is top left", Icon.Star, UiTheme.Energy))
+                .ExecuteLater(2500);
             _root.schedule.Execute(() =>
-                Toast("Build a Shipyard, then send fleets from the MAP to gather")).ExecuteLater(6500);
+                Toast("Upgrade the Command Center to raise all building caps")).ExecuteLater(6500);
         }
 
         // ---------- header (v1 ResourceBar) ----------
@@ -453,6 +462,7 @@ namespace GalaxyRoyale.Game.UI
 
         public void SwitchView(ViewId view)
         {
+            if (view != View) GameAudio.Feedback(Sfx.Toggle, Haptic.Selection);
             CloseModal();
             CloseNodeCallout();
             var mapView = GetComponent<MapView>();
@@ -512,7 +522,10 @@ namespace GalaxyRoyale.Game.UI
         public void OpenModal(VisualElement modal, Action? refresh = null)
         {
             EnsureBuilt(); // boot code can open panels before our Start runs
-            CloseModal();
+            // Swapping one panel for another (a report's REPLAY, a rebuilt
+            // detail) stays silent; opening over the game gets the whoosh.
+            if (_modal == null) GameAudio.Play(Sfx.Open);
+            RemoveModal();
             _modal = modal;
             _modalRefresh = refresh;
             _modalLayer.pickingMode = PickingMode.Position;
@@ -520,6 +533,12 @@ namespace GalaxyRoyale.Game.UI
         }
 
         public void CloseModal()
+        {
+            if (_modal != null) GameAudio.Play(Sfx.Close);
+            RemoveModal();
+        }
+
+        void RemoveModal()
         {
             if (_modal == null) return;
             _modalLayer.Remove(_modal);
@@ -656,10 +675,12 @@ namespace GalaxyRoyale.Game.UI
                 case BuildingCompleted built:
                     _queuesPingUntil = Time.time + 0.35f; // a queue may be idle now — flash the FAB
                     Toast($"{Buildings.Defs[built.Building].Name} reached Lv {built.Level}", Icon.Check, UiTheme.Good);
+                    GameAudio.Feedback(Sfx.Success, Haptic.Success);
                     break;
                 case ResearchCompleted researched:
                     _queuesPingUntil = Time.time + 0.35f;
                     Toast($"{Techs.Defs[researched.Tech].Name} Lv {researched.Level} researched", Icon.Check, UiTheme.Good);
+                    GameAudio.Feedback(Sfx.Success, Haptic.Success);
                     break;
                 case ShipsCompleted ships:
                 {
@@ -675,6 +696,7 @@ namespace GalaxyRoyale.Game.UI
                         int total = _shipsBuilt[ships.Hull];
                         _shipsBuilt.Remove(ships.Hull);
                         Toast($"{total}× {Ships.Defs[ships.Hull].Name} ready in the hangar", Icon.Check, UiTheme.Good);
+                        GameAudio.Feedback(Sfx.Success, Haptic.Light);
                     }
                     break;
                 }
@@ -756,6 +778,7 @@ namespace GalaxyRoyale.Game.UI
             // so it never overlaps the Dark Matter box on notched devices.
             float headerH = Mathf.Max(topInset + 4f, 34f) + 20f + 50f;
             _spinToggle.style.top = headerH + 10f;
+            _questTracker.style.top = headerH + 10f;
 
             // Header numbers only move when the sim ticks (1 Hz) or the player
             // acts — refreshing them 60×/frame was ComputePower + string-format
@@ -784,6 +807,8 @@ namespace GalaxyRoyale.Game.UI
             _favoritesFab.style.display = mapFabDisplay;
             _spinToggle.style.display = View == ViewId.Base && _modal == null
                 ? DisplayStyle.Flex : DisplayStyle.None;
+            _questTracker.style.display = View == ViewId.Base && _modal == null && !calloutUp
+                && QuestSystem.Current(state) != null ? DisplayStyle.Flex : DisplayStyle.None;
 
             // Slow-cadence chores: ticker headline + daily-reward glow on the MORE FAB.
             if (Time.time >= _nextDailyGlowPoll)
@@ -799,8 +824,99 @@ namespace GalaxyRoyale.Game.UI
 
         /// <summary>Everything in the header + badges that only changes when the
         /// sim ticks or the player acts. Runs at ≤4 Hz (see Update), not 60.</summary>
+        // ---------- Commander's Path tracker ----------
+
+        void BuildQuestTracker()
+        {
+            var t = _questTracker = new VisualElement();
+            t.style.position = Position.Absolute;
+            t.style.left = 12;
+            t.style.top = 112;
+            t.style.maxWidth = 300; // up to the SPIN button
+            t.style.flexDirection = FlexDirection.Row;
+            t.style.alignItems = Align.Center;
+            t.style.paddingLeft = 10;
+            t.style.paddingRight = 10;
+            t.style.paddingTop = 7;
+            t.style.paddingBottom = 7;
+            t.style.backgroundColor = new Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.92f);
+            Widgets.SetBorder(t, UiTheme.Energy, 1.5f);
+            t.style.borderTopLeftRadius = 12;
+            t.style.borderTopRightRadius = 12;
+            t.style.borderBottomLeftRadius = 12;
+            t.style.borderBottomRightRadius = 12;
+            var star = Icons.Make(Icon.Star, 16f, UiTheme.Energy);
+            star.style.marginRight = 8;
+            t.Add(star);
+            var col = new VisualElement { pickingMode = PickingMode.Ignore };
+            col.style.flexShrink = 1f;
+            col.style.overflow = Overflow.Hidden;
+            _questTitle = Widgets.Text("", 11, UiTheme.Text, bold: true);
+            _questTitle.pickingMode = PickingMode.Ignore;
+            // Long titles end in "…" rather than running under the CLAIM pill.
+            _questTitle.style.whiteSpace = WhiteSpace.NoWrap;
+            _questTitle.style.overflow = Overflow.Hidden;
+            _questTitle.style.textOverflow = TextOverflow.Ellipsis;
+            _questGoal = Widgets.Text("", 10, UiTheme.Dim);
+            _questGoal.pickingMode = PickingMode.Ignore;
+            col.Add(_questTitle);
+            col.Add(_questGoal);
+            t.Add(col);
+            _questClaimPill = Widgets.Text("CLAIM", 10, UiTheme.Bg, bold: true);
+            _questClaimPill.pickingMode = PickingMode.Ignore;
+            _questClaimPill.style.marginLeft = 8;
+            _questClaimPill.style.flexShrink = 0f;
+            _questClaimPill.style.paddingLeft = 7;
+            _questClaimPill.style.paddingRight = 7;
+            _questClaimPill.style.paddingTop = 3;
+            _questClaimPill.style.paddingBottom = 3;
+            _questClaimPill.style.backgroundColor = UiTheme.Good;
+            _questClaimPill.style.borderTopLeftRadius = 8;
+            _questClaimPill.style.borderTopRightRadius = 8;
+            _questClaimPill.style.borderBottomLeftRadius = 8;
+            _questClaimPill.style.borderBottomRightRadius = 8;
+            _questClaimPill.style.display = DisplayStyle.None;
+            t.Add(_questClaimPill);
+            t.RegisterCallback<ClickEvent>(_ => QuestPanel.Open(_ctx));
+            t.style.display = DisplayStyle.None;
+            _root.Add(t);
+        }
+
+        void RefreshQuestTracker(GameState state)
+        {
+            var quest = QuestSystem.Current(state);
+            if (quest == null) return;
+            var (have, need) = QuestSystem.Progress(state, quest);
+            bool complete = have >= need;
+            string key = $"{state.QuestStep}|{have}|{need}";
+            if (key == _questKey) return;
+            bool firstLook = _questKey.Length == 0;
+            _questKey = key;
+            _questTitle.text = $"QUEST {state.QuestStep + 1}/{Quests.Chain.Count} · {quest.Title}";
+            _questGoal.text = complete ? "Complete — tap to claim" : QuestPanel.GoalText(quest, have, need);
+            _questGoal.style.color = complete ? UiTheme.Good : UiTheme.Dim;
+            _questClaimPill.style.display = complete ? DisplayStyle.Flex : DisplayStyle.None;
+            Widgets.SetBorder(_questTracker, complete ? UiTheme.Good : UiTheme.Energy, 1.5f);
+            // One nudge per step when it completes during play (not on the
+            // first look after loading — the tracker already says so).
+            if (complete && !firstLook && _questNudgedStep != state.QuestStep)
+            {
+                _questNudgedStep = state.QuestStep;
+                Toast($"Quest complete: {quest.Title} — tap the quest card to claim", Icon.Star, UiTheme.Energy);
+                GameAudio.Feedback(Sfx.Quest, Haptic.Success);
+            }
+        }
+
+        /// <summary>QuestPanel after a successful claim: coins, a tap, and refresh the tracker now.</summary>
+        public void OnQuestClaimed()
+        {
+            GameAudio.Feedback(Sfx.Coins, Haptic.Success);
+            _questKey = "";
+        }
+
         void RefreshHeader(GameState state)
         {
+            RefreshQuestTracker(state);
             for (int i = 0; i < 3; i++)
             {
                 var res = Resources_All[i];

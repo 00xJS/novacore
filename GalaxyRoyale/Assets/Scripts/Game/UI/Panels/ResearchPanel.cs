@@ -380,6 +380,8 @@ namespace GalaxyRoyale.Game.UI
                     {
                         var res = ResearchSystem.StartResearch(ctx.State!, id);
                         ui.Toast(res.Ok ? $"Researching {def.Name}…" : res.Reason ?? "Cannot research");
+                        if (res.Ok) GameAudio.Feedback(Sfx.Confirm, Haptic.Light);
+                        else GameAudio.Feedback(Sfx.Error, Haptic.Error);
                         Invalidate();
                     }, 12);
                     Widgets.SetButtonEnabled(research,
