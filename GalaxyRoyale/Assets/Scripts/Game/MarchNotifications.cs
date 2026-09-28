@@ -9,6 +9,7 @@ using System;
 using UnityEngine;
 using GalaxyRoyale.Data;
 using GalaxyRoyale.Sim;
+using GalaxyRoyale.Sim.Systems;
 #if UNITY_IOS
 using Unity.Notifications.iOS;
 #endif
@@ -55,7 +56,7 @@ namespace GalaxyRoyale.Game
                 iOSNotificationCenter.ScheduleNotification(new iOSNotification
                 {
                     Identifier = id,
-                    Title = "GalaxyRoyale",
+                    Title = "Galaxy Royale",
                     Body = body,
                     ShowInForeground = false,
                     Trigger = new iOSNotificationTimeIntervalTrigger
@@ -68,10 +69,14 @@ namespace GalaxyRoyale.Game
 
             foreach (var m in state.Marches)
             {
+                // Probes sent at a rival fly as Attack marches (RaidArrivals files the
+                // intel) — word them as the spy run they are, not "battle underway".
+                bool probeOnly = m.Ships.Count == 1 && m.Ships.ContainsKey(HullId.Probe);
                 string body = m.Phase switch
                 {
                     MarchPhase.Outbound => m.Mission switch
                     {
+                        MarchMission.Attack when probeOnly => "Your probe has reached the target — intel incoming",
                         MarchMission.Attack => "Your fleet has reached the target — battle underway",
                         MarchMission.Spy => "Your probe is on station — recon incoming",
                         _ => "Your fleet has arrived and started gathering",
@@ -90,6 +95,32 @@ namespace GalaxyRoyale.Game
             foreach (var o in state.ResearchQueue)
                 Schedule($"research-{o.TechId}", o.EndsAtTick - now,
                     $"{Techs.Defs[o.TechId].Name} research complete");
+
+            // Hostiles ALREADY flying at the colony, announced exactly when the
+            // Radar Station would warn in-game (lead = RadarLeadPerLevelSec × level,
+            // detail per tier) — so the dodge / Aegis panic button works with the
+            // app closed. No radar, no warning, same as live. (Raids bots decide
+            // during the offline catch-up can't be forecast, so they aren't.)
+            var galaxy = _ctx.Bots;
+            int radarLevel = RadarSystem.Level(state);
+            int lead = RadarSystem.WarnLeadSeconds(radarLevel);
+            if (galaxy != null && lead > 0)
+            {
+                int tier = RadarSystem.DetailTier(radarLevel);
+                foreach (var atk in galaxy.Inbound)
+                {
+                    string what = tier >= 2 ? (atk.IsFleet ? "Hostile fleet" : "Spy probe") : "Unknown contact";
+                    Schedule($"inbound-{atk.Id}", atk.ArrivesAtTick - lead - now,
+                        $"Radar: {what} inbound — impact in {UI.UiTheme.FmtDuration(lead)}");
+                }
+            }
+
+            // Aegis Shield about to lapse.
+            long shieldLeft = state.Buffs.ShieldUntilTick - now;
+            if (shieldLeft > 600)
+                Schedule("shield-lapse", shieldLeft - 600, "Your Aegis Shield drops in 10 minutes");
+            else if (shieldLeft > 0)
+                Schedule("shield-lapse", shieldLeft, "Your Aegis Shield is down");
         }
 
         static void ClearAll()

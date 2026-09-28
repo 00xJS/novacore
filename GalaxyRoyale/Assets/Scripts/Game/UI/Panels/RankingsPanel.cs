@@ -11,6 +11,12 @@ namespace GalaxyRoyale.Game.UI
 {
     public static class RankingsPanel
     {
+        /// <summary>Your rank the last time you opened the board (device-local).</summary>
+        const string LastRankKey = "galaxyroyale.last_rank";
+
+        /// <summary>A new galaxy starts the "since last look" delta fresh.</summary>
+        public static void ForgetLastRank() => UnityEngine.PlayerPrefs.DeleteKey(LastRankKey);
+
         public static VisualElement Build(GameContext ctx, out Action refresh)
         {
             var ui = UIController.Instance!;
@@ -19,6 +25,8 @@ namespace GalaxyRoyale.Game.UI
             var body = new VisualElement();
             content.Add(body);
 
+            int lastSeenRank = UnityEngine.PlayerPrefs.GetInt(LastRankKey, 0);
+            bool rankStored = false;
             long lastPlayerMight = -1;
             void Render()
             {
@@ -36,6 +44,38 @@ namespace GalaxyRoyale.Game.UI
                 foreach (var bot in galaxy.Bots)
                     rows.Add((bot.Id, bot.Name, bot.State.Profile.AvatarSeed, bot.CachedMight));
                 rows.Sort((a, b) => b.might.CompareTo(a.might));
+
+                // Pinned YOU card: the board is 250 rows, you shouldn't have to hunt
+                // for yourself — plus how far you've moved since you last looked.
+                int myRank = rows.FindIndex(r => r.botId == 0) + 1;
+                var pin = Widgets.Row();
+                pin.style.backgroundColor = new UnityEngine.Color(
+                    UiTheme.Accent.r * 0.18f, UiTheme.Accent.g * 0.18f, UiTheme.Accent.b * 0.18f, 1f);
+                Widgets.SetBorder(pin, UiTheme.Accent, 1.5f);
+                pin.style.marginBottom = 12;
+                var pinBox = Widgets.HBox(Justify.SpaceBetween);
+                var pinLeft = Widgets.HBox();
+                var pinRank = Widgets.Text($"#{myRank}", 18, UiTheme.Accent, bold: true);
+                pinRank.style.minWidth = 56;
+                pinLeft.Add(pinRank);
+                var pinCol = new VisualElement();
+                pinCol.Add(Widgets.Text("YOUR RANK", 9, UiTheme.Dim, bold: true));
+                pinCol.Add(Widgets.Text($"of {rows.Count} commanders · might {playerMight:N0}", 11, UiTheme.Text));
+                pinLeft.Add(pinCol);
+                pinBox.Add(pinLeft);
+                if (lastSeenRank > 0 && lastSeenRank != myRank)
+                {
+                    bool up = myRank < lastSeenRank;
+                    pinBox.Add(Widgets.IconText(up ? Icon.ArrowUp : Icon.ArrowDown,
+                        $"{Math.Abs(lastSeenRank - myRank)} since last look", 11, up ? UiTheme.Good : UiTheme.Bad));
+                }
+                pin.Add(pinBox);
+                body.Add(pin);
+                if (!rankStored)
+                {
+                    rankStored = true; // the delta compares visits, not ticks within one
+                    UnityEngine.PlayerPrefs.SetInt(LastRankKey, myRank);
+                }
 
                 int rank = 0;
                 foreach (var entry in rows)

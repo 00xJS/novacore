@@ -62,6 +62,8 @@ namespace GalaxyRoyale.Game.UI
         // Toasts
         VisualElement _toastLayer = null!;
         readonly List<VisualElement> _toasts = new();
+        /// <summary>Ships finished per hull since that hull's order started (one toast per batch).</summary>
+        readonly Dictionary<HullId, int> _shipsBuilt = new();
 
         // Modal
         VisualElement _modalLayer = null!;
@@ -649,11 +651,33 @@ namespace GalaxyRoyale.Game.UI
         {
             switch (e)
             {
-                case BuildingCompleted:
-                case ShipsCompleted:
-                case ResearchCompleted:
+                // Completion feedback: these used to only tint the queues FAB for
+                // 0.35 s — easy to miss that an upgrade had landed.
+                case BuildingCompleted built:
                     _queuesPingUntil = Time.time + 0.35f; // a queue may be idle now — flash the FAB
+                    Toast($"{Buildings.Defs[built.Building].Name} reached Lv {built.Level}", Icon.Check, UiTheme.Good);
                     break;
+                case ResearchCompleted researched:
+                    _queuesPingUntil = Time.time + 0.35f;
+                    Toast($"{Techs.Defs[researched.Tech].Name} Lv {researched.Level} researched", Icon.Check, UiTheme.Good);
+                    break;
+                case ShipsCompleted ships:
+                {
+                    _queuesPingUntil = Time.time + 0.35f;
+                    // Fires per SHIP; toast once when that hull's order runs out
+                    // (the finished order is still queued with Remaining 0 here).
+                    _shipsBuilt[ships.Hull] = (_shipsBuilt.TryGetValue(ships.Hull, out var soFar) ? soFar : 0) + ships.Count;
+                    bool moreComing = false;
+                    foreach (var order in _ctx.State!.ShipQueue)
+                        if (order.Hull == ships.Hull && order.Remaining > 0) { moreComing = true; break; }
+                    if (!moreComing)
+                    {
+                        int total = _shipsBuilt[ships.Hull];
+                        _shipsBuilt.Remove(ships.Hull);
+                        Toast($"{total}× {Ships.Defs[ships.Hull].Name} ready in the hangar", Icon.Check, UiTheme.Good);
+                    }
+                    break;
+                }
                 case MarchPhaseChanged mpc when mpc.Phase == MarchPhase.Gathering:
                     Toast("Fleet on station — gathering");
                     break;
