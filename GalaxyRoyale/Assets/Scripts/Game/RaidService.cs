@@ -23,11 +23,12 @@ namespace GalaxyRoyale.Game
         /// <summary>
         /// Launch only — the battle resolves AT ARRIVAL against the bot's live
         /// defense (RaidArrivals). `ships` must already be validated against
-        /// docked counts (PreviewMarch re-checks). <paramref name="callClan"/>:
-        /// up to two clanmates in range fly along (ClanSystem.RaidSupport).
+        /// docked counts (PreviewMarch re-checks). <paramref name="joint"/>: a
+        /// JOINT STRIKE — clanmates' wings fly from their colonies and land with
+        /// your fleet (StrikeSystem.StrikeWings).
         /// </summary>
         public static (bool ok, string message) LaunchRaid(
-            GameContext ctx, DefenseSnapshot target, Dictionary<HullId, int> ships, bool callClan = false)
+            GameContext ctx, DefenseSnapshot target, Dictionary<HullId, int> ships, bool joint = false)
         {
             var state = ctx.State!;
             var galaxy = ctx.Bots;
@@ -48,20 +49,15 @@ namespace GalaxyRoyale.Game
             var march = state.Marches.Find(m => m.Id == marchId)!;
             int arrivesInSec = march.ArrivesAtTick - state.Tick;
 
-            // Clanmates who answer the call commit their ships now; they fight
-            // beside yours at arrival and fly home to their own docks.
-            var allied = new List<(int botId, Dictionary<HullId, int> ships)>();
-            if (callClan && galaxy != null)
-                foreach (var (ally, sent) in ClanSystem.RaidSupport(state, galaxy, target.BotId))
-                {
-                    foreach (var kv in sent)
-                        ally.State.Ships[kv.Key] = Math.Max(0, ally.State.Ships[kv.Key] - kv.Value);
-                    ally.SupportReadyTick = state.Tick + ClanSystem.RaidSupportCooldownSec;
-                    ally.CachedMight = PowerSystem.ComputePower(ally.State);
-                    allied.Add((ally.Id, sent));
-                }
-            RaidArrivals.Register(marchId, target.BotId, target.CommanderName,
-                isRaid: true, ships, tile, allied);
+            // Joint strike: clanmates' wings leave their docks now (or when their
+            // shorter flight has to start) and land with your fleet.
+            int wings = 0;
+            if (joint && galaxy != null)
+                wings = StrikeSystem.LaunchWings(state, galaxy,
+                    StrikeSystem.StrikeWings(state, galaxy, tile, march.ArrivesAtTick, target.BotId),
+                    BotMarchKind.Escort, marchId, target.BotId, tile, march.ArrivesAtTick,
+                    ClanSystem.RaidSupportCooldownSec).Count;
+            RaidArrivals.Register(marchId, target.BotId, target.CommanderName, isRaid: true, ships, tile);
             // Save now: the pending raid (PlayerPrefs) and the ships that left
             // your docks and your clanmates' (save file) must agree if the app
             // dies before the next autosave — or the fight would hand the
@@ -71,7 +67,7 @@ namespace GalaxyRoyale.Game
             GameAudio.Feedback(Sfx.Launch, Haptic.Medium);
             return (true,
                 $"Fleet away — battle on arrival in {UiTheme.FmtDuration(arrivesInSec)}"
-                + (allied.Count > 0 ? $" · {allied.Count} clanmate{(allied.Count == 1 ? "" : "s")} flying with you" : "")
+                + (wings > 0 ? $" · {wings} clanmate{(wings == 1 ? "" : "s")} flying with you" : "")
                 + (shieldBroke ? " · your Aegis Shield dropped" : ""));
         }
 

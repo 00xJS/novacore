@@ -390,7 +390,7 @@ namespace GalaxyRoyale.Sim.Systems
                 int refund = (int)Math.Floor(march.HeliumSpent * (1 - p) * Balance.RecallRefundRate);
                 if (refund > 0) ResourceSystem.Add(state, new ResourceBag(0, 0, refund));
             }
-            else if (march.Phase == MarchPhase.Gathering)
+            else if (march.Phase == MarchPhase.Gathering && march.Mission == MarchMission.Gather)
             {
                 // partial harvest: rate × time on station, bounded by cargo + node stock
                 var node = MapLookup.NodeAt(state, march.Node);
@@ -497,8 +497,91 @@ namespace GalaxyRoyale.Sim.Systems
             march.ArrivesAtTick = state.Tick + Balance.TravelSeconds(dist, (int)speed);
         }
 
+        /// <summary>Park a march where it landed with no due tick (a fly-to, an
+        /// intercept waiting to engage, a garrison on guard). RecallMarch or the
+        /// system that owns it brings it home.</summary>
+        static void Hold(GameState state, March march)
+        {
+            march.Phase = MarchPhase.Gathering;
+            march.LegFrom = march.LegTo;
+            march.DepartedAtTick = state.Tick;
+            march.ArrivesAtTick = int.MaxValue;
+        }
+
+        /// <summary>Send a march home from where it stands, as of <paramref name="fromTick"/>
+        /// (an intercept settled during offline catch-up flies home from the
+        /// moment of the battle, not from the end of the catch-up).</summary>
+        public static void ReturnHome(GameState state, March march, int fromTick)
+        {
+            var from = march.Phase == MarchPhase.Gathering ? march.LegTo : GetPosition(march, fromTick);
+            double speed = Math.Max(1, EffSpeed(state, march.Ships));
+            march.Phase = MarchPhase.Returning;
+            march.LegFrom = from;
+            march.LegTo = state.HomeTile;
+            march.DepartedAtTick = fromTick;
+            march.ArrivesAtTick = fromTick + Balance.TravelSeconds(Position.DistanceToTile(from, state.HomeTile), (int)speed);
+        }
+
+        /// <summary>Seconds the player's <paramref name="ships"/> need from home to <paramref name="target"/>.</summary>
+        public static int FlightSeconds(GameState state, Dictionary<HullId, int> ships, Position target) =>
+            Balance.TravelSeconds(Position.DistanceToTile(target, state.HomeTile), Math.Max(1, (int)EffSpeed(state, ships)));
+
+        /// <summary>
+        /// Launch an intercept or a garrison: straight to <paramref name="target"/>
+        /// (sub-tile — an intercept point on a rival's flight path), landing at
+        /// <paramref name="arriveTick"/> (no earlier than the fleet could fly it).
+        /// Pays the helium, takes the ships off the dock; the caller fills in the
+        /// mission's own fields.
+        /// </summary>
+        public static SimResult SendFlight(GameState state, Dictionary<HullId, int> ships, Position target,
+            int arriveTick, MarchMission mission, out March? march)
+        {
+            march = null;
+            var tile = new TileXY((int)Math.Round(target.X), (int)Math.Round(target.Y));
+            var preview = PreviewMarch(state, ships, tile);
+            if (!preview.Ok) return SimResult.Fail(preview.Reason ?? "Cannot launch");
+            if (arriveTick < state.Tick + FlightSeconds(state, ships, target))
+                return SimResult.Fail("Your fleet can't get there in time");
+
+            var paid = ResourceSystem.Spend(state, new ResourceBag(0, 0, preview.HeliumCost));
+            if (!paid.Ok) return paid;
+            foreach (var hull in Ships.All)
+            {
+                int take = ships.TryGetValue(hull, out var c) ? c : 0;
+                if (take > 0) state.Ships[hull] -= take;
+            }
+
+            march = new March
+            {
+                Id = state.NextMarchId++,
+                Phase = MarchPhase.Outbound,
+                Ships = new Dictionary<HullId, int>(ships),
+                Node = tile,
+                LegFrom = state.HomeTile,
+                LegTo = target,
+                DepartedAtTick = state.Tick,
+                ArrivesAtTick = arriveTick,
+                Cargo = new ResourceBag(),
+                HeliumSpent = preview.HeliumCost,
+                Mission = mission,
+            };
+            state.Marches.Add(march);
+            state.Stats.MarchesSent++;
+            return SimResult.Success;
+        }
+
         static void ArriveAtNode(GameState state, SimEventBus events, March march)
         {
+            // Intercepts and garrisons hold where they land — StrikeSystem fights
+            // the intercept, BotSystem fights a raid on the guarded colony — even
+            // when the spot happens to be a resource node or a camp.
+            if (march.Mission == MarchMission.Intercept || march.Mission == MarchMission.Garrison)
+            {
+                Hold(state, march);
+                events.Emit(new MarchPhaseChanged(march.Id, march.Phase));
+                return;
+            }
+
             var node = MapLookup.NodeAt(state, march.Node);
             NodeOverride? overrideForNode = null;
             if (node != null) state.Map.NodeOverrides.TryGetValue(node.Id, out overrideForNode);

@@ -91,6 +91,11 @@ namespace GalaxyRoyale.Game.UI
 
         static string IntelLine(GameState state, MailItem item)
         {
+            if (item is BattleMailReport { Defending: true, GuardedBotId: > 0 } guard)
+                // Your garrison at a clanmate's colony — their loss isn't yours.
+                return guard.Report.Winner == BattleWinner.Attacker
+                    ? "Garrison overrun — the raiders broke through"
+                    : "Garrison held — the raid was beaten off";
             if (item is BattleMailReport { Defending: true } defense)
             {
                 // A rival hit YOUR colony: their win is your loss.
@@ -350,7 +355,8 @@ namespace GalaxyRoyale.Game.UI
                 }
                 else
                 {
-                    SupportLine(battle.AllyShips, battle.AllyNames, "CLAN SUPPORT", UiTheme.Good);
+                    SupportLine(battle.AllyShips, battle.AllyNames, battle.AllyLootMilli > 0
+                        ? $"CLAN SUPPORT (carried home {UiTheme.FmtAmount(battle.AllyLootMilli)})" : "CLAN SUPPORT", UiTheme.Good);
                     SupportLine(battle.EnemyAllyShips, battle.EnemyAllyNames, "THEIR CLAN DEFENDED", UiTheme.Bad);
                     FleetSection(battle.AllyShips != null ? "YOUR FLEET (+ CLAN)" : "YOUR FLEET", r.Attacker);
                     FleetSection("SURVIVORS", r.AttackerSurvivors);
@@ -524,12 +530,15 @@ namespace GalaxyRoyale.Game.UI
                 bool struck = report is BattleMailReport { Defending: true };
                 bool incoming = report is RadarWarning;
                 bool recon = report is SpyReport;
+                // You raided their colony where it stands (an intercept met their
+                // fleet out in space — that was no raid on them).
+                bool raidedThere = report is BattleMailReport { Defending: false } own && own.Target.Equals(rival.HomeTile);
                 int rivalId = rival.Id;
                 string rivalName = rival.Name;
                 var rivalRow = Widgets.HBox(Justify.SpaceAround);
                 rivalRow.style.marginBottom = 8;
                 var raidBtn = Widgets.IconButton(Icon.Swords,
-                    struck ? "STRIKE BACK" : incoming ? "COUNTER-RAID" : recon ? "RAID" : "RAID AGAIN", () =>
+                    struck ? "STRIKE BACK" : incoming ? "COUNTER-RAID" : raidedThere ? "RAID AGAIN" : "RAID", () =>
                 {
                     ui.CloseModal();
                     RaidPanel.Open(ctx, rivalId);

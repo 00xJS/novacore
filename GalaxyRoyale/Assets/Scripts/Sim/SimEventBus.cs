@@ -36,6 +36,12 @@ namespace GalaxyRoyale.Sim
     public sealed record ClanWarDeclared(int ClanId, int EnemyClanId, bool PlayerClanAttacked) : SimEvent;
     /// <summary>A war involving the player's clan ended (scores are the final tallies).</summary>
     public sealed record ClanWarEnded(int ClanId, int EnemyClanId, bool Won, bool Draw, int Score, int EnemyScore) : SimEvent;
+    /// <summary>Your garrison at a clanmate's colony fought a raid there.</summary>
+    public sealed record GarrisonFought(string HostName, string AttackerName, bool Held) : SimEvent;
+    /// <summary>Your intercept found nothing: the fleet it hunted changed course or was gone.</summary>
+    public sealed record InterceptMissed(string TargetName) : SimEvent;
+    /// <summary>Clanmates' garrison wings reached your colony.</summary>
+    public sealed record ClanGarrisonArrived(int Wings) : SimEvent;
 
     public sealed class SimEventBus
     {

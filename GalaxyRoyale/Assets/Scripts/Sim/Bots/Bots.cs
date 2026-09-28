@@ -87,21 +87,34 @@ namespace GalaxyRoyale.Sim.Bots
         public TileXY HomeTile => State.HomeTile;
     }
 
+    /// <summary>Raid: a battle at arrival. Spy: a lone recon probe. Escort: a
+    /// clanmate's wing flying with the player's joint strike or intercept — it
+    /// waits at the target until the player's battle settles it. Garrison: a
+    /// clanmate's wing standing guard at the player's colony (StrikeSystem).</summary>
+    public enum BotMarchKind { Raid, Spy, Escort, Garrison }
+
     /// <summary>
-    /// A bot raid fleet flying between two rival colonies in real time (visible on
-    /// the galaxy map). The battle resolves AT ARRIVAL against the defender's live
-    /// state; survivors + loot fly the return leg home.
+    /// A bot fleet flying between two points in real time (visible on the galaxy
+    /// map). A raid resolves AT ARRIVAL against the defender's live state;
+    /// survivors + loot fly the return leg home.
     /// </summary>
     public sealed class BotMarch
     {
         public int Id;
-        /// <summary>Attacking bot.</summary>
+        /// <summary>The bot the ships belong to.</summary>
         public int BotId;
-        /// <summary>Defending bot.</summary>
+        /// <summary>Raid/spy: the defending bot. Escort: the player's target bot (0 for an intercept).</summary>
         public int TargetBotId;
+        public BotMarchKind Kind;
+        /// <summary>Escort: the player march it flies with. Garrison: the empire it guards (0 = the player).</summary>
+        public int LinkId;
         /// <summary>True = a lone recon probe (no combat at arrival — it confirms a
         /// hunt mark and may provoke the scanned bot into scouting back).</summary>
-        public bool IsSpy;
+        public bool IsSpy
+        {
+            get => Kind == BotMarchKind.Spy;
+            set { if (value) Kind = BotMarchKind.Spy; else if (Kind == BotMarchKind.Spy) Kind = BotMarchKind.Raid; }
+        }
         public Dictionary<HullId, int> Ships = new();
         public TileXY From;
         public TileXY To;
@@ -462,6 +475,7 @@ namespace GalaxyRoyale.Sim.Bots
             // Everything below is tick-stamped, so between sim ticks (~59 of every
             // 60 frames) the whole galaxy advance collapses to this one compare.
             if (now == galaxy.LastAdvanceTick) return;
+            int prevTick = galaxy.LastAdvanceTick;
             galaxy.LastAdvanceTick = now;
             foreach (var bot in galaxy.Bots)
             {
@@ -483,8 +497,12 @@ namespace GalaxyRoyale.Sim.Bots
                 }
                 RollAttacks(player, galaxy, bot, personality, events);
             }
-            ResolveBotMarches(player, galaxy);
+            // Intercepts fight first — always before the raid they were sent to stop —
+            // and garrisons change the guard only after the raids of their watch.
+            StrikeSystem.BeforeRaids(player, galaxy, events);
+            ResolveBotMarches(player, galaxy, events);
             ResolveInbound(player, galaxy, events);
+            StrikeSystem.AfterRaids(player, galaxy, events, prevTick);
         }
 
         /// <summary>Run think steps until the bot's own state reaches `toTick`.</summary>
@@ -1195,12 +1213,23 @@ namespace GalaxyRoyale.Sim.Bots
                 // a real dodge window, exactly like the old PvP arrival rule.
                 // Clanmates in range send a share of their docked warships; they
                 // fight under the colony's defense research (it's your home they hold).
-                var reinforcements = ClanSystem.DefenseHelpers(player, galaxy, 0, bot.Id);
+                // A clan garrison standing at the colony (StrikeSystem) fights first;
+                // its members don't also scramble as helpers.
+                var garrison = StrikeSystem.StationedAtPlayer(galaxy, atk.ArrivesAtTick);
+                var onGuard = new HashSet<int>();
+                foreach (var g in garrison) onGuard.Add(g.BotId);
+                var reinforcements = ClanSystem.DefenseHelpers(player, galaxy, 0, bot.Id, onGuard);
                 var lines = new List<Dictionary<HullId, int>> { new Dictionary<HullId, int>(player.Ships) };
+                foreach (var g in garrison) lines.Add(new Dictionary<HullId, int>(g.Ships));
                 foreach (var (_, sent) in reinforcements) lines.Add(sent);
                 var defenders = ClanSystem.Combine(lines);
-                Dictionary<HullId, int>? allyShips = reinforcements.Count > 0
-                    ? ClanSystem.Combine(reinforcements.ConvertAll(r => r.ships)) : null;
+                Dictionary<HullId, int>? allyShips = lines.Count > 1
+                    ? ClanSystem.Combine(lines.GetRange(1, lines.Count - 1)) : null;
+                var allyNameList = new List<string>();
+                foreach (var g in garrison)
+                    if (galaxy.Find(g.BotId) is { } guard && !allyNameList.Contains(guard.Name)) allyNameList.Add(guard.Name);
+                foreach (var (ally, _) in reinforcements)
+                    if (!allyNameList.Contains(ally.Name)) allyNameList.Add(ally.Name);
                 var report = CombatResolver.Resolve(atk.Ships, defenders,
                     ResearchSystem.CombatMods(bot.State), ResearchSystem.DefenseMods(player));
                 report.Location = player.HomeTile;
@@ -1228,9 +1257,14 @@ namespace GalaxyRoyale.Sim.Bots
                 // shared in proportion to who put ships in the line.
                 var losses = ClanSystem.SplitLosses(lines, report.DefenderSurvivors);
                 ClanSystem.Deduct(player.Ships, losses[0]);
+                for (int gi = 0; gi < garrison.Count; gi++)
+                {
+                    ClanSystem.Deduct(garrison[gi].Ships, losses[gi + 1]);
+                    if (CombatResolver.FleetCount(garrison[gi].Ships) == 0) galaxy.Marches.Remove(garrison[gi]);
+                }
                 for (int r = 0; r < reinforcements.Count; r++)
                 {
-                    ClanSystem.Deduct(reinforcements[r].ally.State.Ships, losses[r + 1]);
+                    ClanSystem.Deduct(reinforcements[r].ally.State.Ships, losses[garrison.Count + r + 1]);
                     reinforcements[r].ally.CachedMight = PowerSystem.ComputePower(reinforcements[r].ally.State);
                 }
                 player.Resources.Gold = Math.Max(0, player.Resources.Gold - loot.Gold);
@@ -1266,9 +1300,7 @@ namespace GalaxyRoyale.Sim.Bots
                     AttackerBotId = bot.Id,
                     Report = report,
                     AllyShips = allyShips,
-                    AllyNames = reinforcements.Count > 0
-                        ? string.Join(", ", reinforcements.ConvertAll(r => r.ally.Name))
-                        : null,
+                    AllyNames = allyNameList.Count > 0 ? string.Join(", ", allyNameList) : null,
                 });
                 events.Emit(new ColonyRaided(report, bot.Name));
                 galaxy.AddNews(atk.ArrivesAtTick, bot.Id, 0, playerLost, loot.Total);
@@ -1314,7 +1346,7 @@ namespace GalaxyRoyale.Sim.Bots
         /// <summary>Bot-vs-bot marches: battle at arrival, survivors + loot fly home,
         /// dock credit at return. The same loot-hunting free-for-all the player lives
         /// in — now flown in real time so the map shows the wars happening.</summary>
-        static void ResolveBotMarches(GameState player, BotGalaxy galaxy)
+        static void ResolveBotMarches(GameState player, BotGalaxy galaxy, SimEventBus events)
         {
             for (int i = galaxy.Marches.Count - 1; i >= 0; i--)
             {
@@ -1322,7 +1354,10 @@ namespace GalaxyRoyale.Sim.Bots
                 var attacker = galaxy.Find(march.BotId);
                 if (attacker == null) { galaxy.Marches.RemoveAt(i); continue; }
 
-                if (!march.Resolved && player.Tick >= march.ArrivesAtTick)
+                // Joint-strike wings wait for your battle; garrison wings stand guard
+                // (StrikeSystem and RaidArrivals send them home).
+                bool wing = march.Kind == BotMarchKind.Escort || march.Kind == BotMarchKind.Garrison;
+                if (!march.Resolved && !wing && player.Tick >= march.ArrivesAtTick)
                 {
                     var defender = galaxy.Find(march.TargetBotId);
                     if (defender == null || !defender.HomeTile.Equals(march.To))
@@ -1361,13 +1396,19 @@ namespace GalaxyRoyale.Sim.Bots
                         continue;
                     }
 
-                    // The defender's clanmates in range help hold the line.
+                    // The defender's clanmates in range help hold the line — and any
+                    // garrison the player stationed there (StrikeSystem).
                     var helpers = ClanSystem.DefenseHelpers(player, galaxy, defender.Id, attacker.Id);
                     var lines = new List<Dictionary<HullId, int>> { new Dictionary<HullId, int>(defender.State.Ships) };
                     foreach (var (_, sent) in helpers) lines.Add(sent);
+                    int clanLines = lines.Count;
+                    var guards = StrikeSystem.PlayerGarrisonsAt(player, defender, march.ArrivesAtTick);
+                    foreach (var g in guards) lines.Add(new Dictionary<HullId, int>(g.Ships));
                     var defending = ClanSystem.Combine(lines);
                     var report = CombatResolver.Resolve(march.Ships, defending,
                         ResearchSystem.CombatMods(attacker.State), ResearchSystem.DefenseMods(defender.State));
+                    report.Location = defender.HomeTile;
+                    report.DefenderName = defender.Name;
 
                     var losses = ClanSystem.SplitLosses(lines, report.DefenderSurvivors);
                     ClanSystem.Deduct(defender.State.Ships, losses[0]);
@@ -1375,6 +1416,14 @@ namespace GalaxyRoyale.Sim.Bots
                     {
                         ClanSystem.Deduct(helpers[hi].ally.State.Ships, losses[hi + 1]);
                         helpers[hi].ally.CachedMight = PowerSystem.ComputePower(helpers[hi].ally.State);
+                    }
+                    if (guards.Count > 0)
+                    {
+                        var clanNames = new List<string> { defender.Name };
+                        foreach (var (ally, _) in helpers) clanNames.Add(ally.Name);
+                        StrikeSystem.SettlePlayerGarrisons(player, defender, attacker, report, guards,
+                            losses.GetRange(clanLines, guards.Count), ClanSystem.Combine(lines.GetRange(0, clanLines)),
+                            string.Join(", ", clanNames), march.ArrivesAtTick, events);
                     }
 
                     long lootTotal = 0;

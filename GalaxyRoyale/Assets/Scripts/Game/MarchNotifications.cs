@@ -69,6 +69,8 @@ namespace GalaxyRoyale.Game
 
             foreach (var m in state.Marches)
             {
+                // Holding in place (a fly-to, a garrison on guard): nothing is due.
+                if (m.ArrivesAtTick == int.MaxValue) continue;
                 // Probes sent at a rival fly as Attack marches (RaidArrivals files the
                 // intel) — word them as the spy run they are, not "battle underway".
                 bool probeOnly = m.Ships.Count == 1 && m.Ships.ContainsKey(HullId.Probe);
@@ -79,6 +81,8 @@ namespace GalaxyRoyale.Game
                         MarchMission.Attack when probeOnly => "Your probe has reached the target — intel incoming",
                         MarchMission.Attack => "Your fleet has reached the target — battle underway",
                         MarchMission.Spy => "Your probe is on station — recon incoming",
+                        MarchMission.Intercept => "Your fleet has caught its target — intercept underway",
+                        MarchMission.Garrison => "Your garrison has taken up its post",
                         _ => "Your fleet has arrived and started gathering",
                     },
                     MarchPhase.Gathering => "Gathering complete — your fleet is heading home",

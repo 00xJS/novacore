@@ -57,7 +57,8 @@ namespace GalaxyRoyale.Game.UI
             var ui = UIController.Instance!;
             body.Add(Note($"A clan is up to {ClanSystem.MaxMembers} commanders. Clanmates never raid each other, send " +
                 $"warships when one is raided (up to {ClanSystem.MaxReinforcers} within {ClanSystem.ReinforceRange:N0} tiles), " +
-                "fly along on each other's raids, and share a daily supply run. Clans go to war with each other."));
+                "fly joint strikes and intercepts with you, stand guard at each other's colonies, and share a daily " +
+                "supply run. Clans go to war with each other."));
 
             // ---- a standing invitation ----
             if (galaxy.FindClan(state.ClanInviteId) is { } inviting)
@@ -214,6 +215,9 @@ namespace GalaxyRoyale.Game.UI
             }
             body.Add(supplies);
 
+            // ---- garrisons ----
+            body.Add(GarrisonCard(ctx, state, galaxy, invalidate));
+
             // ---- members ----
             body.Add(Section($"MEMBERS {count}/{ClanSystem.MaxMembers}"));
             var members = ClanSystem.BotMembers(galaxy, clan.Id);
@@ -274,6 +278,72 @@ namespace GalaxyRoyale.Game.UI
                     () => ui.OpenClan()), 11);
             leave.style.marginTop = 12;
             body.Add(leave);
+        }
+
+        /// <summary>The clan garrison at your colony (request one), and yours at clanmates' colonies (recall).</summary>
+        static VisualElement GarrisonCard(GameContext ctx, GameState state, BotGalaxy galaxy, Action invalidate)
+        {
+            var ui = UIController.Instance!;
+            var wings = StrikeSystem.GarrisonAtPlayer(galaxy);
+            var card = Card(wings.Count > 0 ? UiTheme.Good : UiTheme.Stroke);
+            card.Add(Widgets.IconText(Icon.Shield, "GARRISON", 12, wings.Count > 0 ? UiTheme.Good : UiTheme.Accent, bold: true));
+            if (wings.Count == 0)
+                card.Add(Wrap(Widgets.Text($"No clan garrison at your colony. Clanmates within {StrikeSystem.GarrisonRange:N0} tiles " +
+                    $"can stand guard for {StrikeSystem.GarrisonHoldSec / 3600} hours and fight any raid on you.", 10, UiTheme.Dim), 3));
+            foreach (var w in wings)
+            {
+                string when = w.ArrivesAtTick > state.Tick
+                    ? $"arrives in {UiTheme.FmtDuration(w.ArrivesAtTick - state.Tick)}"
+                    : $"on guard for {UiTheme.FmtLong(Math.Max(0, w.ArrivesAtTick + StrikeSystem.GarrisonHoldSec - state.Tick))}";
+                card.Add(Wrap(Widgets.Text($"{galaxy.Find(w.BotId)?.Name ?? "A clanmate"} · {MarchSystem.FleetCount(w.Ships)} warships · {when}",
+                    11, UiTheme.Text), 4));
+            }
+
+            var can = StrikeSystem.CanRequestGarrison(state, galaxy);
+            var request = Widgets.IconButton(Icon.Pact, "REQUEST GARRISON", () =>
+            {
+                var res = StrikeSystem.RequestGarrison(ctx.State!, ctx.Bots!, out int sent);
+                if (!res.Ok) { ui.Toast(res.Reason ?? "Nobody can come right now", Icon.Info, UiTheme.Bad); return; }
+                GameAudio.Feedback(Sfx.Confirm, Haptic.Success);
+                ui.Toast($"{sent} clanmate{(sent == 1 ? "" : "s")} on the way to guard your colony", Icon.Shield, UiTheme.Good);
+                LocalBootstrap.RequestSync();
+                invalidate();
+            }, 11);
+            request.style.marginTop = 8;
+            Widgets.SetButtonEnabled(request, can.Ok);
+            card.Add(request);
+            if (!can.Ok)
+                card.Add(Wrap(Widgets.Text(state.Tick < state.ClanGarrisonReadyTick
+                    ? $"Your clan can send another garrison in {UiTheme.FmtLong(state.ClanGarrisonReadyTick - state.Tick)}."
+                    : can.Reason ?? "", 10, UiTheme.Dim), 3));
+
+            // Yours, standing guard at clanmates' colonies.
+            foreach (var m in state.Marches)
+            {
+                if (m.Mission != MarchMission.Garrison || m.Phase == MarchPhase.Returning) continue;
+                var row = Widgets.HBox(Justify.SpaceBetween);
+                row.style.marginTop = 8;
+                string where = m.Phase == MarchPhase.Outbound
+                    ? $"arrives in {UiTheme.FmtDuration(Math.Max(0, m.ArrivesAtTick - state.Tick))}" : "on guard";
+                var label = Widgets.Text($"Your garrison at {galaxy.Find(m.GuardEmpireId)?.Name ?? "a clanmate"}'s colony · " +
+                    $"{MarchSystem.FleetCount(m.Ships)} ships · {where}", 11, UiTheme.Good);
+                label.style.whiteSpace = WhiteSpace.Normal;
+                label.style.flexShrink = 1f;
+                row.Add(label);
+                int id = m.Id;
+                var recall = Widgets.TextButton("RECALL", () =>
+                {
+                    var res = MarchSystem.RecallMarch(ctx.State!, id);
+                    if (!res.Ok) { ui.Toast(res.Reason ?? "Can't recall"); return; }
+                    ui.Toast("Garrison recalled — flying home");
+                    LocalBootstrap.RequestSync();
+                    invalidate();
+                }, 10);
+                recall.style.flexShrink = 0f;
+                row.Add(recall);
+                card.Add(row);
+            }
+            return card;
         }
 
         static VisualElement MemberRow(GameContext ctx, GameState state, BotEmpire? bot, Clan clan, bool playerLeads, Action invalidate)

@@ -1,7 +1,8 @@
 // Clans (user request 2026-09-28, "max limit to 15 per alliance group"):
 // groups of up to 15 commanders. Clanmates never raid each other; when one is
 // raided, up to three clanmates within reinforcement range send warships (the
-// rivals' clans too); a raid can take two clanmates along; a clan pays its
+// rivals' clans too); joint strikes, intercepts and garrisons (StrikeSystem)
+// bring clanmates' fleets into the player's own fights; a clan pays its
 // members a daily supply run; and clans go to war — three-day feuds scored by
 // battles won against the enemy, carried on the news wire.
 //
@@ -29,7 +30,7 @@ namespace GalaxyRoyale.Sim.Systems
         public const int MaxReinforcers = 3;
         /// <summary>Share of each docked warship hull a helping clanmate sends.</summary>
         public const double ReinforceFraction = 0.15;
-        public const int MaxRaidHelpers = 2;
+        /// <summary>A clanmate who flew a joint strike or intercept with you rests this long.</summary>
         public const int RaidSupportCooldownSec = 6 * 3600;
         public const int SupplyIntervalSec = 24 * 3600;
         /// <summary>Uncollected supply runs that pile up before the clan stops sending.</summary>
@@ -355,7 +356,7 @@ namespace GalaxyRoyale.Sim.Systems
         /// committing ReinforceFraction of its docked warships.
         /// </summary>
         public static List<(BotEmpire ally, Dictionary<HullId, int> ships)> DefenseHelpers(
-            GameState player, BotGalaxy galaxy, int defenderId, int attackerId)
+            GameState player, BotGalaxy galaxy, int defenderId, int attackerId, ICollection<int>? exclude = null)
         {
             var list = new List<(BotEmpire, Dictionary<HullId, int>)>();
             int clanId = ClanOf(player, galaxy, defenderId);
@@ -365,6 +366,7 @@ namespace GalaxyRoyale.Sim.Systems
             foreach (var bot in galaxy.Bots)
             {
                 if (bot.ClanId != clanId || bot.Id == defenderId || bot.Id == attackerId) continue;
+                if (exclude != null && exclude.Contains(bot.Id)) continue; // already there as a garrison
                 double d = TileXY.Distance(bot.HomeTile, home);
                 if (d <= ReinforceRange) near.Add((bot, d));
             }
@@ -378,28 +380,8 @@ namespace GalaxyRoyale.Sim.Systems
             return list;
         }
 
-        /// <summary>Clanmates who'd fly with the player's raid right now: up to
-        /// MaxRaidHelpers within ReinforceRange of the player's colony whose
-        /// support is ready, strongest contribution first.</summary>
-        public static List<(BotEmpire ally, Dictionary<HullId, int> ships)> RaidSupport(
-            GameState player, BotGalaxy galaxy, int targetBotId)
-        {
-            var list = new List<(BotEmpire ally, Dictionary<HullId, int> ships)>();
-            if (player.ClanId == 0) return list;
-            foreach (var bot in galaxy.Bots)
-            {
-                if (bot.ClanId != player.ClanId || bot.Id == targetBotId) continue;
-                if (bot.SupportReadyTick > player.Tick) continue;
-                if (TileXY.Distance(bot.HomeTile, player.HomeTile) > ReinforceRange) continue;
-                var ships = Share(bot, ReinforceFraction);
-                if (ships.Count > 0) list.Add((bot, ships));
-            }
-            list.Sort((a, b) => BotSystem.EstimateFleetPower(b.ships).CompareTo(BotSystem.EstimateFleetPower(a.ships)));
-            if (list.Count > MaxRaidHelpers) list.RemoveRange(MaxRaidHelpers, list.Count - MaxRaidHelpers);
-            return list;
-        }
-
-        static Dictionary<HullId, int> Share(BotEmpire bot, double fraction)
+        /// <summary><paramref name="fraction"/> of each docked warship hull (haulers and probes stay home).</summary>
+        public static Dictionary<HullId, int> Share(BotEmpire bot, double fraction)
         {
             var ships = new Dictionary<HullId, int>();
             foreach (var kv in bot.State.Ships)

@@ -82,6 +82,8 @@ namespace GalaxyRoyale.Sim.Save
                 ["botId"] = (long)m.BotId,
                 ["targetBotId"] = (long)m.TargetBotId,
                 ["isSpy"] = m.IsSpy,
+                ["kind"] = KindName(m.Kind),
+                ["link"] = (long)m.LinkId,
                 ["ships"] = Comp(m.Ships),
                 ["from"] = Tile(m.From),
                 ["to"] = Tile(m.To),
@@ -170,12 +172,16 @@ namespace GalaxyRoyale.Sim.Save
                 foreach (var raw in marchRows)
                 {
                     if (raw is not Dictionary<string, object?> o) continue;
+                    bool spy = o.TryGetValue("isSpy", out var sp) && sp is bool spb && spb;
                     g.Marches.Add(new Bots.BotMarch
                     {
                         Id = I32(o, "id"),
                         BotId = I32(o, "botId"),
                         TargetBotId = I32(o, "targetBotId"),
-                        IsSpy = o.TryGetValue("isSpy", out var sp) && sp is bool spb && spb,
+                        // "kind" (joint strikes, 2026-09-28) — older saves only know isSpy.
+                        Kind = o.TryGetValue("kind", out var kd) && kd is string ks ? KindFrom(ks, spy)
+                            : spy ? Bots.BotMarchKind.Spy : Bots.BotMarchKind.Raid,
+                        LinkId = o.TryGetValue("link", out var lk) && lk != null ? ToI32(lk) : 0,
                         Ships = DecComp(AsObj(o["ships"], "botmarch.ships")),
                         From = DecTile(AsObj(o["from"], "botmarch.from")),
                         To = DecTile(AsObj(o["to"], "botmarch.to")),
@@ -373,7 +379,7 @@ namespace GalaxyRoyale.Sim.Save
                         ["gain"] = h.Gain, ["reward"] = (long)h.RewardDM,
                     }),
                 };
-            if (s.ClanId != 0 || s.ClanInviteId != 0 || s.ClanNextInviteTick != 0)
+            if (s.ClanId != 0 || s.ClanInviteId != 0 || s.ClanNextInviteTick != 0 || s.ClanGarrisonReadyTick != 0)
                 root["clan"] = new Dictionary<string, object?>
                 {
                     ["id"] = (long)s.ClanId,
@@ -383,6 +389,7 @@ namespace GalaxyRoyale.Sim.Save
                     ["supplyNext"] = (long)s.ClanSupplyNextTick,
                     ["supplyPending"] = Bag(s.ClanSupplyPending),
                     ["supplyRuns"] = (long)s.ClanSupplyRuns,
+                    ["garrisonReady"] = (long)s.ClanGarrisonReadyTick,
                 };
             return root;
         }
@@ -581,6 +588,7 @@ namespace GalaxyRoyale.Sim.Save
                 s.ClanSupplyPending = c.TryGetValue("supplyPending", out var sp) && sp is Dictionary<string, object?> spd
                     ? DecBag(spd) : new ResourceBag();
                 s.ClanSupplyRuns = I32(c, "supplyRuns");
+                s.ClanGarrisonReadyTick = c.TryGetValue("garrisonReady", out var gr) && gr != null ? ToI32(gr) : 0;
             }
 
             return s;
@@ -606,6 +614,15 @@ namespace GalaxyRoyale.Sim.Save
             if (m.CargoDm > 0) d["cargoDm"] = m.CargoDm; // v13 — absent in older saves
             if (m.Recalled) d["recalled"] = true;        // optional — absent in older saves
             d["mission"] = Name(m.Mission);
+            // Joint strikes (2026-09-28): intercept and garrison details, only when set.
+            if (m.TargetFleetId != 0)
+            {
+                d["targetFleet"] = (long)m.TargetFleetId;
+                d["targetInbound"] = m.TargetInbound;
+                d["targetLeg"] = (long)m.TargetLeg;
+                d["engageTick"] = (long)m.EngageTick;
+            }
+            if (m.GuardEmpireId != 0) d["guard"] = (long)m.GuardEmpireId;
             return d;
         }
 
@@ -624,6 +641,11 @@ namespace GalaxyRoyale.Sim.Save
             CargoDm = o.TryGetValue("cargoDm", out var dm) && dm is long dml ? dml : 0,
             Recalled = o.TryGetValue("recalled", out var rc) && rc is bool rcb && rcb,
             Mission = MissionFrom(Str(o, "mission")),
+            TargetFleetId = o.TryGetValue("targetFleet", out var tf) && tf != null ? ToI32(tf) : 0,
+            TargetInbound = o.TryGetValue("targetInbound", out var ti) && ti is bool tib && tib,
+            TargetLeg = o.TryGetValue("targetLeg", out var tl) && tl != null ? ToI32(tl) : 0,
+            EngageTick = o.TryGetValue("engageTick", out var et) && et != null ? ToI32(et) : 0,
+            GuardEmpireId = o.TryGetValue("guard", out var gd) && gd != null ? ToI32(gd) : 0,
         };
 
         static Dictionary<string, object?> EncodeOverride(NodeOverride o)
@@ -734,6 +756,8 @@ namespace GalaxyRoyale.Sim.Save
                     if (battle.AllyNames != null) d["allyNames"] = battle.AllyNames;
                     if (battle.EnemyAllyShips != null) d["enemyAllyShips"] = Comp(battle.EnemyAllyShips);
                     if (battle.EnemyAllyNames != null) d["enemyAllyNames"] = battle.EnemyAllyNames;
+                    if (battle.AllyLootMilli > 0) d["allyLoot"] = battle.AllyLootMilli;
+                    if (battle.GuardedBotId > 0) d["guarded"] = (long)battle.GuardedBotId;
                     break;
             }
             d["read"] = item.Read;
@@ -816,6 +840,8 @@ namespace GalaxyRoyale.Sim.Save
                 if (d.TryGetValue("enemyAllyShips", out var esh) && esh is Dictionary<string, object?> eshd)
                     mail.EnemyAllyShips = DecComp(eshd);
                 if (d.TryGetValue("enemyAllyNames", out var enm)) mail.EnemyAllyNames = enm as string;
+                if (d.TryGetValue("allyLoot", out var al) && al is long all) mail.AllyLootMilli = all;
+                if (d.TryGetValue("guarded", out var gb) && gb is long gbl) mail.GuardedBotId = (int)gbl;
             }
             return item;
         }
@@ -1193,6 +1219,8 @@ namespace GalaxyRoyale.Sim.Save
             MarchMission.Gather => "gather",
             MarchMission.Attack => "attack",
             MarchMission.Spy => "spy",
+            MarchMission.Intercept => "intercept",
+            MarchMission.Garrison => "garrison",
             _ => throw new InvalidOperationException($"unknown MarchMission {m}"),
         };
 
@@ -1201,7 +1229,26 @@ namespace GalaxyRoyale.Sim.Save
             "gather" => MarchMission.Gather,
             "attack" => MarchMission.Attack,
             "spy" => MarchMission.Spy,
+            "intercept" => MarchMission.Intercept,
+            "garrison" => MarchMission.Garrison,
             _ => throw new FormatException($"unknown mission '{s}'"),
+        };
+
+        static string KindName(Bots.BotMarchKind k) => k switch
+        {
+            Bots.BotMarchKind.Spy => "spy",
+            Bots.BotMarchKind.Escort => "escort",
+            Bots.BotMarchKind.Garrison => "garrison",
+            _ => "raid",
+        };
+
+        static Bots.BotMarchKind KindFrom(string s, bool spy) => s switch
+        {
+            "spy" => Bots.BotMarchKind.Spy,
+            "escort" => Bots.BotMarchKind.Escort,
+            "garrison" => Bots.BotMarchKind.Garrison,
+            "raid" => Bots.BotMarchKind.Raid,
+            _ => spy ? Bots.BotMarchKind.Spy : Bots.BotMarchKind.Raid, // a newer kind: fly it as what it resembles
         };
 
         static string Name(BattleWinner w) => w switch
