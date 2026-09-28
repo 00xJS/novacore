@@ -91,7 +91,7 @@ namespace GalaxyRoyale.Sim.Systems
             var warehouseDef = Buildings.Defs[BuildingId.Warehouse];
             int bonus = Balance.StorageBonus(warehouseDef.BaseStorageBonus, state.Buildings[BuildingId.Warehouse].Level);
             long milliAmt = (long)Math.Round((Balance.BaseStorage + bonus) * 1000L
-                * (double)ResearchSystem.ShieldCapMult(state));
+                * (double)ResearchSystem.ShieldCapMult(state) * Difficulties.VaultMult(state.Difficulty));
             return new ResourceBag(milliAmt, milliAmt, milliAmt);
         }
 

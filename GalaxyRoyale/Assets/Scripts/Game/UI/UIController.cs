@@ -40,7 +40,9 @@ namespace GalaxyRoyale.Game.UI
         readonly Label[] _resAmounts = new Label[3];
         Label _energyLabel = null!, _dmLabel = null!;
         readonly string[] _cache = { "", "", "", "" };
-        string _dmCache = "", _mightCache = "", _nameCache = "", _coordsCache = "";
+        string _dmCache = "", _mightCache = "", _nameCache = "", _coordsCache = "", _levelCache = "";
+        Label _levelLabel = null!;
+        VisualElement _skillDot = null!;
         VisualElement _islandRow = null!;
         VisualElement _headerAvatar = null!;
         int _avatarSeedCache = -1;
@@ -262,12 +264,50 @@ namespace GalaxyRoyale.Game.UI
             profilePill.RegisterCallback<PointerUpEvent>(_ => OpenProfile());
 
             var profile = _ctx.State!.Profile;
+            // The avatar wears the commander level as a badge (the pill keeps its
+            // width — long names already reach the Dynamic Island); the dot on top
+            // means skill points are waiting.
+            var avatarBox = new VisualElement { pickingMode = PickingMode.Ignore };
             _headerAvatar = Portraits.Avatar(profile.AvatarSeed, profile.Name, 22);
             _avatarSeedCache = profile.AvatarSeed;
-            profilePill.Add(_headerAvatar);
+            avatarBox.Add(_headerAvatar);
+            var levelBadge = new VisualElement { pickingMode = PickingMode.Ignore };
+            levelBadge.style.position = Position.Absolute;
+            levelBadge.style.right = -7;
+            levelBadge.style.bottom = -5;
+            levelBadge.style.minWidth = 13;
+            levelBadge.style.height = 12;
+            levelBadge.style.paddingLeft = 2;
+            levelBadge.style.paddingRight = 2;
+            levelBadge.style.backgroundColor = UiTheme.Panel;
+            Widgets.SetBorder(levelBadge, UiTheme.Energy, 1f);
+            levelBadge.style.borderTopLeftRadius = 6;
+            levelBadge.style.borderTopRightRadius = 6;
+            levelBadge.style.borderBottomLeftRadius = 6;
+            levelBadge.style.borderBottomRightRadius = 6;
+            levelBadge.style.justifyContent = Justify.Center;
+            levelBadge.style.alignItems = Align.Center;
+            _levelLabel = Widgets.Text("", 8, UiTheme.Energy, bold: true);
+            _levelLabel.pickingMode = PickingMode.Ignore;
+            levelBadge.Add(_levelLabel);
+            avatarBox.Add(levelBadge);
+            _skillDot = new VisualElement { pickingMode = PickingMode.Ignore };
+            _skillDot.style.position = Position.Absolute;
+            _skillDot.style.right = -3;
+            _skillDot.style.top = -2;
+            _skillDot.style.width = 8;
+            _skillDot.style.height = 8;
+            _skillDot.style.borderTopLeftRadius = 4;
+            _skillDot.style.borderTopRightRadius = 4;
+            _skillDot.style.borderBottomLeftRadius = 4;
+            _skillDot.style.borderBottomRightRadius = 4;
+            _skillDot.style.backgroundColor = UiTheme.Energy;
+            _skillDot.style.display = DisplayStyle.None;
+            avatarBox.Add(_skillDot);
+            profilePill.Add(avatarBox);
 
             _nameLabel = Widgets.Text(profile.Name, 13, UiTheme.Text);
-            _nameLabel.style.marginLeft = 6;
+            _nameLabel.style.marginLeft = 9; // clears the level badge
             profilePill.Add(_nameLabel);
             profilePill.Add(Widgets.Text("›", 16, UiTheme.Accent, bold: true));
             _islandRow.Add(profilePill);
@@ -635,6 +675,7 @@ namespace GalaxyRoyale.Game.UI
         public void OpenRankings(bool season = false) => OpenModal(RankingsPanel.Build(_ctx, out var r, season), r);
         public void OpenEvents() => OpenModal(EventsPanel.Build(_ctx, out var r), r);
         public void OpenAchievements() => OpenModal(AchievementsPanel.Build(_ctx, out var r), r);
+        public void OpenCommander() => CommanderPanel.Open(_ctx);
         public void OpenClan() => OpenModal(ClanPanel.Build(_ctx, out var r), r);
         public void OpenNews() => OpenModal(NewsPanel.Build(_ctx, out var r), r);
         public void OpenDaily() => OpenModal(DailyPanel.Build(_ctx, out var r), r);
@@ -825,6 +866,17 @@ namespace GalaxyRoyale.Game.UI
                     else
                         Toast($"Your colony was raided by {raided.AttackerName} — check Mail");
                     break;
+                case CommanderLevelUp up:
+                {
+                    var items = new List<string>();
+                    foreach (var id in up.Items) if (Shop.ById.TryGetValue(id, out var def)) items.Add(def.Name);
+                    string extra = items.Count > 0 ? $" · {string.Join(" · ", items)}" : "";
+                    string points = up.Gained == 1 ? "a skill point" : $"{up.Gained} skill points";
+                    Toast($"Commander level {up.Level} · +{up.DarkMatter} DM{extra} · {points} to spend in your profile",
+                        Icon.Star, UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Quest, Haptic.Success);
+                    break;
+                }
                 case AchievementUnlocked unlocked:
                 {
                     var a = unlocked.Achievement;
@@ -1245,6 +1297,15 @@ namespace GalaxyRoyale.Game.UI
 
             string might = PowerSystem.ComputePower(state).ToString("N0");
             if (might != _mightCache) { _mightCache = might; _mightLabel.text = might; }
+
+            int freePoints = CommanderSystem.PointsFree(state);
+            string level = $"Lv {state.Commander.Level}|{freePoints > 0}";
+            if (level != _levelCache)
+            {
+                _levelCache = level;
+                _levelLabel.text = state.Commander.Level.ToString();
+                _skillDot.style.display = freePoints > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            }
 
             if (state.Profile.Name != _nameCache)
             {

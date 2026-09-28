@@ -62,6 +62,7 @@ namespace GalaxyRoyale.Sim.Tests
                 else pace.LootedByDay[DayOf(s)] += whole;
             });
             int lastCc = s.Buildings[BuildingId.CommandCenter].Level;
+            var levelByDay = new int[8];
 
             while (s.Tick < 7 * Day)
             {
@@ -70,6 +71,10 @@ namespace GalaxyRoyale.Sim.Tests
                 int step = awake ? CheckInSec : Hour;
                 pace.MinedByDay[DayOf(s)] += ResourceSystem.GetRates(s).Total * step / Hour / 1000;
                 engine.Advance(step);
+                // The galaxy-level progression the game runs each tick (no rivals here).
+                AchievementSystem.CheckNew(s);
+                CommanderSystem.Tick(s, events);
+                levelByDay[DayOf(s)] = s.Commander.Level;
 
                 int cc = s.Buildings[BuildingId.CommandCenter].Level;
                 for (int l = lastCc + 1; l <= cc; l++) pace.CommandCenterAt[l] = s.Tick;
@@ -80,6 +85,8 @@ namespace GalaxyRoyale.Sim.Tests
             var cc2 = pace.CommandCenterAt.OrderBy(kv => kv.Key).Select(kv => $"CC{kv.Key}@{T(kv.Value)}");
             TestContext.Out.WriteLine($"PACE command center: {string.Join("  ", cc2)}");
             TestContext.Out.WriteLine($"PACE quests: {string.Join("  ", pace.QuestsAt.Select(q => $"Q{q.step + 1}@{T(q.tick)}"))}");
+            TestContext.Out.WriteLine("PACE commander level at the end of each day: " + string.Join("  ",
+                Enumerable.Range(0, 7).Select(d => $"d{d}:L{levelByDay[d]}")) + $" · {s.Commander.Xp:N0} XP");
             TestContext.Out.WriteLine("PACE starved check-ins by day: " + string.Join("  ",
                 Enumerable.Range(0, 7).Select(d => $"d{d}:{pace.StarvedChecksByDay[d]}/{pace.ChecksByDay[d]}")));
             string Days(long[] v) => string.Join(" ", v.Take(7).Select(x => UiK(x)));

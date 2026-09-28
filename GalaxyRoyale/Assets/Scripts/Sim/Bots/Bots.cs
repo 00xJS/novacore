@@ -900,16 +900,18 @@ namespace GalaxyRoyale.Sim.Bots
                     loot = (long)(loot * ClanSystem.WarTargetWeight);
                 candidates.Add((other.Id, loot));
             }
+            // The difficulty decides how hard the galaxy leans on the player.
+            var difficulty = player.Difficulty;
             long playerMight = PowerSystem.ComputePower(player);
             bool playerEligible = rollTick >= galaxy.NextInboundWindowTick
                 && !ClanSystem.SameClanAsPlayer(player, bot) // clanmates never raid clanmates
-                && playerMight >= PlayerShieldMight
+                && playerMight >= Difficulties.ShieldMight(difficulty)
                 && playerMight <= reachCap
                 && player.Buffs.ShieldUntilTick <= rollTick // Aegis Shield: untargetable
-                && myPower >= (long)(EstimateDefensePower(player) * BeatabilityEdge);
+                && myPower >= (long)(EstimateDefensePower(player) * Difficulties.BeatabilityEdge(difficulty));
             if (playerEligible)
             {
-                long loot = LootableTotal(player);
+                long loot = (long)(LootableTotal(player) * Difficulties.LootWeight(difficulty));
                 if (myClan != null && player.ClanId != 0 && myClan.WarWithClanId == player.ClanId)
                     loot = (long)(loot * ClanSystem.WarTargetWeight);
                 candidates.Add((0, loot));
@@ -924,8 +926,9 @@ namespace GalaxyRoyale.Sim.Bots
 
             if (pick.botId == 0)
             {
-                galaxy.NextInboundWindowTick = rollTick + InboundCooldownTicks;
+                galaxy.NextInboundWindowTick = rollTick + Difficulties.InboundCooldownTicks(player.Difficulty);
                 bool spyFirst = rng() < 0.35; // scout the mark before committing the fleet
+                fleet = FleetAgainstPlayer(player, bot, fleet);
                 if (!spyFirst) AddLootHaulers(bot, fleet, pick.loot);
                 LaunchAtPlayer(player, galaxy, bot, spyFirst ? null : fleet, rollTick);
             }
@@ -978,6 +981,14 @@ namespace GalaxyRoyale.Sim.Bots
             return power;
         }
 
+        /// <summary>A raid on the player commits the difficulty's share of the docked
+        /// warships (Brutal sends more than the usual RaidCommitFraction).</summary>
+        static Dictionary<HullId, int> FleetAgainstPlayer(GameState player, BotEmpire bot, Dictionary<HullId, int> fleet)
+        {
+            double commit = Difficulties.RaidCommit(player.Difficulty);
+            return commit > RaidCommitFraction ? CombatFleetOf(bot.State, commit) : fleet;
+        }
+
         /// <summary>Smart looting: if the combat wing can't CARRY the expected haul,
         /// haulers ride along (up to 70% of those docked). More loot per victory —
         /// and a juicier, more vulnerable raid fleet, same trade a greedy human makes.</summary>
@@ -1009,14 +1020,16 @@ namespace GalaxyRoyale.Sim.Bots
             {
                 if (ClanSystem.SameClanAsPlayer(player, bot)) { bot.FocusTargetId = -1; return false; }
                 long playerMight = PowerSystem.ComputePower(player);
+                var difficulty = player.Difficulty;
                 if (playerMight > reachCap) return false;  // not big enough yet — another day
-                if (playerMight < PlayerShieldMight) { bot.FocusTargetId = -1; return false; }
+                if (playerMight < Difficulties.ShieldMight(difficulty)) { bot.FocusTargetId = -1; return false; }
                 if (rollTick < galaxy.NextInboundWindowTick) return true; // wait for a slot
                 if (player.Buffs.ShieldUntilTick > rollTick) return true; // wait out the Aegis
                 // Revenge is patient: it waits until the fight is winnable.
-                if (myPower < (long)(EstimateDefensePower(player) * BeatabilityEdge))
+                if (myPower < (long)(EstimateDefensePower(player) * Difficulties.BeatabilityEdge(difficulty)))
                     return false;
-                galaxy.NextInboundWindowTick = rollTick + InboundCooldownTicks;
+                galaxy.NextInboundWindowTick = rollTick + Difficulties.InboundCooldownTicks(difficulty);
+                fleet = FleetAgainstPlayer(player, bot, fleet);
                 AddLootHaulers(bot, fleet, LootableTotal(player));
                 LaunchAtPlayer(player, galaxy, bot, fleet, rollTick); // no scouting — they KNOW
                 bot.FocusTargetId = -1;

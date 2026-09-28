@@ -56,6 +56,7 @@ namespace GalaxyRoyale.Game.UI
             }
 
             Line("MIGHT", bot.CachedMight.ToString("N0"), UiTheme.Energy);
+            Line("COMMANDER LEVEL", CommanderSystem.RivalLevel(bot.State).ToString(), UiTheme.Energy);
             Line("HQ", $"{bot.HomeTile.X}, {bot.HomeTile.Y}", UiTheme.Accent);
             Line("DISTANCE", $"{GalaxyRoyale.Data.TileXY.Distance(bot.HomeTile, ctx.State!.HomeTile):N0} tiles", UiTheme.Text);
             Line("BATTLES", $"{bot.State.Stats.BattlesWon}W · {bot.State.Stats.BattlesLost}L", UiTheme.Text);

@@ -59,6 +59,25 @@ namespace GalaxyRoyale.Game.UI
             titles.style.width = Length.Percent(49f);
             idButtons.Add(titles);
             card.Add(idButtons);
+
+            // Commander level, XP and the way into the skill tree.
+            var cmdBox = Widgets.HBox(Justify.SpaceBetween);
+            cmdBox.style.marginTop = 8;
+            var cmdCol = new VisualElement();
+            cmdCol.style.flexGrow = 1f;
+            cmdCol.style.flexShrink = 1f;
+            cmdCol.style.marginRight = 8;
+            var cmdLabel = Widgets.Text("", 11, UiTheme.Energy, bold: true);
+            cmdCol.Add(cmdLabel);
+            var (xpBar, xpFill, xpText) = Widgets.ProgressBar(14f);
+            xpBar.style.marginTop = 3;
+            xpText.style.fontSize = 9;
+            cmdCol.Add(xpBar);
+            cmdBox.Add(cmdCol);
+            var skills = Widgets.IconButton(Icon.Star, "SKILLS", ui.OpenCommander, 10);
+            skills.style.width = Length.Percent(34f);
+            cmdBox.Add(skills);
+            card.Add(cmdBox);
             content.Add(card);
 
             // ---- resources ----
@@ -130,6 +149,38 @@ namespace GalaxyRoyale.Game.UI
             content.Add(fxRow);
             SyncFx();
 
+            // ---- difficulty (changeable any time; NEW GAME picks the first) ----
+            content.Add(SectionHeader("DIFFICULTY"));
+            var diffRow = Widgets.HBox(Justify.SpaceBetween);
+            foreach (var d in Difficulties.All)
+            {
+                var choice = d;
+                var b = Widgets.TextButton(Difficulties.Name(d), () =>
+                {
+                    if (ctx.State!.Difficulty == choice) return;
+                    ConfirmPanel.Open(
+                        $"Switch to {Difficulties.Name(choice)}?\n{Difficulties.Pitch(choice)}\n" +
+                        "It applies from now on, and you can change it again any time.",
+                        $"SWITCH TO {Difficulties.Name(choice)}",
+                        () =>
+                        {
+                            ctx.State!.Difficulty = choice;
+                            LocalBootstrap.RequestSync();
+                            ui.Toast($"Difficulty: {Difficulties.Name(choice)}", Icon.Shield, UiTheme.Accent);
+                            ui.OpenProfile();
+                        },
+                        () => ui.OpenProfile());
+                }, 11);
+                b.style.width = Length.Percent(32f);
+                Widgets.SetButtonHighlight(b, state.Difficulty == d);
+                diffRow.Add(b);
+            }
+            content.Add(diffRow);
+            var diffNote = Widgets.Text(Difficulties.Pitch(state.Difficulty), 10, UiTheme.Dim);
+            diffNote.style.whiteSpace = WhiteSpace.Normal;
+            diffNote.style.marginTop = 4;
+            content.Add(diffNote);
+
             content.Add(SectionHeader("ACCOUNT"));
             var accountRow = Widgets.Row();
             BuildAccountSection(ctx, accountRow);
@@ -143,9 +194,18 @@ namespace GalaxyRoyale.Game.UI
                 // cache-key string build (it allocated every frame while open).
                 if (state.Tick == lastRefreshTick) return;
                 lastRefreshTick = state.Tick;
-                string key = $"{state.Profile.Name}|{state.Resources.Total}|{state.Stats.MarchesSent}|{state.Stats.BattlesWon}|{state.Stats.BattlesLost}|{state.Premium.DarkMatter}|{state.Stats.ShipsBuilt}|{state.Achievements.Count}";
+                int freePoints = CommanderSystem.PointsFree(state);
+                string key = $"{state.Profile.Name}|{state.Resources.Total}|{state.Stats.MarchesSent}|{state.Stats.BattlesWon}|{state.Stats.BattlesLost}|{state.Premium.DarkMatter}|{state.Stats.ShipsBuilt}|{state.Achievements.Count}|{state.Commander.Xp}|{freePoints}";
                 if (key == cache) return;
                 cache = key;
+
+                var cmd = state.Commander;
+                cmdLabel.text = $"LEVEL {cmd.Level} COMMANDER"; // points waiting show on SKILLS
+                var (into, span) = CommanderSystem.LevelProgress(state);
+                xpFill.style.width = Length.Percent(span > 0 ? Math.Min(100f, 100f * into / span) : 100f);
+                xpText.text = span > 0 ? $"{into:N0} / {span:N0} XP" : "highest level";
+                Widgets.SetCaption(skills, freePoints > 0 ? $"SKILLS ({freePoints})" : "SKILLS");
+                Widgets.SetButtonHighlight(skills, freePoints > 0);
 
                 nameLabel.text = state.Profile.Name;
                 mightLabel.text = PowerSystem.ComputePower(state).ToString("N0");
@@ -224,9 +284,9 @@ namespace GalaxyRoyale.Game.UI
                     () => ConfirmPanel.Open(
                         "FINAL WARNING\nALL progression will be LOST forever. There is no undo.",
                         "RESET — LOSE EVERYTHING",
-                        () => NewGamePanel.Open(test =>
+                        () => NewGamePanel.Open((test, difficulty) =>
                         {
-                            LocalBootstrap.Instance?.ResetEmpire(test);
+                            LocalBootstrap.Instance?.ResetEmpire(test, difficulty);
                             ui.CloseModal();
                             ui.Toast(test ? "A new TESTING galaxy is born" : "A new galaxy is born — good luck, Commander");
                         }, () => ui.OpenProfile()),

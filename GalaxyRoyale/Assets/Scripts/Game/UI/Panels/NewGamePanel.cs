@@ -1,7 +1,8 @@
 // NEW GAME setup (user request 2026-09-27): choose STANDARD — the real climb
 // from a small colony — or TESTING — the playtest kit (500K of everything,
 // 1M Dark Matter, speed-ups, free warps). The Commander's Path quests run in
-// both. Nothing is erased until START is tapped.
+// both. The difficulty (EASY / STANDARD / BRUTAL) applies to either mode and
+// can be changed later in the profile. Nothing is erased until START is tapped.
 using System;
 using UnityEngine.UIElements;
 using GalaxyRoyale.Data;
@@ -10,9 +11,9 @@ namespace GalaxyRoyale.Game.UI
 {
     public static class NewGamePanel
     {
-        /// <param name="onStart">Called with testMode = true for TESTING.</param>
+        /// <param name="onStart">Called with testMode = true for TESTING, and the difficulty picked.</param>
         /// <param name="onBack">Back out without starting anything.</param>
-        public static void Open(Action<bool> onStart, Action onBack)
+        public static void Open(Action<bool, Difficulty> onStart, Action onBack)
         {
             var ui = UIController.Instance!;
             var (blocker, content) = Widgets.FullPage("NEW GALAXY", onBack);
@@ -28,6 +29,37 @@ namespace GalaxyRoyale.Game.UI
             intro.style.paddingRight = 12;
             content.Add(intro);
 
+            // ---- difficulty ----
+            var difficulty = Difficulty.Standard;
+            var diffBox = new VisualElement();
+            diffBox.style.marginLeft = 16;
+            diffBox.style.marginRight = 16;
+            diffBox.style.marginBottom = 16;
+            diffBox.Add(Widgets.Text("DIFFICULTY", 11, UiTheme.Dim, bold: true));
+            var diffRow = Widgets.HBox(Justify.SpaceBetween);
+            diffRow.style.marginTop = 6;
+            var pitch = Widgets.Text("", 11, UiTheme.Dim);
+            pitch.style.whiteSpace = WhiteSpace.Normal;
+            pitch.style.marginTop = 6;
+            var diffButtons = new System.Collections.Generic.List<(Difficulty d, Button b)>();
+            void Sync()
+            {
+                foreach (var (d, b) in diffButtons) Widgets.SetButtonHighlight(b, d == difficulty);
+                pitch.text = Difficulties.Pitch(difficulty);
+            }
+            foreach (var d in Difficulties.All)
+            {
+                var choice = d;
+                var b = Widgets.TextButton(Difficulties.Name(d), () => { difficulty = choice; Sync(); }, 12);
+                b.style.width = Length.Percent(32f);
+                diffButtons.Add((d, b));
+                diffRow.Add(b);
+            }
+            diffBox.Add(diffRow);
+            diffBox.Add(pitch);
+            content.Add(diffBox);
+            Sync();
+
             var start = Balance.StartResources();
             content.Add(ModeCard("STANDARD", UiTheme.Accent,
                 "The real climb — build a small colony into a power the galaxy fears.",
@@ -37,7 +69,7 @@ namespace GalaxyRoyale.Game.UI
                     "No Dark Matter, no free speed-ups",
                     "Quest rewards carry you through the early game",
                 },
-                "START STANDARD", () => onStart(false)));
+                "START STANDARD", () => onStart(false, difficulty)));
 
             content.Add(ModeCard("TESTING", UiTheme.Energy,
                 "A sandbox for playtesting every system without waiting.",
@@ -47,7 +79,7 @@ namespace GalaxyRoyale.Game.UI
                     $"{Balance.TestModeDarkMatter / 1_000_000}M Dark Matter · {Balance.TestModeSpeedupCount}× every speed-up",
                     "Free warps on the map",
                 },
-                "START TESTING", () => onStart(true)));
+                "START TESTING", () => onStart(true, difficulty)));
 
             ui.OpenModal(blocker);
         }
