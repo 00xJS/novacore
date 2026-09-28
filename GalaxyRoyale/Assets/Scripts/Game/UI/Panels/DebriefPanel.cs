@@ -71,9 +71,17 @@ namespace GalaxyRoyale.Game.UI
                 if (d.ShipsBuilt > 0) Line(Icon.Check, $"{N(d.ShipsBuilt, "ship", "ships")} built", UiTheme.Text);
             }
 
-            if (d.Achievements.Count + d.SeasonsEnded.Count + d.SupplyRuns + d.ClanWarsWon > 0)
+            if (d.Achievements.Count + d.SeasonsEnded.Count + d.SupplyRuns + d.ClanWarsWon + d.LevelsGained > 0)
             {
                 Section("PROGRESS");
+                if (d.LevelsGained > 0)
+                {
+                    int dm = 0;
+                    for (int l = d.LevelAfter - d.LevelsGained + 1; l <= d.LevelAfter; l++)
+                        dm += CommanderSystem.LevelReward(l).darkMatter;
+                    Line(Icon.Star, $"Commander level {d.LevelAfter} (+{N(d.LevelsGained, "skill point", "skill points")}, " +
+                        $"+{dm} DM) — spend points in your profile › SKILLS", UiTheme.Energy);
+                }
                 foreach (var rec in d.SeasonsEnded)
                     Line(Icon.Trophy, $"Season {rec.Season} ended — you placed #{rec.Rank} of {rec.Of} (+{rec.RewardDM} DM)",
                         UiTheme.Energy);

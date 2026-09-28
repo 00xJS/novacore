@@ -40,7 +40,9 @@ namespace GalaxyRoyale.Game.UI
         readonly Label[] _resAmounts = new Label[3];
         Label _energyLabel = null!, _dmLabel = null!;
         readonly string[] _cache = { "", "", "", "" };
-        string _dmCache = "", _mightCache = "", _nameCache = "", _coordsCache = "";
+        string _dmCache = "", _mightCache = "", _nameCache = "", _coordsCache = "", _levelCache = "";
+        Label _levelLabel = null!;
+        VisualElement _skillDot = null!;
         VisualElement _islandRow = null!;
         VisualElement _headerAvatar = null!;
         int _avatarSeedCache = -1;
@@ -269,6 +271,21 @@ namespace GalaxyRoyale.Game.UI
             _nameLabel = Widgets.Text(profile.Name, 13, UiTheme.Text);
             _nameLabel.style.marginLeft = 6;
             profilePill.Add(_nameLabel);
+            // Commander level; the dot means skill points are waiting.
+            _levelLabel = Widgets.Text("", 11, UiTheme.Energy, bold: true);
+            _levelLabel.style.marginLeft = 6;
+            profilePill.Add(_levelLabel);
+            _skillDot = new VisualElement { pickingMode = PickingMode.Ignore };
+            _skillDot.style.width = 7;
+            _skillDot.style.height = 7;
+            _skillDot.style.marginLeft = 3;
+            _skillDot.style.borderTopLeftRadius = 4;
+            _skillDot.style.borderTopRightRadius = 4;
+            _skillDot.style.borderBottomLeftRadius = 4;
+            _skillDot.style.borderBottomRightRadius = 4;
+            _skillDot.style.backgroundColor = UiTheme.Energy;
+            _skillDot.style.display = DisplayStyle.None;
+            profilePill.Add(_skillDot);
             profilePill.Add(Widgets.Text("›", 16, UiTheme.Accent, bold: true));
             _islandRow.Add(profilePill);
 
@@ -635,6 +652,7 @@ namespace GalaxyRoyale.Game.UI
         public void OpenRankings(bool season = false) => OpenModal(RankingsPanel.Build(_ctx, out var r, season), r);
         public void OpenEvents() => OpenModal(EventsPanel.Build(_ctx, out var r), r);
         public void OpenAchievements() => OpenModal(AchievementsPanel.Build(_ctx, out var r), r);
+        public void OpenCommander() => CommanderPanel.Open(_ctx);
         public void OpenClan() => OpenModal(ClanPanel.Build(_ctx, out var r), r);
         public void OpenNews() => OpenModal(NewsPanel.Build(_ctx, out var r), r);
         public void OpenDaily() => OpenModal(DailyPanel.Build(_ctx, out var r), r);
@@ -825,6 +843,17 @@ namespace GalaxyRoyale.Game.UI
                     else
                         Toast($"Your colony was raided by {raided.AttackerName} — check Mail");
                     break;
+                case CommanderLevelUp up:
+                {
+                    var items = new List<string>();
+                    foreach (var id in up.Items) if (Shop.ById.TryGetValue(id, out var def)) items.Add(def.Name);
+                    string extra = items.Count > 0 ? $" · {string.Join(" · ", items)}" : "";
+                    string points = up.Gained == 1 ? "a skill point" : $"{up.Gained} skill points";
+                    Toast($"Commander level {up.Level} · +{up.DarkMatter} DM{extra} · {points} to spend in your profile",
+                        Icon.Star, UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Quest, Haptic.Success);
+                    break;
+                }
                 case AchievementUnlocked unlocked:
                 {
                     var a = unlocked.Achievement;
@@ -1245,6 +1274,15 @@ namespace GalaxyRoyale.Game.UI
 
             string might = PowerSystem.ComputePower(state).ToString("N0");
             if (might != _mightCache) { _mightCache = might; _mightLabel.text = might; }
+
+            int freePoints = CommanderSystem.PointsFree(state);
+            string level = $"Lv {state.Commander.Level}|{freePoints > 0}";
+            if (level != _levelCache)
+            {
+                _levelCache = level;
+                _levelLabel.text = $"Lv {state.Commander.Level}";
+                _skillDot.style.display = freePoints > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            }
 
             if (state.Profile.Name != _nameCache)
             {

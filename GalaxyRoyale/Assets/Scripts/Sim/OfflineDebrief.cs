@@ -24,6 +24,7 @@ namespace GalaxyRoyale.Sim
         public readonly int Seasons;
         public readonly int SupplyRuns;
         public readonly int ClanWarsWon;
+        public readonly int CommanderLevel;
 
         public ProgressMark(GameState state)
         {
@@ -31,6 +32,7 @@ namespace GalaxyRoyale.Sim
             Seasons = state.SeasonHistory.Count;
             SupplyRuns = state.ClanSupplyRuns;
             ClanWarsWon = state.Stats.ClanWarsWon;
+            CommanderLevel = state.Commander.Level;
         }
     }
 
@@ -59,13 +61,15 @@ namespace GalaxyRoyale.Sim
         public List<SeasonRecord> SeasonsEnded = new();
         public int SupplyRuns;
         public int ClanWarsWon;
+        /// <summary>Commander levels reached while away (0 = none) and the level now.</summary>
+        public int LevelsGained, LevelAfter;
 
         /// <summary>Anything worth a full report (vs. a resources-only toast)?</summary>
         public bool Notable =>
             RaidsSuffered + RaidsRepelled + RaidsDeflected + SpyScans
             + BattlesWon + BattlesLost + SpyReports + FleetsHome
             + Upgrades + Research + ShipsBuilt
-            + Achievements.Count + SeasonsEnded.Count + SupplyRuns + ClanWarsWon > 0
+            + Achievements.Count + SeasonsEnded.Count + SupplyRuns + ClanWarsWon + LevelsGained > 0
             || RankAfter != RankBefore;
 
         /// <summary>1 + the number of rivals with MORE might (ties share the better rank).</summary>
@@ -101,6 +105,8 @@ namespace GalaxyRoyale.Sim
                     d.SeasonsEnded.Add(state.SeasonHistory[i]);
                 d.SupplyRuns = System.Math.Max(0, state.ClanSupplyRuns - mark.SupplyRuns);
                 d.ClanWarsWon = System.Math.Max(0, state.Stats.ClanWarsWon - mark.ClanWarsWon);
+                d.LevelsGained = System.Math.Max(0, state.Commander.Level - mark.CommanderLevel);
+                d.LevelAfter = state.Commander.Level;
             }
 
             foreach (var mail in state.Mailbox)

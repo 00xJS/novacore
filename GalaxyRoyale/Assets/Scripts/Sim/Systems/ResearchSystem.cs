@@ -114,8 +114,8 @@ namespace GalaxyRoyale.Sim.Systems
 
         // ---------- effect accessors (summed by effect kind across all techs) ----------
 
-        /// <summary>Summed magnitude of every GLOBAL tech with a given effect (Σ level × perLevel).
-        /// Hull-scoped techs are excluded — use EffectTotalFor.</summary>
+        /// <summary>Summed magnitude of every GLOBAL tech with a given effect (Σ level × perLevel),
+        /// plus the commander's skills of that kind. Hull-scoped techs are excluded — use EffectTotalFor.</summary>
         public static float EffectTotal(GameState state, TechEffectKind kind)
         {
             float sum = 0f;
@@ -125,7 +125,7 @@ namespace GalaxyRoyale.Sim.Systems
                 if (def.Effect != kind || def.HullScope != null) continue;
                 sum += TechLevel(state, id) * def.PerLevel;
             }
-            return sum;
+            return sum + CommanderSystem.EffectTotal(state, kind);
         }
 
         /// <summary>Summed magnitude of techs whose effect is scoped to one hull.</summary>
@@ -158,8 +158,10 @@ namespace GalaxyRoyale.Sim.Systems
         public static float HpMultFor(GameState state, HullId hull) =>
             HpMult(state) + EffectTotalFor(state, TechEffectKind.HpMult, hull);
 
-        /// <summary>Orbital Batteries level (planetary guns, home defense only).</summary>
-        public static int BatteryLevel(GameState state) => TechLevel(state, TechId.OrbitalBatteries);
+        /// <summary>Orbital Batteries level (planetary guns, home defense only): the
+        /// research plus the commander's Orbital Gunners.</summary>
+        public static int BatteryLevel(GameState state) => TechLevel(state, TechId.OrbitalBatteries)
+            + (int)Math.Round(CommanderSystem.EffectTotal(state, TechEffectKind.OrbitalBattery));
 
         /// <summary>Home-defense combat mods: military research (it counts in every
         /// battle) plus the Defense branch and the Orbital Batteries (home only).</summary>

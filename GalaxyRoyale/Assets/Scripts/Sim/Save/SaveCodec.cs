@@ -376,6 +376,22 @@ namespace GalaxyRoyale.Sim.Save
             if (s.BurningUntilTick > 0) root["burningUntilTick"] = (long)s.BurningUntilTick;
             if (s.VisualSeedOffset != 0) root["visualSeedOffset"] = (long)s.VisualSeedOffset;
             root["testMode"] = s.TestMode;
+            if (s.Difficulty != Difficulty.Standard) root["difficulty"] = DifficultyName(s.Difficulty);
+            var cmd = s.Commander;
+            if (cmd.Xp > 0 || cmd.ScoreSeen > 0 || cmd.Skills.Count > 0 || cmd.Level > 1)
+            {
+                var skills = new Dictionary<string, object?>();
+                foreach (var kv in cmd.Skills) if (kv.Value > 0) skills[kv.Key] = (long)kv.Value;
+                root["commander"] = new Dictionary<string, object?>
+                {
+                    ["xp"] = cmd.Xp,
+                    ["scoreSeen"] = cmd.ScoreSeen,
+                    ["carry"] = (long)cmd.XpCarry,
+                    ["level"] = (long)cmd.Level,
+                    ["skills"] = skills,
+                    ["respecs"] = (long)cmd.Respecs,
+                };
+            }
             if (s.QuestStep > 0) root["questStep"] = (long)s.QuestStep;
             if (s.Achievements.Count > 0)
             {
@@ -434,7 +450,27 @@ namespace GalaxyRoyale.Sim.Save
                 // Saves from before the NEW GAME choice were all test games.
                 TestMode = !d.TryGetValue("testMode", out var tm) || tm is not bool tmb || tmb,
                 QuestStep = d.TryGetValue("questStep", out var qs) && qs != null ? ToI32(qs) : 0,
+                Difficulty = d.TryGetValue("difficulty", out var df) && df is string dfs
+                    ? DifficultyFrom(dfs) : Difficulty.Standard,
             };
+            if (d.TryGetValue("commander", out var cm) && cm != null)
+            {
+                var o = AsObj(cm, "commander");
+                long Long(string key) => o.TryGetValue(key, out var v) && v != null ? ToI64(v) : 0;
+                s.Commander = new CommanderState
+                {
+                    Xp = Long("xp"),
+                    ScoreSeen = Long("scoreSeen"),
+                    XpCarry = (int)Long("carry"),
+                    Level = Math.Max(1, (int)Long("level")),
+                    Respecs = (int)Long("respecs"),
+                };
+                if (o.TryGetValue("skills", out var sk) && sk != null)
+                    foreach (var kv in AsObj(sk, "commander.skills"))
+                        // Unknown ids (a skill renamed or retired) are dropped: their points come back.
+                        if (kv.Value != null && CommanderSkills.ById(kv.Key) != null)
+                            s.Commander.Skills[kv.Key] = ToI32(kv.Value);
+            }
 
             var profile = AsObj(d["profile"], "profile");
             s.Profile = new Profile { Name = Str(profile, "name"), AvatarSeed = I32(profile, "avatarSeed") };
@@ -1099,6 +1135,20 @@ namespace GalaxyRoyale.Sim.Save
             "warden" => HullId.Warden,
             "wraith" => HullId.Wraith,
             _ => throw new FormatException($"unknown hull '{s}'"),
+        };
+
+        static string DifficultyName(Difficulty d) => d switch
+        {
+            Difficulty.Easy => "easy",
+            Difficulty.Brutal => "brutal",
+            _ => "standard",
+        };
+
+        static Difficulty DifficultyFrom(string s) => s switch
+        {
+            "easy" => Difficulty.Easy,
+            "brutal" => Difficulty.Brutal,
+            _ => Difficulty.Standard,
         };
 
         static string Name(MineType t) => t switch

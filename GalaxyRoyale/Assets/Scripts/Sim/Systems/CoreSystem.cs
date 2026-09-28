@@ -493,7 +493,9 @@ namespace GalaxyRoyale.Sim.Systems
             if (rng() >= RollChance) return;
 
             int holderClan = core.HolderId == GuardiansId ? 0 : ClanSystem.ClanOf(player, galaxy, core.HolderId);
-            long toBeat = (long)(DefencePower(DefenceOf(player, galaxy)) * BotSystem.BeatabilityEdge);
+            // Against your garrison, the difficulty sets the edge they want.
+            double edge = core.HolderId == 0 ? Difficulties.BeatabilityEdge(player.Difficulty) : BotSystem.BeatabilityEdge;
+            long toBeat = (long)(DefencePower(DefenceOf(player, galaxy)) * edge);
 
             BotEmpire? best = null;
             Dictionary<HullId, int>? bestLead = null;

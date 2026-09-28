@@ -84,7 +84,7 @@ namespace GalaxyRoyale.Game.UI
             {
                 // Mode picker (STANDARD / TESTING); backing out returns here and
                 // nothing is erased until START is tapped.
-                void ChooseMode() => NewGamePanel.Open(test => boot?.NewGame(test), () => Open(ctx));
+                void ChooseMode() => NewGamePanel.Open((test, difficulty) => boot?.NewGame(test, difficulty), () => Open(ctx));
                 if (cloud != null)
                 {
                     ConfirmPanel.Open(

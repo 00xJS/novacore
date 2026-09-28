@@ -48,6 +48,9 @@ namespace GalaxyRoyale.Sim
     public sealed record CoreTributePaid(ResourceBag Resources, int DarkMatter, bool Clan) : SimEvent;
     /// <summary>A commander launched an assault on the core you hold (arriving at ArrivesAtTick).</summary>
     public sealed record CoreUnderAttack(int AttackerId, int ArrivesAtTick) : SimEvent;
+    /// <summary>The commander reached <paramref name="Level"/>, <paramref name="Gained"/> levels
+    /// at once (their Dark Matter and milestone items, by shop id, are already paid).</summary>
+    public sealed record CommanderLevelUp(int Level, int Gained, int DarkMatter, IReadOnlyList<string> Items) : SimEvent;
 
     public sealed class SimEventBus
     {

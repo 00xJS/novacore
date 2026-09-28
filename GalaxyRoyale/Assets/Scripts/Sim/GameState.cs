@@ -265,6 +265,23 @@ namespace GalaxyRoyale.Sim
         public int CoreHoursHeld;
     }
 
+    /// <summary>Commander progression (CommanderSystem): XP earned, how much of the
+    /// empire's record it has credited, the level reached (each level's reward is
+    /// paid on the way up) and the skill ranks bought with the points.</summary>
+    public sealed class CommanderState
+    {
+        public long Xp;
+        /// <summary>CommanderSystem.Score already turned into XP — only a new high earns more.</summary>
+        public long ScoreSeen;
+        /// <summary>Half an XP left over from Brutal's ×1.5 (0 or 1).</summary>
+        public int XpCarry;
+        public int Level = 1;
+        /// <summary>Skill id (Data/CommanderSkills) → rank.</summary>
+        public Dictionary<string, int> Skills = new();
+        /// <summary>Skill resets so far (the first is free).</summary>
+        public int Respecs;
+    }
+
     /// <summary>A finished season: where you placed and what it paid.</summary>
     public sealed class SeasonRecord
     {
@@ -293,6 +310,11 @@ namespace GalaxyRoyale.Sim
         /// 500K of every resource, 1M Dark Matter, speed-ups, free warps. Saves
         /// from before the choice existed were all test games.</summary>
         public bool TestMode;
+        /// <summary>How hard the rivals lean on the player (Data/Difficulty). Saves
+        /// from before the choice existed are Standard.</summary>
+        public Difficulty Difficulty;
+        /// <summary>Commander level, XP and skills (CommanderSystem).</summary>
+        public CommanderState Commander = new();
         /// <summary>Commander's Path progress — index of the next quest in
         /// Quests.Chain (runs in both modes).</summary>
         public int QuestStep;
@@ -365,7 +387,8 @@ namespace GalaxyRoyale.Sim
         };
 
         /// <summary>Factory for a fresh save. Matches v1's createNewGame.</summary>
-        public static GameState CreateNewGame(int seed, bool? testMode = null)
+        public static GameState CreateNewGame(int seed, bool? testMode = null,
+            Difficulty difficulty = Difficulty.Standard)
         {
             bool test = testMode ?? Balance.TestModeDefault;
             var startLevels = new Dictionary<BuildingId, int>
@@ -397,6 +420,7 @@ namespace GalaxyRoyale.Sim
                     DarkMatter = test ? Balance.TestModeDarkMatter : 0,
                 },
                 TestMode = test,
+                Difficulty = difficulty,
                 Buildings = buildings,
                 BuildingLayout = DefaultLayout(),
                 Ships = ships,
