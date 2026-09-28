@@ -36,7 +36,7 @@ namespace GalaxyRoyale.Game
         void Start()
         {
             // Back from another app: GameContext caught the galaxy up — say so.
-            _ctx.Resumed += summary => { if (_booted) ToastOffline(summary); };
+            _ctx.Resumed += debrief => { if (_booted) ReportAway(debrief); };
 
             _pendingLoad = LocalSave.Load();
             if (_pendingLoad is { } peek && peek.bots == null)
@@ -69,10 +69,10 @@ namespace GalaxyRoyale.Game
         public void ContinueGame()
         {
             if (_pendingLoad is not { } found || found.bots == null) { NewGame(); return; }
-            var summary = _ctx.AdoptState(found.state, found.bots, found.savedAtMs);
+            _ctx.AdoptState(found.state, found.bots, found.savedAtMs);
             _pendingLoad = null;
             FinishBoot();
-            ToastOffline(summary);
+            ReportAway(_ctx.LastDebrief);
         }
 
         /// <summary>NEW GAME — erase any save and found a fresh galaxy. The title
@@ -98,6 +98,11 @@ namespace GalaxyRoyale.Game
         /// <summary>Found a brand-new galaxy: rim spawn for the player, then the rivals.</summary>
         public void StartFreshGalaxy()
         {
+            // Device-local side tables outlive the save file — a new galaxy must
+            // not inherit the old one's pending raids or daily progress.
+            RaidArrivals.ClearPending();
+            DailyObjectives.ResetProgress();
+            UI.RankingsPanel.ForgetLastRank();
             var state = GameState.CreateNewGame(Spawn.GalaxySeed);
             // A random founder token gives each new game its own rim spawn angle.
             string founder = $"player-{UnityEngine.Random.Range(int.MinValue, int.MaxValue)}";
@@ -146,7 +151,22 @@ namespace GalaxyRoyale.Game
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         }
 
-        void ToastOffline(OfflineSummary summary)
+        /// <summary>"While you were away": the full report when something happened
+        /// over a real absence (10+ min), otherwise the short resources toast.
+        /// A panel the player left open on resume is never yanked away.</summary>
+        void ReportAway(OfflineDebrief? debrief)
+        {
+            if (debrief == null || debrief.ElapsedSec < 60) return;
+            var ui = UI.UIController.Instance;
+            if (debrief.Notable && debrief.ElapsedSec >= 600 && ui != null && !ui.HasModal)
+            {
+                UI.DebriefPanel.Open(_ctx, debrief);
+                return;
+            }
+            ToastOffline(debrief);
+        }
+
+        void ToastOffline(OfflineDebrief summary)
         {
             if (summary.ElapsedSec < 60) return;
             var parts = new System.Collections.Generic.List<string>();

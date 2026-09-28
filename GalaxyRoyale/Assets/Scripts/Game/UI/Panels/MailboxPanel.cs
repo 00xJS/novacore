@@ -15,6 +15,21 @@ namespace GalaxyRoyale.Game.UI
     {
         enum Tab { All, Battle, Spy, Fav }
 
+        /// <summary>Did the PLAYER come out on top (either side of the fight)?</summary>
+        static bool PlayerWon(BattleMailReport b) =>
+            b.Defending ? b.Report.Winner == BattleWinner.Defender : b.Report.Winner == BattleWinner.Attacker;
+
+        /// <summary>Unread row tint by outcome from YOUR side — every battle row used
+        /// to be red, even a raid you repelled.</summary>
+        static UnityEngine.Color RowColor(MailItem item) => item switch
+        {
+            BattleMailReport b when PlayerWon(b) => UiTheme.Good,
+            BattleMailReport b when b.Report.Winner == BattleWinner.Draw => UiTheme.Energy,
+            BattleMailReport => UiTheme.Bad,
+            RadarWarning => UiTheme.Bad,
+            _ => UiTheme.Text,
+        };
+
         /// <summary>Aegis deflections file a round-less report the defender "won".</summary>
         static bool IsDeflection(BattleMailReport battle) =>
             battle.Defending && battle.Report.Winner == BattleWinner.Defender && battle.Report.Rounds.Count == 0;
@@ -154,8 +169,10 @@ namespace GalaxyRoyale.Game.UI
                 {
                     var r = report;
                     bool isBattle = r is BattleMailReport || r is RadarWarning;
+                    bool won = r is BattleMailReport br && PlayerWon(br);
                     var row = Widgets.Row();
-                    if (isBattle) row.style.backgroundColor = new UnityEngine.Color(0.165f, 0.1f, 0.1f, r.Read ? 0.5f : 0.9f);
+                    if (won) row.style.backgroundColor = new UnityEngine.Color(0.1f, 0.16f, 0.12f, r.Read ? 0.5f : 0.9f);
+                    else if (isBattle) row.style.backgroundColor = new UnityEngine.Color(0.165f, 0.1f, 0.1f, r.Read ? 0.5f : 0.9f);
                     else if (r.Read) row.style.backgroundColor = new UnityEngine.Color(UiTheme.PanelLight.r, UiTheme.PanelLight.g, UiTheme.PanelLight.b, 0.4f);
                     row.RegisterCallback<PointerUpEvent>(_ => OpenDetail(ctx, r));
 
@@ -174,7 +191,7 @@ namespace GalaxyRoyale.Game.UI
                     if (r.Favorite) Mark(Icon.Star, 12f, UiTheme.Energy);
                     if (r is RadarWarning) Mark(Icon.Warning, 13f, UiTheme.Bad);
                     var subject = Widgets.Text(DisplaySubject(r), 12,
-                        r.Read ? UiTheme.Dim : isBattle ? UiTheme.Bad : UiTheme.Text, bold: !r.Read);
+                        r.Read ? UiTheme.Dim : RowColor(r), bold: !r.Read);
                     subject.style.flexShrink = 1f;
                     lead.Add(subject);
                     head.Add(lead);

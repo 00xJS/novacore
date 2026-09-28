@@ -117,12 +117,15 @@ namespace GalaxyRoyale.Game
             _state = state;
             _bots = bots;
             _engine = new TickEngine(_state, _events!);
+            int mailIdBefore = _state.NextReportId;
+            int rankBefore = OfflineDebrief.RankOf(_state, _bots);
             var summary = SaveManager.ApplyOfflineProgress(
                 _state, _engine, _events!,
                 savedAtMs, System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
             // Bots catch up to the fast-forwarded player clock in the same
             // suppressed window (no retroactive raid toasts from hours ago).
             CatchUpBots();
+            LastDebrief = OfflineDebrief.Build(_state, summary, mailIdBefore, rankBefore, _bots);
             // AdvanceToWallClock's clock counts from scene start; the loaded save is
             // already at Tick N, so shift the origin back N seconds to line them up.
             _startTime = Time.timeAsDouble - _state.Tick;
@@ -151,8 +154,12 @@ namespace GalaxyRoyale.Game
 
         long _pausedAtMs;
 
-        /// <summary>Fired after a background→foreground catch-up (LocalBootstrap toasts it).</summary>
-        public event System.Action<OfflineSummary>? Resumed;
+        /// <summary>What happened during the most recent offline / background
+        /// catch-up ("While you were away"). Null until a save is adopted.</summary>
+        public OfflineDebrief? LastDebrief { get; private set; }
+
+        /// <summary>Fired after a background→foreground catch-up (LocalBootstrap reports it).</summary>
+        public event System.Action<OfflineDebrief>? Resumed;
 
         void OnApplicationPause(bool paused)
         {
@@ -163,11 +170,14 @@ namespace GalaxyRoyale.Game
             _pausedAtMs = 0;
             if (gapMs < 2000) return; // a notification-shade peek isn't worth a catch-up
 
+            int mailIdBefore = _state.NextReportId;
+            int rankBefore = OfflineDebrief.RankOf(_state, _bots);
             var summary = SaveManager.ApplyOfflineProgress(_state, _engine, _events, 0, gapMs);
             CatchUpBots();
             _startTime = Time.timeAsDouble - _state.Tick;
+            LastDebrief = OfflineDebrief.Build(_state, summary, mailIdBefore, rankBefore, _bots);
             Debug.Log($"[GalaxyRoyale] Resumed after {gapMs / 1000}s — caught up {summary.ElapsedSec}s");
-            Resumed?.Invoke(summary);
+            Resumed?.Invoke(LastDebrief);
         }
 
         void Update()

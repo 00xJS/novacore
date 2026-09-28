@@ -212,6 +212,13 @@ namespace GalaxyRoyale.Game.UI
     /// <summary>Tapped a fleet in flight — the map camera follows it while this is open.</summary>
     public static class MarchCallout
     {
+        /// <summary>Mission as the player thinks of it: a lone probe sent at a
+        /// rival flies as an Attack march (RaidArrivals files its intel), but it
+        /// is a spy run — it used to be listed as "Attack".</summary>
+        public static string MissionLabel(March m) =>
+            m.Mission == MarchMission.Attack && m.Ships.Count == 1 && m.Ships.ContainsKey(HullId.Probe)
+                ? "Spy" : m.Mission.ToString();
+
         public static void Open(GameContext ctx, int marchId, Action onClose)
         {
             var ui = UIController.Instance!;
@@ -250,7 +257,7 @@ namespace GalaxyRoyale.Game.UI
             Label? subLabel = null;
             var strip = CalloutChrome.Strip(
                 $"{MarchSystem.FleetCount(march.Ships)} ships · target {march.Node.X}, {march.Node.Y}",
-                $"{march.Mission} · {StatusFor(march)} · following",
+                $"{MissionLabel(march)} · {StatusFor(march)} · following",
                 Close,
                 lbl => subLabel = lbl,
                 actions.ToArray());
@@ -258,7 +265,7 @@ namespace GalaxyRoyale.Game.UI
             {
                 var m = ctx.State?.Marches.Find(x => x.Id == marchId);
                 if (m == null || subLabel == null) return;
-                subLabel.text = $"{m.Mission} · {StatusFor(m)} · following";
+                subLabel.text = $"{MissionLabel(m)} · {StatusFor(m)} · following";
             }).Every(500);
             ui.OpenCalloutElement(strip);
         }

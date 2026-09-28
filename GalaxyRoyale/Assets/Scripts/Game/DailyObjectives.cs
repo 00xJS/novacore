@@ -134,6 +134,27 @@ namespace GalaxyRoyale.Game
             return false;
         }
 
+        /// <summary>
+        /// Start the day's objectives over for a NEW galaxy (NEW GAME / RESET
+        /// EMPIRE). Progress lives in PlayerPrefs, outside the save, so counters
+        /// and claims used to carry into the fresh empire — the stat baselines
+        /// then pointed at the old empire's totals and blocked "Send 5 fleets" /
+        /// "Win a battle" until midnight UTC.
+        /// </summary>
+        public static void ResetProgress()
+        {
+            PlayerPrefs.DeleteKey(PrefsKey);
+            var d = s_instance;
+            if (d == null) return;
+            d._day = "";
+            d._builds = 0;
+            d._spies = 0;
+            d._gatherWhole = 0;
+            d._marchesBase = -1;
+            d._battlesBase = -1;
+            d._claimed.Clear();
+        }
+
         // ---------- persistence ----------
 
         void LoadPrefs()
