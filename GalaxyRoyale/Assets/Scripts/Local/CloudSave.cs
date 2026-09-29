@@ -8,7 +8,6 @@
 // simply unsupported and local saves carry on alone.
 using System;
 using System.IO;
-using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text;
 using GalaxyRoyale.Sim;
@@ -99,12 +98,13 @@ namespace GalaxyRoyale.Local
             Name = state.Profile.Name,
         };
 
-        /// <summary>Any thread, once the save is on disk: pack it for the upload.</summary>
-        public static void Stage(string json, Header header)
+        /// <summary>Any thread, once the save is on disk: stage the file's bytes (gzipped
+        /// already, or plain JSON if gzip failed) for the upload.</summary>
+        public static void Stage(byte[] file, Header header)
         {
             try
             {
-                string data = Pack(json);
+                string data = (SaveCompression.IsPacked(file) ? "z" : "r") + Convert.ToBase64String(file);
                 header.DataLength = data.Length;
                 lock (s_lock) s_staged = (WriteHeader(header), data, header.SavedAtMs);
             }
@@ -168,18 +168,11 @@ namespace GalaxyRoyale.Local
 
         public static string Pack(string json)
         {
-            byte[] raw = Encoding.UTF8.GetBytes(json);
-            try
-            {
-                using var buffer = new MemoryStream();
-                using (var gzip = new GZipStream(buffer, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true))
-                    gzip.Write(raw, 0, raw.Length);
-                return "z" + Convert.ToBase64String(buffer.ToArray());
-            }
+            try { return "z" + Convert.ToBase64String(SaveCompression.Pack(json)); }
             catch (Exception e)
             {
                 Debug.LogWarning($"[Cloud] gzip unavailable ({e.Message}) — storing the backup uncompressed");
-                return "r" + Convert.ToBase64String(raw);
+                return "r" + Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
             }
         }
 
@@ -189,10 +182,7 @@ namespace GalaxyRoyale.Local
             byte[] bytes = Convert.FromBase64String(data.Substring(1));
             if (data[0] == 'r') return Encoding.UTF8.GetString(bytes);
             if (data[0] != 'z') throw new InvalidDataException("unknown backup format");
-            using var input = new GZipStream(new MemoryStream(bytes), CompressionMode.Decompress);
-            using var output = new MemoryStream();
-            input.CopyTo(output);
-            return Encoding.UTF8.GetString(output.ToArray());
+            return SaveCompression.Unpack(bytes);
         }
 
         // "GR1|savedAtMs|tick|might|base64(name)|dataLength" — base64 keeps a "|"

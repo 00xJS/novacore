@@ -42,18 +42,25 @@ namespace GalaxyRoyale.Sim.Tests
             string json = Json.Write(tree);
             long textMs = sw.ElapsedMilliseconds;
             long encodeMs = treeMs + textMs;
+            sw.Restart();
+            byte[] packed = SaveCompression.Pack(json); // also on the worker
+            long gzipMs = sw.ElapsedMilliseconds;
+            sw.Restart();
+            SaveCodec.Decode(SaveCompression.Unpack(packed)); // the load at launch
+            long loadMs = sw.ElapsedMilliseconds;
 
             TestContext.Out.WriteLine(
                 $"create({BotSystem.BotCount} bots, pre-sim)={createMs}ms  catchUp(8h)={catchUpMs}ms  " +
                 $"encode={encodeMs}ms (main-thread snapshot {treeMs}ms + worker text {textMs}ms)  " +
-                $"saveSize={json.Length / 1024}KB");
+                $"gzip={gzipMs}ms  load={loadMs}ms  saveSize={json.Length / 1024}KB → {packed.Length / 1024}KB on disk");
 
             // Loose ceilings — a phone is ~3-5× slower than an editor Mono run,
             // so these bounds keep the worst device case inside a launch screen.
             Assert.Less(createMs, 5000, "new-game galaxy creation ballooned");
             Assert.Less(catchUpMs, 3000, "8h offline catch-up ballooned");
             Assert.Less(encodeMs, 2000, "save encoding ballooned");
-            Assert.Less(json.Length, 4_000_000, "save file ballooned");
+            Assert.Less(json.Length, 4_000_000, "save text ballooned");
+            Assert.Less(gzipMs + loadMs, 3000, "packing or loading the save ballooned");
         }
     }
 }

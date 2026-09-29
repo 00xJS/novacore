@@ -180,20 +180,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 77c75eddfbb264415b7284187e5fc212, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  referencePool:
-  - {fileID: 2800000, guid: ef704350d3ad747edbb58afe8caf17b8, type: 3}
-  - {fileID: 2800000, guid: e3963e384ce19418086db722b8e93d08, type: 3}
-  - {fileID: 2800000, guid: 0fb3e93d7308c41e6b6e65c0c8f21823, type: 3}
-  - {fileID: 2800000, guid: cdf38ab1d3ab64acabc7f7955ec1a5a4, type: 3}
-  - {fileID: 2800000, guid: 2019a71526c7c4252bcba4265aab9ea9, type: 3}
-  - {fileID: 2800000, guid: 2397cab6dd6334a1fb09a455a5b71d7d, type: 3}
-  - {fileID: 2800000, guid: cb801773f16ee4336920dda5f40ab882, type: 3}
-  - {fileID: 2800000, guid: 9479b2e6258a14be69480f2e2dc1e98c, type: 3}
-  - {fileID: 2800000, guid: 370db61dfcf1249d4b3be708206bdcef, type: 3}
-  - {fileID: 2800000, guid: 61bcba5ba011c4afb97b020b17e77808, type: 3}
-  - {fileID: 2800000, guid: 13e27539d305f48fc93983d64a559f63, type: 3}
-  - {fileID: 2800000, guid: 17f73c0583e924585a9c37b3447f7161, type: 3}
-  - {fileID: 2800000, guid: 339dae334b81d4951bddbd983ab357e6, type: 3}
   referencesPerPlanet: 2
   useGameSeed: 1
 --- !u!114 &1005

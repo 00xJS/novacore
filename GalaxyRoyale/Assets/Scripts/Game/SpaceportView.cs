@@ -56,8 +56,11 @@ namespace GalaxyRoyale.Game
             var mesh = planetGO.transform.Find("Planet Mesh");
             _radius = mesh != null ? mesh.localScale.x * 0.5f : 1f;
             _cam = GameObject.Find("Main Camera")?.GetComponent<Camera>();
-            BuildField();
-            Refresh(_ctx.State);
+            using (BootTrace.Step("port"))
+            {
+                BuildField();
+                Refresh(_ctx.State);
+            }
         }
 
         /// <summary>A flat object on the planet at (lat, lon): its +y the outward normal, its +z north.</summary>

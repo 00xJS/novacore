@@ -116,7 +116,10 @@ namespace GalaxyRoyale.Game.UI
             Instance = this;
         }
 
-        void Start() => EnsureBuilt();
+        void Start()
+        {
+            using (BootTrace.Step("ui")) EnsureBuilt();
+        }
 
         void EnsureBuilt()
         {

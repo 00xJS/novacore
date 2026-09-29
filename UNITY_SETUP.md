@@ -111,8 +111,14 @@ GR_BUNDLE_ID=com.you.galaxyroyale GR_TEAM_ID=ABCDE12345 \
 
 - **No server, no accounts** — the game is fully offline. Nothing needs
   configuring server-side, ever.
-- Saves live at `Application.persistentDataPath/galaxy-royale-save.json`
-  (+ `.bak`). Delete both to hard-reset outside the in-game RESET flow.
+- Saves live at `Application.persistentDataPath/galaxy-royale-save.json.gz`
+  (+ `.bak.json.gz`), gzipped JSON of about 40–60 KB (`gunzip -c` reads one).
+  Builds before September 2026 wrote plain `galaxy-royale-save.json`, which
+  still loads. Delete the files to hard-reset outside the in-game RESET flow.
+- The planet's surface is baked from two of the textures in
+  `Resources/PlanetRefs` and cached in `Application.temporaryCachePath`
+  (`planet-*.rgba`), so only the first launch for a planet look pays for the
+  bake. The console's `[Boot]` line times each launch step.
 - **iCloud backup** (`Local/CloudSave.cs` + `Plugins/iOS/GRCloudSave.mm`):
   the save is gzipped (~40 KB) into the app's iCloud key-value store every
   5 minutes and whenever the app goes to the background. A fresh install or a
