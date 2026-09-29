@@ -16,7 +16,7 @@ namespace GalaxyRoyale.Game.UI
 {
     public static class UiFonts
     {
-        const string Common = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·—–…×•";
+        const string Common = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·—–…×•→−";
 
         static FontDefinition? s_display;
         static FontDefinition? s_body;

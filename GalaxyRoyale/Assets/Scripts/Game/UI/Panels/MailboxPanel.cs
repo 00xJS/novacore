@@ -307,46 +307,19 @@ namespace GalaxyRoyale.Game.UI
                 bool draw = r.Winner == BattleWinner.Draw;
                 bool playerWon = defending ? r.Winner == BattleWinner.Defender : r.Winner == BattleWinner.Attacker;
                 string outcome = deflected ? "DEFLECTED" : draw ? "STALEMATE" : playerWon ? "VICTORY" : "DEFEAT";
-                var head = Widgets.Text(outcome, 18,
-                    draw ? UiTheme.Energy : playerWon ? UiTheme.Good : UiTheme.Bad, bold: true);
-                head.style.marginTop = 8;
-                content.Add(head);
-                if (deflected)
-                {
-                    var note = Widgets.Text("The raid broke on your Aegis Shield — no battle, nothing lost.", 11, UiTheme.Dim);
-                    note.style.whiteSpace = WhiteSpace.Normal;
-                    content.Add(note);
-                }
-                if (BattleReplayPanel.CanReplay(battle))
-                {
-                    var watch = Widgets.IconButton(Icon.Play, "WATCH REPLAY", () =>
-                        BattleReplayPanel.Open(ctx, battle, () => OpenDetail(ctx, battle)), 12);
-                    watch.style.marginTop = 8;
-                    watch.style.height = 38;
-                    content.Add(watch);
-                }
-                if (!deflected && r.Rounds.Count > 0) content.Add(Correspondent(ctx, battle));
+                var tone = draw ? UiTheme.Energy : playerWon ? UiTheme.Good : UiTheme.Bad;
+                // Each side before and after (a deflection had no battle: nobody fell).
+                var yours = defending ? r.Defender : r.Attacker;
+                var yoursLeft = deflected ? yours : defending ? r.DefenderSurvivors : r.AttackerSurvivors;
+                var theirs = defending ? r.Attacker : r.Defender;
+                var theirsLeft = deflected ? theirs : defending ? r.AttackerSurvivors : r.DefenderSurvivors;
 
-                // Fleet breakdown: a labeled section with ONE hull per line (user
-                // spec: don't crunch every ship type onto one run-on line).
-                void FleetSection(string label, Dictionary<HullId, int> fleet)
-                {
-                    var header = Widgets.Text(label, 10, UiTheme.Accent, bold: true);
-                    header.style.marginTop = 10;
-                    content.Add(header);
-                    bool any = false;
-                    foreach (var hull in Ships.All)
-                    {
-                        if (!fleet.TryGetValue(hull, out int n) || n <= 0) continue;
-                        any = true;
-                        var line = Widgets.HBox(Justify.SpaceBetween);
-                        line.style.marginTop = 2;
-                        line.Add(Widgets.Text(Ships.Defs[hull].Name, 11, UiTheme.Dim));
-                        line.Add(Widgets.Text($"× {n}", 11, UiTheme.Text, bold: true));
-                        content.Add(line);
-                    }
-                    if (!any) content.Add(Widgets.Text("none", 11, UiTheme.Dim));
-                }
+                Button? replay = null;
+                if (BattleReplayPanel.CanReplay(battle))
+                    replay = Widgets.Primary(Widgets.IconButton(Icon.Play, "WATCH REPLAY", () =>
+                        BattleReplayPanel.Open(ctx, battle, () => OpenDetail(ctx, battle)), 12));
+                content.Add(Hero(outcome, tone, HeroLine(battle, deflected, yours, yoursLeft, theirs, theirsLeft),
+                    yours, yoursLeft, EnemyNameOf(ctx, battle).ToUpperInvariant(), theirs, theirsLeft, replay));
 
                 // Clanmates who fought in either line (their ships are counted in
                 // the fleets below).
@@ -362,57 +335,55 @@ namespace GalaxyRoyale.Game.UI
                     content.Add(help);
                 }
 
+                // Both fleets hull by hull, what came through against what was lost
+                // (user spec: one hull per line, never one run-on line).
                 if (defending)
                 {
                     SupportLine(battle.AllyShips, battle.AllyNames, "CLAN REINFORCEMENTS", UiTheme.Good);
-                    FleetSection(battle.AllyShips != null ? "DEFENDERS (YOURS + CLAN)" : "YOUR DEFENDERS", r.Defender);
-                    if (!deflected) FleetSection("SURVIVORS", r.DefenderSurvivors);
-                    FleetSection("RAIDERS", r.Attacker);
+                    Losses(content, battle.AllyShips != null ? "YOUR DEFENDERS + CLAN" : "YOUR DEFENDERS", yours, yoursLeft, enemy: false);
+                    Losses(content, "RAIDERS", theirs, theirsLeft, enemy: true);
                 }
                 else
                 {
                     SupportLine(battle.AllyShips, battle.AllyNames, battle.AllyLootMilli > 0
                         ? $"CLAN SUPPORT (carried home {UiTheme.FmtAmount(battle.AllyLootMilli)})" : "CLAN SUPPORT", UiTheme.Good);
                     SupportLine(battle.EnemyAllyShips, battle.EnemyAllyNames, "THEIR CLAN DEFENDED", UiTheme.Bad);
-                    FleetSection(battle.AllyShips != null ? "YOUR FLEET (+ CLAN)" : "YOUR FLEET", r.Attacker);
-                    FleetSection("SURVIVORS", r.AttackerSurvivors);
-                    FleetSection(battle.EnemyAllyShips != null ? "DEFENDERS (+ THEIR CLAN)" : "DEFENDERS", r.Defender);
-                }
-
-                var roundsLine = Widgets.HBox(Justify.SpaceBetween);
-                roundsLine.style.marginTop = 10;
-                roundsLine.Add(Widgets.Text("Rounds", 11, UiTheme.Dim));
-                roundsLine.Add(Widgets.Text(r.Rounds.Count.ToString(), 11, UiTheme.Text));
-                content.Add(roundsLine);
-                if (r.DefenderBattery > 0)
-                {
-                    var battery = Widgets.HBox(Justify.SpaceBetween);
-                    battery.style.marginTop = 6;
-                    battery.Add(Widgets.IconText(Icon.Target,
-                        defending ? "Your Orbital Batteries" : "Their Orbital Batteries", 11, UiTheme.Dim));
-                    battery.Add(Widgets.Text($"Lv {r.DefenderBattery}", 11, UiTheme.Text, bold: true));
-                    content.Add(battery);
-                }
-                if (r.DefenderTurret > 0)
-                {
-                    var turret = Widgets.HBox(Justify.SpaceBetween);
-                    turret.style.marginTop = 6;
-                    turret.Add(Widgets.IconText(Icon.Target,
-                        defending ? "Your Bastion railguns" : "Their Bastion railguns", 11, UiTheme.Dim));
-                    turret.Add(Widgets.Text($"{r.DefenderTurret:N0} a round", 11, UiTheme.Text, bold: true));
-                    content.Add(turret);
+                    Losses(content, battle.AllyShips != null ? "YOUR FLEET + CLAN" : "YOUR FLEET", yours, yoursLeft, enemy: false);
+                    Losses(content, battle.EnemyAllyShips != null ? "DEFENDERS + THEIR CLAN" : "DEFENDERS", theirs, theirsLeft, enemy: true);
                 }
 
                 if (r.Loot is { Total: > 0 } loot)
                 {
-                    var lootLine = Widgets.HBox(Justify.SpaceBetween);
-                    lootLine.style.marginTop = 6;
-                    lootLine.Add(Widgets.Text(defending ? "Plundered from you" : "Loot", 11, UiTheme.Dim));
-                    lootLine.Add(Widgets.Text(
-                        $"{UiTheme.FmtAmount(loot.Gold)} G  {UiTheme.FmtAmount(loot.Quartz)} Q  {UiTheme.FmtAmount(loot.Helium)} H",
-                        11, defending ? UiTheme.Bad : UiTheme.Good));
-                    content.Add(lootLine);
+                    content.Add(Section(defending ? "PLUNDERED FROM YOU" : "PLUNDER", defending ? UiTheme.Bad : UiTheme.Magenta));
+                    content.Add(Amounts(loot));
                 }
+
+                if (battle.Salvaged is { Total: > 0 } salvaged)
+                {
+                    content.Add(Section("SALVAGE YARD", UiTheme.Magenta));
+                    content.Add(Amounts(salvaged));
+                    var yard = Widgets.Text("Recovered from the wrecks. Collect it at your Salvage Yard.", 10, UiTheme.Dim);
+                    yard.style.whiteSpace = WhiteSpace.Normal;
+                    yard.style.marginTop = 2;
+                    content.Add(yard);
+                }
+
+                if (r.DefenderBattery > 0 || r.DefenderTurret > 0)
+                {
+                    content.Add(Section(defending ? "YOUR PLANETARY GUNS" : "THEIR PLANETARY GUNS", UiTheme.Magenta));
+                    void Gun(string name, string value)
+                    {
+                        var row = Widgets.HBox(Justify.SpaceBetween);
+                        row.style.marginTop = 3;
+                        row.Add(Widgets.IconText(Icon.Target, name, 11, UiTheme.Dim));
+                        row.Add(Widgets.Text(value, 11, UiTheme.Text, bold: true));
+                        content.Add(row);
+                    }
+                    if (r.DefenderBattery > 0) Gun("Orbital Batteries", $"Lv {r.DefenderBattery}");
+                    if (r.DefenderTurret > 0) Gun("Bastion railguns", $"{r.DefenderTurret:N0} a round");
+                }
+
+                if (!deflected && r.Rounds.Count > 0) content.Add(Correspondent(ctx, battle));
 
                 // The grudge a won raid earns (BotSystem.ApplyPlayerRaid marks it).
                 if (!defending && playerWon && rival != null && BotSystem.HoldsGrudge(rival, state.Tick))
@@ -676,14 +647,244 @@ namespace GalaxyRoyale.Game.UI
 
         static MapView? GetMapView(GameContext ctx) => ctx.GetComponent<MapView>();
 
+        // ---------- the battle report (art upgrade, 2026-09-29) ----------
+
+        static int Count(Dictionary<HullId, int> fleet)
+        {
+            int n = 0;
+            foreach (var v in fleet.Values) n += Math.Max(0, v);
+            return n;
+        }
+
+        /// <summary>A fleet's flagship for the banner: its heaviest hull.</summary>
+        static HullId? LeadHull(Dictionary<HullId, int> fleet)
+        {
+            HullId? lead = null;
+            foreach (var kv in fleet)
+            {
+                if (kv.Value <= 0) continue;
+                if (lead is not HullId best || Ships.Defs[kv.Key].Hp > Ships.Defs[best].Hp
+                    || (Ships.Defs[kv.Key].Hp == Ships.Defs[best].Hp && kv.Value > fleet[best]))
+                    lead = kv.Key;
+            }
+            return lead;
+        }
+
+        /// <summary>The line under the outcome: how long it went and how it ended.</summary>
+        static string HeroLine(BattleMailReport battle, bool deflected,
+            Dictionary<HullId, int> yours, Dictionary<HullId, int> yoursLeft,
+            Dictionary<HullId, int> theirs, Dictionary<HullId, int> theirsLeft)
+        {
+            if (deflected) return "The raid broke on your Aegis Shield · no battle, nothing lost";
+            var r = battle.Report;
+            var parts = new List<string>();
+            int rounds = r.Rounds.Count;
+            if (rounds > 0) parts.Add(rounds == 1 ? "1 round" : $"{rounds} rounds");
+            if (Count(theirs) > 0 && Count(theirsLeft) == 0)
+                parts.Add(battle.Defending ? "the raiders destroyed" : "their fleet destroyed");
+            if (Count(yours) > 0 && Count(yoursLeft) == 0) parts.Add("your fleet destroyed");
+            if (r.Loot is { Total: > 0 } loot)
+                parts.Add(battle.Defending ? $"{UiTheme.FmtAmount(loot.Total)} plundered from you"
+                    : $"{UiTheme.FmtAmount(loot.Total)} plundered");
+            return string.Join(" · ", parts);
+        }
+
+        /// <summary>The report's banner: the outcome in lights over both sides'
+        /// flagships, yours on the left nose up, theirs on the right facing you.</summary>
+        static VisualElement Hero(string outcome, UnityEngine.Color tone, string line,
+            Dictionary<HullId, int> yours, Dictionary<HullId, int> yoursLeft,
+            string theirName, Dictionary<HullId, int> theirs, Dictionary<HullId, int> theirsLeft, Button? replay)
+        {
+            var hero = new VisualElement();
+            hero.style.marginTop = 8;
+            hero.style.paddingTop = 14;
+            hero.style.paddingBottom = 14;
+            hero.style.paddingLeft = 8;
+            hero.style.paddingRight = 8;
+            hero.style.alignItems = Align.Center;
+            hero.style.overflow = Overflow.Hidden;
+            hero.generateVisualContent += mgc => PaintScanLines(mgc, hero);
+            Holo.Frame(hero, UiTheme.A(UiTheme.Bg, 0.7f), UiTheme.A(tone, 0.6f), 14f, 1.2f, FrameShape.BevelAll, glow: true);
+            // A soft glow in the outcome's colour behind the title.
+            var glow = Holo.Glow(UiTheme.A(tone, 0.5f));
+            glow.style.left = Length.Percent(4f);
+            glow.style.right = Length.Percent(4f);
+            glow.style.top = -34;
+            glow.style.height = 170;
+            hero.Add(glow);
+
+            var title = Widgets.Heading(outcome, 26, tone, 4f);
+            title.style.unityTextAlign = UnityEngine.TextAnchor.MiddleCenter;
+            title.style.textShadow = new TextShadow
+            {
+                offset = UnityEngine.Vector2.zero,
+                blurRadius = 12f,
+                color = UiTheme.A(tone, 0.9f),
+            };
+            hero.Add(title);
+            if (line.Length > 0)
+            {
+                var sub = Widgets.Text(line, 11, UiTheme.Dim);
+                sub.style.unityTextAlign = UnityEngine.TextAnchor.MiddleCenter;
+                sub.style.whiteSpace = WhiteSpace.Normal;
+                sub.style.marginTop = 3;
+                hero.Add(sub);
+            }
+
+            var vs = Widgets.HBox(Justify.SpaceBetween);
+            vs.style.alignSelf = Align.Stretch;
+            vs.style.marginTop = 10;
+            vs.Add(HeroSide("YOUR FLEET", yours, yoursLeft, enemy: false));
+            var badge = new VisualElement();
+            badge.style.width = 46;
+            badge.style.height = 40;
+            badge.style.justifyContent = Justify.Center;
+            badge.style.alignItems = Align.Center;
+            Holo.Frame(badge, UiTheme.A(UiTheme.Magenta, 0.12f), UiTheme.Magenta, 0f, 1.5f, FrameShape.Hex, glow: true);
+            badge.Add(Widgets.Heading("VS", 12, UiTheme.Magenta, 1f));
+            vs.Add(badge);
+            vs.Add(HeroSide(theirName, theirs, theirsLeft, enemy: true));
+            hero.Add(vs);
+
+            if (replay != null)
+            {
+                replay.style.marginTop = 12;
+                replay.style.width = Length.Percent(78f);
+                replay.style.height = 40;
+                hero.Add(replay);
+            }
+            return hero;
+        }
+
+        static VisualElement HeroSide(string name, Dictionary<HullId, int> before, Dictionary<HullId, int> after, bool enemy)
+        {
+            var side = new VisualElement();
+            side.style.width = Length.Percent(40f);
+            side.style.alignItems = Align.Center;
+            if (LeadHull(before) is HullId hull) side.Add(ShipArt.Sprite(hull, 88f, enemy));
+            else
+            {
+                // Nobody home: the colony stood alone behind its guns and shield.
+                var planet = Icons.Make(Icon.Planet, 54f, UiTheme.A(UiTheme.Dim, 0.8f));
+                planet.style.marginTop = 17;
+                planet.style.marginBottom = 17;
+                side.Add(planet);
+            }
+            // The label is measured without its letter spacing, so at its own width
+            // an ellipsis cut even "YOUR FLEET" short (and wrapping split it). It
+            // takes the column's width instead; long names wrap there.
+            var label = Widgets.Heading(name, 9, UiTheme.Dim, 1.6f);
+            label.style.marginTop = 4;
+            label.style.alignSelf = Align.Stretch;
+            label.style.whiteSpace = WhiteSpace.Normal;
+            label.style.unityTextAlign = UnityEngine.TextAnchor.MiddleCenter;
+            side.Add(label);
+            int n0 = Count(before), n1 = Math.Min(n0, Count(after));
+            var counts = Widgets.HBox(Justify.Center);
+            counts.style.marginTop = 2;
+            counts.Add(Widgets.Text(n0 == 0 ? "no ships" : $"{n0:N0} → {n1:N0}", 14, UiTheme.Text, bold: true));
+            if (n0 > n1)
+            {
+                var lost = Widgets.Text($"−{n0 - n1:N0}", 14, UiTheme.Bad, bold: true);
+                lost.style.marginLeft = 6;
+                counts.Add(lost);
+            }
+            side.Add(counts);
+            return side;
+        }
+
+        /// <summary>Faint scan lines across the banner, under the glow.</summary>
+        static void PaintScanLines(MeshGenerationContext mgc, VisualElement host)
+        {
+            float w = host.layout.width, h = host.layout.height;
+            if (float.IsNaN(w) || w < 10f || h < 10f) return;
+            var p = mgc.painter2D;
+            p.strokeColor = UiTheme.A(UiTheme.Accent, 0.06f);
+            p.lineWidth = 1f;
+            for (float y = 11f; y < h - 3f; y += 22f)
+            {
+                p.BeginPath();
+                p.MoveTo(new UnityEngine.Vector2(3f, y));
+                p.LineTo(new UnityEngine.Vector2(w - 3f, y));
+                p.Stroke();
+            }
+        }
+
+        static Label Section(string title, UnityEngine.Color color)
+        {
+            var header = Widgets.Heading(title, 9, color, 2f);
+            header.style.marginTop = 14;
+            return header;
+        }
+
+        /// <summary>A side's ships hull by hull: the art, the name, a bar of what came
+        /// through (green) against what was lost (red), and the tally.</summary>
+        static void Losses(VisualElement content, string title, Dictionary<HullId, int> before,
+            Dictionary<HullId, int> after, bool enemy)
+        {
+            content.Add(Section(title, UiTheme.Magenta));
+            bool any = false;
+            foreach (var hull in Ships.All)
+            {
+                if (!before.TryGetValue(hull, out int sent) || sent <= 0) continue;
+                any = true;
+                int left = Math.Min(sent, after.TryGetValue(hull, out var a) ? Math.Max(0, a) : 0);
+                var row = Widgets.HBox();
+                row.style.marginTop = 4;
+                row.Add(ShipArt.Sprite(hull, 30f, enemy));
+                var name = Widgets.Text(Ships.Defs[hull].Name, 12, UiTheme.Text, bold: true);
+                name.style.width = 80;
+                name.style.marginLeft = 6;
+                row.Add(name);
+                var bar = new VisualElement();
+                bar.style.flexGrow = 1f;
+                bar.style.height = 7;
+                bar.style.backgroundColor = UiTheme.A(UiTheme.Bad, 0.35f);
+                var fill = new VisualElement();
+                fill.style.height = Length.Percent(100f);
+                fill.style.width = Length.Percent(100f * left / sent);
+                fill.style.backgroundColor = UiTheme.Good;
+                bar.Add(fill);
+                row.Add(bar);
+                var tally = Widgets.HBox(Justify.FlexEnd);
+                tally.style.width = 86;
+                tally.Add(Widgets.Text($"{left:N0} of {sent:N0}", 11, UiTheme.Dim));
+                if (sent > left)
+                {
+                    var lost = Widgets.Text($"−{sent - left:N0}", 11, UiTheme.Bad, bold: true);
+                    lost.style.marginLeft = 4;
+                    tally.Add(lost);
+                }
+                row.Add(tally);
+                content.Add(row);
+            }
+            if (!any) content.Add(Widgets.Text("No ships", 11, UiTheme.Dim));
+        }
+
+        /// <summary>Gold, quartz and helium side by side, each with its icon (milli).</summary>
+        static VisualElement Amounts(ResourceBag milli)
+        {
+            var row = Widgets.HBox();
+            row.style.marginTop = 4;
+            void Part(Icon icon, long amount, UnityEngine.Color color)
+            {
+                if (amount <= 0) return;
+                var part = Widgets.IconText(icon, UiTheme.FmtAmount(amount), 13, color, bold: true);
+                part.style.marginRight = 16;
+                row.Add(part);
+            }
+            Part(Icon.Coin, milli.Gold, UiTheme.Gold);
+            Part(Icon.Crystal, milli.Quartz, UiTheme.Quartz);
+            Part(Icon.Drop, milli.Helium, UiTheme.Helium);
+            return row;
+        }
+
         /// <summary>WAR CORRESPONDENT: the battle told as a story — the game's own telling at
         /// once; with the AI writers set up, the AI's (once per report per session).</summary>
         static VisualElement Correspondent(GameContext ctx, BattleMailReport battle)
         {
             var box = new VisualElement();
-            box.style.marginTop = 10;
-            var head = Widgets.Text("WAR CORRESPONDENT", 10, UiTheme.Accent, bold: true);
-            box.Add(head);
+            box.Add(Section("WAR CORRESPONDENT", UiTheme.Magenta));
             var story = Widgets.Text("", 11, UiTheme.Text);
             story.style.whiteSpace = WhiteSpace.Normal;
             story.style.marginTop = 3;
