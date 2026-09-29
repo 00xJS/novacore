@@ -188,12 +188,20 @@ namespace GalaxyRoyale.Game
             StartFreshGalaxy(testMode, difficulty);
         }
 
+        float _nextWidgetSync;
+
         void Update()
         {
             CloudSave.Flush(); // a backup packed on the save worker goes up from here
             if (!_booted || _ctx.State == null) return;
+            if (Time.time >= _nextWidgetSync)
+            {
+                _nextWidgetSync = Time.time + 1f;
+                HomeWidget.SyncRaidActivity(_ctx); // the raid Live Activity follows the radar
+            }
             if (Time.time < _nextAutosave) return;
             _nextAutosave = Time.time + AutosaveSeconds;
+            HomeWidget.Publish(_ctx); // the home-screen widget's snapshot
             long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             LocalSave.SaveInBackground(_ctx.State!, _ctx.Bots, now, cloud: CloudSave.Due(now, force: false));
         }
@@ -204,6 +212,7 @@ namespace GalaxyRoyale.Game
             {
                 SaveNow(forceCloud: true);
                 GameCenter.PostAll(_ctx.State); // might to the leaderboard, if opted in
+                HomeWidget.Publish(_ctx); // the widget shows what you left
             }
         }
 

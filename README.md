@@ -63,6 +63,10 @@ Portrait-mode mobile 4X, built in **Unity 6** (URP + UI Toolkit, pure-C# UI):
   anyone (attack or turtle — not both).
 - **No accounts, no server.** Everything saves to the device — atomic writes
   with a rolling backup file.
+- **Beyond the app.** A home-screen widget shows your next timers, and a Live
+  Activity counts down an incoming raid on the Lock Screen and in the Dynamic
+  Island (a WidgetKit extension in `GalaxyRoyale/iOSWidget/`, added to the Xcode
+  project by the build).
 
 ## Why it's built the way it is
 

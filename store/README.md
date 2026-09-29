@@ -22,3 +22,7 @@ Drafts and a checklist for putting Galaxy Royale on the App Store. Nothing here 
 6. **Age rating:** answer from `listing.md` (expected 9+).
 7. **Pricing:** your call (free or paid; there are no in-app purchases).
 8. **Build:** `GR_BUNDLE_ID=… GR_TEAM_ID=… scripts/testflight.sh --upload`, then pick the build in the version and submit for review with `review-notes.md`.
+   - The first signed build registers what the app's capabilities need on your developer account, through automatic signing:
+     - the widget extension's App ID (`<bundle id>.widget`) and the App Group `group.<bundle id>` it shares with the app;
+     - Game Center and iCloud key-value storage on the app's App ID.
+   - To leave any of them out, build with `GR_WIDGET=0`, `GR_GAMECENTER=0` or `GR_ICLOUD=0`.
