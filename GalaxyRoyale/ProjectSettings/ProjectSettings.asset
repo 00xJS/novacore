@@ -223,7 +223,7 @@ PlayerSettings:
   tvOSTopShelfImageWideLayers2x: []
   iOSLaunchScreenType: 1
   iOSLaunchScreenPortrait: {fileID: 2800000, guid: 7567060eca7f4a56bbbf477daba1e004, type: 3}
-  iOSLaunchScreenLandscape: {fileID: 0}
+  iOSLaunchScreenLandscape: {fileID: 2800000, guid: 7567060eca7f4a56bbbf477daba1e004, type: 3}
   iOSLaunchScreenBackgroundColor:
     serializedVersion: 2
     rgba: 4279108357
