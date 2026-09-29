@@ -67,6 +67,13 @@ namespace GalaxyRoyale.Game
                 });
             }
 
+            // Each group can be switched off in Settings › Notifications.
+            bool timers = Settings.NotifyOn(Settings.Notify.Timers);
+            bool raids = Settings.NotifyOn(Settings.Notify.Raids);
+            bool galaxyNews = Settings.NotifyOn(Settings.Notify.Galaxy);
+            bool clan = Settings.NotifyOn(Settings.Notify.Clan);
+
+            if (timers)
             foreach (var m in state.Marches)
             {
                 // Holding in place (a fly-to, a garrison on guard): nothing is due.
@@ -94,11 +101,13 @@ namespace GalaxyRoyale.Game
                 Schedule($"march-{m.Id}", m.ArrivesAtTick - now, body);
             }
 
+            if (timers)
             foreach (var o in state.BuildQueue)
                 if (o.EndsAtTick > 0)
                     Schedule($"build-{o.Building}-{o.MineId ?? 0}", o.EndsAtTick - now,
                         $"{Buildings.Defs[o.Building].Name} upgrade to Lv {o.ToLevel} complete");
 
+            if (timers)
             foreach (var o in state.ResearchQueue)
                 Schedule($"research-{o.TechId}", o.EndsAtTick - now,
                     $"{Techs.Defs[o.TechId].Name} research complete");
@@ -111,7 +120,7 @@ namespace GalaxyRoyale.Game
             var galaxy = _ctx.Bots;
             int radarLevel = RadarSystem.Level(state);
             int lead = RadarSystem.WarnLeadSeconds(radarLevel);
-            if (galaxy != null && lead > 0)
+            if (raids && galaxy != null && lead > 0)
             {
                 int tier = RadarSystem.DetailTier(radarLevel);
                 foreach (var atk in galaxy.Inbound)
@@ -123,7 +132,7 @@ namespace GalaxyRoyale.Game
             }
 
             // Assaults already flying at the Galactic Core you hold.
-            if (galaxy != null && galaxy.Core.HolderId == 0)
+            if (raids && galaxy != null && galaxy.Core.HolderId == 0)
                 foreach (var m in galaxy.Marches)
                     if (m.Kind == GalaxyRoyale.Sim.Bots.BotMarchKind.CoreAssault && !m.Resolved && m.LinkId == m.Id)
                         Schedule($"core-assault-{m.Id}", m.ArrivesAtTick - now,
@@ -131,10 +140,38 @@ namespace GalaxyRoyale.Game
 
             // Aegis Shield about to lapse.
             long shieldLeft = state.Buffs.ShieldUntilTick - now;
-            if (shieldLeft > 600)
+            if (raids && shieldLeft > 600)
                 Schedule("shield-lapse", shieldLeft - 600, "Your Aegis Shield drops in 10 minutes");
-            else if (shieldLeft > 0)
+            else if (raids && shieldLeft > 0)
                 Schedule("shield-lapse", shieldLeft, "Your Aegis Shield is down");
+
+            if (galaxyNews)
+            {
+                // The next galaxy event (they run on a fixed calendar).
+                var next = EventSystem.Next(now);
+                if (EventSystem.IsQuiet(next)) next = EventSystem.Next(next.StartTick); // skip a quiet stretch
+                if (!EventSystem.IsQuiet(next) && next.StartTick > now)
+                    Schedule("galaxy-event", next.StartTick - now, $"{next.Def.Name} has begun: {next.Def.Effect}");
+                // The season's last hour.
+                int seasonEnd = SeasonSystem.EndTick(SeasonSystem.SeasonAt(now));
+                if (seasonEnd - now > 3600)
+                    Schedule("season-end", seasonEnd - 3600 - now, "The season ends in an hour — one last push up the rankings");
+                // The Pirate Dreadnought: its arrival, or its last hour if you've struck it.
+                if (galaxy != null)
+                {
+                    var boss = galaxy.Boss;
+                    if (!boss.Active && boss.NextVisitTick > now)
+                        Schedule("boss-arrives", boss.NextVisitTick - now,
+                            "A Pirate Dreadnought dropped out of hyperspace — strike it for a share of the Dark Matter");
+                    else if (boss.Active && boss.Damage.ContainsKey(0) && boss.LeavesTick - now > 3600)
+                        Schedule("boss-leaves", boss.LeavesTick - 3600 - now,
+                            "The Pirate Dreadnought jumps away in an hour — one more strike?");
+                }
+            }
+
+            // Your clan's daily supply run.
+            if (clan && state.ClanId != 0 && state.ClanSupplyNextTick > now)
+                Schedule("clan-supply", state.ClanSupplyNextTick - now, "Your clan's supply run has arrived — collect it in MORE › CLAN");
         }
 
         static void ClearAll()

@@ -11,13 +11,16 @@ namespace GalaxyRoyale.Game.UI
     public static class Widgets
     {
         /// <summary>v1 TextButton: panel-blue fill, stroke border, active highlight.</summary>
+        /// <summary>A font size scaled by the player's text-size setting.</summary>
+        public static float Sized(float size) => size * Settings.TextScale;
+
         public static Button TextButton(string label, Action onTap, int fontSize = 14)
         {
             var btn = new Button(onTap) { text = label };
             btn.clicked += GameAudio.Tap; // quiet tick on every button (IconButton/Fab build on this)
             btn.style.backgroundColor = UiTheme.Btn;
             btn.style.color = UiTheme.Text;
-            btn.style.fontSize = fontSize;
+            btn.style.fontSize = Sized(fontSize);
             btn.style.unityFontStyleAndWeight = FontStyle.Bold;
             SetBorder(btn, UiTheme.Stroke, 1f);
             btn.style.borderTopLeftRadius = 3;
@@ -60,7 +63,7 @@ namespace GalaxyRoyale.Game.UI
                 // No explicit color: the caption inherits the button's text color,
                 // so SetButtonEnabled / SetButtonHighlight restyle it for free.
                 var text = new Label(caption) { name = "caption", pickingMode = PickingMode.Ignore };
-                text.style.fontSize = fontSize;
+                text.style.fontSize = Sized(fontSize);
                 text.style.unityFontStyleAndWeight = FontStyle.Bold;
                 text.style.marginLeft = 6;
                 text.style.marginRight = 0;
@@ -170,7 +173,7 @@ namespace GalaxyRoyale.Game.UI
         public static Label Text(string text, int size, Color color, bool bold = false)
         {
             var l = new Label(text);
-            l.style.fontSize = size;
+            l.style.fontSize = Sized(size);
             l.style.color = color;
             if (bold) l.style.unityFontStyleAndWeight = FontStyle.Bold;
             l.style.marginTop = 0;

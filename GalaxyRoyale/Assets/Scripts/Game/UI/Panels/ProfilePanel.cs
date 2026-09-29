@@ -148,6 +148,10 @@ namespace GalaxyRoyale.Game.UI
             fxRow.Add(hapticsBtn);
             content.Add(fxRow);
             SyncFx();
+            // Music, text size, colour-blind colours, reduced motion, notifications.
+            var allSettings = Widgets.IconButton(Icon.More, "ALL SETTINGS", () => SettingsPanel.Open(ctx), 11);
+            allSettings.style.marginTop = 6;
+            content.Add(allSettings);
 
             // ---- difficulty (changeable any time; NEW GAME picks the first) ----
             content.Add(SectionHeader("DIFFICULTY"));

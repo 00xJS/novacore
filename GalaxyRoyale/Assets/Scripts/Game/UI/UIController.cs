@@ -963,7 +963,8 @@ namespace GalaxyRoyale.Game.UI
 
         void ShowBattle(BattleMailReport report)
         {
-            if (BattleReplayPanel.CanReplay(report)) BattleReplayPanel.Open(_ctx, report);
+            // Reduced motion: straight to the report (WATCH REPLAY is still there).
+            if (BattleReplayPanel.CanReplay(report) && !Settings.ReducedMotion) BattleReplayPanel.Open(_ctx, report);
             else MailboxPanel.OpenReport(_ctx, report);
         }
 

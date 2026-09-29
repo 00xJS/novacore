@@ -1027,8 +1027,11 @@ namespace GalaxyRoyale.Game
             UpdateLayer(_starFar, _starFarMat, 2.0f, 0.25f, 90f);
             UpdateLayer(_starNear, _starNearMat, 1.6f, 0.5f, 55f);
 
+            // Reduced motion (Settings): no pulsing, and the decorative worlds hold still.
+            bool still = Settings.ReducedMotion;
+
             // Supernova pulse (procedural core only — the art version stays regal and still).
-            if (!_novaStatic)
+            if (!_novaStatic && !still)
             {
                 if (_novaShock != null)
                 {
@@ -1045,7 +1048,7 @@ namespace GalaxyRoyale.Game
             // Decorative worlds orbit the core; far side dims and slips behind.
             foreach (var o in _orbiters)
             {
-                float a = t * o.speed + o.phase;
+                float a = (still ? 0f : t * o.speed) + o.phase;
                 o.t.position = new Vector3(
                     _coreWorld.x + Mathf.Cos(a) * o.r,
                     _coreWorld.y + Mathf.Sin(a) * o.r * 0.62f,
@@ -1096,7 +1099,7 @@ namespace GalaxyRoyale.Game
                 float ringBase = _ringOnPlanet
                     ? PlayerMarkerScale(cam.orthographicSize)
                     : NodeMarkerScale(cam.orthographicSize, false);
-                float rs = ringBase * 1.35f * (1f + 0.08f * Mathf.Sin(t * 7f));
+                float rs = ringBase * 1.35f * (still ? 1f : 1f + 0.08f * Mathf.Sin(t * 7f));
                 _selectRing.transform.localScale = new Vector3(rs, rs, 1f);
             }
 
@@ -1610,7 +1613,8 @@ namespace GalaxyRoyale.Game
                 root.gameObject.AddComponent<MapBillboard>(); // stands up facing the viewer
                 _boss = root;
             }
-            float s = PlayerMarkerScale(_mapCam!.orthographicSize) * 1.6f * (1f + 0.06f * Mathf.Sin(t * 3f));
+            float pulse = Settings.ReducedMotion ? 1f : 1f + 0.06f * Mathf.Sin(t * 3f);
+            float s = PlayerMarkerScale(_mapCam!.orthographicSize) * 1.6f * pulse;
             _boss.localScale = new Vector3(s, s, 1f);
         }
 

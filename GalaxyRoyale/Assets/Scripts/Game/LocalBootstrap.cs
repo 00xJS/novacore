@@ -156,6 +156,7 @@ namespace GalaxyRoyale.Game
             UI.UIController.Instance?.CloseModal(); // drop the title page
             _booted = true;
             _nextAutosave = Time.time + AutosaveSeconds;
+            Music.Sync(); // the ambient score (Settings › Music)
             DebugLaunch.Run(_ctx);
         }
 
