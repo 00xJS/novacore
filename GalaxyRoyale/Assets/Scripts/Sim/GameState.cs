@@ -398,6 +398,8 @@ namespace GalaxyRoyale.Sim
         public int ClanGarrisonReadyTick;
         /// <summary>Salvage Yard: resources recovered from wrecks, waiting to be collected (milli).</summary>
         public ResourceBag SalvageStored = new();
+        /// <summary>The Wilds: surveyed sectors, the survey under way, the drones' haul (WildsSystem).</summary>
+        public WildsState Wilds = new();
         public Profile Profile = new();
         /// <summary>Milli-units.</summary>
         public ResourceBag Resources = new();

@@ -147,8 +147,15 @@ namespace GalaxyRoyale.Sim.Tests
             state.Buildings[BuildingId.CommandBastion].Level = 1;
             Assert.AreEqual((2, 4), BaseLayout.Count(state, BaseDistrict.Frontier));
 
+            var drones = BaseLayout.BuildingPad(BuildingId.DroneFactory);
+            Assert.AreEqual(BaseDistrict.Frontier, drones.District);
+            Assert.IsFalse(BaseLayout.Unlocked(state, drones), "the Drone Factory opens at CC 10");
+            state.Buildings[BuildingId.CommandCenter].Level = 10;
+            Assert.IsTrue(BaseLayout.Unlocked(state, drones));
+            state.Buildings[BuildingId.DroneFactory].Level = 1;
+            Assert.AreEqual((3, 4), BaseLayout.Count(state, BaseDistrict.Frontier));
+
             state.Buildings[BuildingId.CommandCenter].Level = 30;
-            Assert.IsFalse(BaseLayout.PlannedOnline(state, PlannedBuilding.DroneFactory), "not in the game yet");
             Assert.IsFalse(BaseLayout.Unlocked(state, BaseLayout.Pads.First(p => p.Kind == PadKind.Reserved)));
         }
     }

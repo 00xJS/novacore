@@ -18,7 +18,7 @@ namespace GalaxyRoyale.Game
         /// <summary>Names GR_OPEN accepts.</summary>
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
             "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail, " +
-            "command, mines, frontier, orbit, mapcore, report, replay, demoreport, demoreplay";
+            "command, mines, frontier, port, wilds, sector, find, orbit, orbitsouth, mapcore, report, replay, demoreport, demoreplay";
 
         public static void Run(GameContext ctx)
         {
@@ -106,6 +106,45 @@ namespace GalaxyRoyale.Game
                     case "mines": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.MiningBelt); break;
                     case "frontier": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Frontier); break;
                     case "orbit": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Command, orbit: true); break;
+                    case "port": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Spaceport); break;
+                    // The Wilds, turned to the survey under way (or the Command Center's meridian).
+                    case "wilds":
+                        ui.CloseModal();
+                        BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Wilds, lon: WildsFront(ctx));
+                        break;
+                    // A sector's panel: the survey under way, else the newest find.
+                    case "sector":
+                    {
+                        var wilds = ctx.State?.Wilds;
+                        int index = wilds == null ? -1 : wilds.Surveying;
+                        if (index < 0 && wilds != null)
+                            foreach (var s in wilds.Sectors.Values)
+                                if (s.Find != WildsFind.None && s.Index > index) index = s.Index;
+                        BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Wilds, lon: WildsFront(ctx));
+                        if (index >= 0) UI.SectorPanel.Open(ctx, index);
+                        break;
+                    }
+                    // A find's panel: an unclaimed cache or relic first, else the newest deposit.
+                    case "find":
+                    {
+                        var wilds = ctx.State?.Wilds;
+                        int index = -1;
+                        if (wilds != null)
+                        {
+                            foreach (var s in wilds.Sectors.Values)
+                                if (s.Find is WildsFind.Cache or WildsFind.Relic && !s.Claimed) { index = s.Index; break; }
+                            if (index < 0)
+                                foreach (var s in wilds.Sectors.Values)
+                                    if (s.Find == WildsFind.Deposit && s.Index > index) index = s.Index;
+                        }
+                        BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Wilds, lon: WildsFront(ctx));
+                        if (index >= 0) UI.SectorPanel.Open(ctx, index);
+                        break;
+                    }
+                    case "orbitsouth":
+                        ui.CloseModal();
+                        BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Wilds, orbit: true, lon: WildsFront(ctx));
+                        break;
                     // The NEW GALAXY setup screen (for a look at it — START there really does reset).
                     case "newgame":
                         UI.NewGamePanel.Open((test, difficulty) => LocalBootstrap.Instance?.ResetEmpire(test, difficulty),
@@ -118,6 +157,17 @@ namespace GalaxyRoyale.Game
             {
                 Debug.LogException(e); // lands in the error log beside the save
             }
+        }
+
+        static double WildsFront(GameContext ctx)
+        {
+            var wilds = ctx.State?.Wilds;
+            if (wilds == null) return 0;
+            if (wilds.Surveying >= 0) return WildsLayout.Place(wilds.Surveying).Lon;
+            int newest = -1;
+            foreach (var s in wilds.Sectors.Values)
+                if (s.Find != WildsFind.None && s.Index > newest) newest = s.Index;
+            return newest >= 0 ? WildsLayout.Place(newest).Lon : 0;
         }
 
         static BattleMailReport? NewestBattle(GameContext ctx) =>

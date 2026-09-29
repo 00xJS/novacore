@@ -1,7 +1,8 @@
 // The globe base's surface overlay (2026-09-28): the hologram latitude and
-// longitude grid, a deck under each district, the resource lanes that run from
-// each first mine out through the Mining Belt, the conduits between the
-// Command Center and its neighbours, and a hex pad under every building spot.
+// longitude grid, a deck under each district (the Spaceport's on the far side
+// since 2026-09-29), the resource lanes that run from each first mine out
+// through the Mining Belt, the conduits between the Command Center and its
+// neighbours, and a hex pad under every building spot.
 // Everything is parented to the planet, so it turns with it, and sits on the
 // default layer, so the planet hides whatever is on the far side.
 using System.Collections.Generic;
@@ -17,12 +18,15 @@ namespace GalaxyRoyale.Game
         public static readonly Color GoldLane = new(0.9f, 0.93f, 0.97f);
         public static readonly Color QuartzLane = new(0.24f, 0.96f, 1f);
         public static readonly Color HeliumLane = new(0.24f, 1f, 0.63f);
-        static readonly Color Muted = new(0.31f, 0.35f, 0.5f);
+        public static readonly Color Muted = new(0.31f, 0.35f, 0.5f);
 
         static Material? s_lineMat;
         static Material? s_dashMat;
 
-        /// <summary>Vertex-coloured, alpha-blended, unlit: lines and pad meshes.</summary>
+        /// <summary>Vertex-coloured, alpha-blended, unlit: lines and pad meshes (the Wilds' tiles,
+        /// the Spaceport's field).</summary>
+        public static Material SurfaceMaterial() => LineMaterial();
+
         static Material LineMaterial()
         {
             if (s_lineMat != null) return s_lineMat;
@@ -179,21 +183,16 @@ namespace GalaxyRoyale.Game
 
             var decks = new GameObject("District Decks").transform;
             decks.SetParent(root, false);
-            void Deck(string name, double lon0, double lon1, bool uncharted = false)
+            void Deck(string name, double lon0, double lon1)
             {
                 var outline = DeckOutline(0, 54, lon0, lon1, r * 1.0005f);
-                if (uncharted)
-                {
-                    Line(decks, name, outline, UiTheme.A(Muted, 0.7f), thin * 1.6f, dashed: true, loop: true);
-                    return;
-                }
                 DeckFill(decks, name + " Fill", 0.5, 53.5, lon0 + 1, lon1 - 1, r * 0.9995f, UiTheme.A(accent, 0.035f));
                 Line(decks, name, outline, UiTheme.A(accent, 0.55f), thin * 2f, loop: true);
             }
             Deck("Command Deck", -33, 33);
             Deck("Mining Belt Deck", 58, 122);
             Deck("Frontier Deck", -121, -59);
-            Deck("Uncharted", 138, 222, uncharted: true);
+            Deck("Spaceport Deck", 150, 210);
 
             var conduits = new GameObject("Conduits").transform;
             conduits.SetParent(root, false);
@@ -214,6 +213,12 @@ namespace GalaxyRoyale.Game
                 if (p.District == BaseDistrict.Frontier && p != hub)
                     Line(conduits, $"To {p.Key}", Arc(hub.Lat, hub.Lon, p.Lat, p.Lon, r * 1.001f), UiTheme.A(accent, 0.25f),
                         thin * 1.6f, dashed: true);
+
+            // The roads round the back to the Spaceport, from the Mining Belt and the Frontier.
+            Line(conduits, "Port Road East", Parallel(BaseLayout.MiddleRow, 124, 157, r * 1.001f), UiTheme.A(accent, 0.3f),
+                thin * 1.6f, dashed: true);
+            Line(conduits, "Port Road West", Parallel(BaseLayout.MiddleRow, -124, -157, r * 1.001f), UiTheme.A(accent, 0.3f),
+                thin * 1.6f, dashed: true);
 
             var lanes = new GameObject("Lanes").transform;
             lanes.SetParent(root, false);
@@ -253,8 +258,9 @@ namespace GalaxyRoyale.Game
 
         public enum PadLook { Built, Open, Locked, Planned, Reserved }
 
-        /// <summary>A flat hex pad in the XZ plane (y up), ring plus a faint fill.</summary>
-        public static Mesh PadMesh(float size, Color ring, Color fill, bool dashed)
+        /// <summary>A flat hex pad in the XZ plane (y up), ring plus a faint fill. <paramref name="ringWidth"/>
+        /// is the ring's share of the radius (0 = the pads' usual weight); big fields want a thin one.</summary>
+        public static Mesh PadMesh(float size, Color ring, Color fill, bool dashed, float ringWidth = 0f)
         {
             var verts = new List<Vector3>();
             var cols = new List<Color>();
@@ -272,7 +278,7 @@ namespace GalaxyRoyale.Game
                 for (int i = 0; i < 6; i++) tris.AddRange(new[] { 0, 1 + (i + 1) % 6, 1 + i });
             }
             // Ring: a band between two hexes, split into dashes when asked.
-            float outer = size, inner = size * (dashed ? 0.86f : 0.84f);
+            float outer = size, inner = size * (ringWidth > 0f ? 1f - ringWidth : dashed ? 0.86f : 0.84f);
             int segs = dashed ? 4 : 1;
             for (int i = 0; i < 6; i++)
             {

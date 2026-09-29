@@ -14,7 +14,8 @@ namespace GalaxyRoyale.Game.UI
 {
     public sealed class BaseChipLayer
     {
-        public enum Kind { Name, Timer, Open, Locked, Planned, Online, Reserved }
+        /// <summary>Fog: just a "?" hex over an uncharted sector of the Wilds (no label).</summary>
+        public enum Kind { Name, Timer, Open, Locked, Planned, Online, Reserved, Fog }
 
         sealed class Chip
         {
@@ -515,6 +516,22 @@ namespace GalaxyRoyale.Game.UI
                     tag.style.marginLeft = 5;
                     body.Add(tag);
                     c.Badge = tag; // the tag text rides in Sub
+                    break;
+                }
+                case Kind.Fog:
+                {
+                    body.style.display = DisplayStyle.None;
+                    var fog = new VisualElement { pickingMode = PickingMode.Ignore };
+                    fog.style.position = Position.Absolute;
+                    fog.style.width = 26;
+                    fog.style.height = 24;
+                    fog.style.left = -13;
+                    fog.style.top = -12;
+                    fog.style.justifyContent = Justify.Center;
+                    fog.style.alignItems = Align.Center;
+                    Holo.Frame(fog, new Color(0.02f, 0.01f, 0.05f, 0.55f), new Color(0.44f, 0.5f, 0.66f, 0.5f), 0f, 1f, FrameShape.Hex);
+                    fog.Add(Icons.Make(Icon.Question, 13, new Color(0.54f, 0.6f, 0.76f)));
+                    c.Mark = fog;
                     break;
                 }
                 case Kind.Reserved:

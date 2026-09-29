@@ -101,6 +101,9 @@ namespace GalaxyRoyale.Game
             _ctx = GetComponent<GameContext>();
             if (_ctx?.State == null || _ctx.Events == null) { Warn("GameContext not initialized"); return; }
             if (GetComponent<BaseGlobe>() == null) gameObject.AddComponent<BaseGlobe>();
+            // The rest of the globe (2026-09-29): the Wilds to the south, the Spaceport round the back.
+            if (GetComponent<WildsView>() == null) gameObject.AddComponent<WildsView>();
+            if (GetComponent<SpaceportView>() == null) gameObject.AddComponent<SpaceportView>();
 
             var planetGO = GameObject.Find("Home Planet");
             if (planetGO == null) { Warn("Home Planet not found in scene"); return; }
@@ -628,26 +631,40 @@ namespace GalaxyRoyale.Game
                 onBack: () => _panelOpen = false); // back on the base, still selected
         }
 
-        /// <summary>From orbit: each district's name and how much of it is built.</summary>
+        /// <summary>From orbit: each district's name and how much of it is built (the
+        /// Spaceport: ships docked; the Wilds: sectors charted).</summary>
         void PlaceDistrictLabels(Camera cam, GameState state)
         {
             _chips!.Begin();
             Vector3 centre = _planet!.position;
             Vector3 toCamera = (cam.transform.position - centre).normalized;
-            void Label(string key, double lon, string name, string count, bool uncharted)
+            void Label(string key, double lat, double lon, string name, string count)
             {
-                var world = _planet.TransformPoint(BaseVisuals.Point(62, lon, _radius * 1.01f));
+                var world = _planet.TransformPoint(BaseVisuals.Point(lat, lon, _radius * 1.01f));
                 if (Vector3.Dot((world - centre).normalized, toCamera) < 0.05f) return;
                 if (_chips.ToPanel(cam.WorldToScreenPoint(world)) is not { } p) return;
-                if (uncharted) _chips.Place(key, BaseChipLayer.Kind.Reserved, p, null, name);
-                else _chips.Place(key, BaseChipLayer.Kind.Online, p, null, name, count);
+                _chips.Place(key, BaseChipLayer.Kind.Online, p, null, name, count);
             }
-            foreach (BaseDistrict d in System.Enum.GetValues(typeof(BaseDistrict)))
+            foreach (var d in BaseLayout.NorthBand)
             {
-                var (built, total) = BaseLayout.Count(state, d);
-                Label($"district-{d}", BaseLayout.DistrictLon(d), BaseLayout.DistrictName(d), $"{built}/{total}", false);
+                string count;
+                if (d == BaseDistrict.Spaceport)
+                {
+                    int docked = 0;
+                    foreach (var n in state.Ships.Values) docked += Mathf.Max(0, n);
+                    count = $"{docked:N0} ships";
+                }
+                else
+                {
+                    var (built, total) = BaseLayout.Count(state, d);
+                    count = $"{built}/{total}";
+                }
+                Label($"district-{d}", 62, BaseLayout.DistrictLon(d), BaseLayout.DistrictName(d), count);
             }
-            Label("district-uncharted", 180, "UNCHARTED", "", true);
+            // The Wilds' label rides round with the view, over the southern cap.
+            var globe = BaseGlobe.Instance;
+            Label("district-Wilds", -58, globe != null ? globe.Yaw : 0f, BaseLayout.DistrictName(BaseDistrict.Wilds),
+                $"{WildsSystem.ChartedCount(state)}/{WildsLayout.Total}");
             _chips.End();
         }
 

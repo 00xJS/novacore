@@ -175,7 +175,7 @@ namespace GalaxyRoyale.Game.UI
 
             // The globe base: district tabs above the ticker, and ORBIT / HOME / LAND at
             // the top right where the old SPIN toggle sat (Update tracks the safe area).
-            _districts = new DistrictHud(_root, UiTheme.NavH + TickerH + 16);
+            _districts = new DistrictHud(_root, UiTheme.NavH + TickerH + 16, _ctx);
             _spinToggle = _districts.Fab;
 
             // Quest tracker + event chip share one column so the chip slides
@@ -217,7 +217,7 @@ namespace GalaxyRoyale.Game.UI
             _labelBlockers.AddRange(new[]
             {
                 _header, _nav, _ticker, _queuesFab, _moreFab, _moreMenu,
-                _spinToggle, _searchFab, _favoritesFab, _calloutLayer, _leftStack, _districts.Bar,
+                _spinToggle, _searchFab, _favoritesFab, _calloutLayer, _leftStack, _districts.Bar, _districts.WildsHud,
             });
 
             _ctx.Events!.Subscribe(OnSimEvent);
@@ -1073,8 +1073,7 @@ namespace GalaxyRoyale.Game.UI
             _favoritesFab.style.display = mapFabDisplay;
             _spinToggle.style.display = View == ViewId.Base && _modal == null
                 ? DisplayStyle.Flex : DisplayStyle.None;
-            _districts.Bar.style.display = View == ViewId.Base && _modal == null && !calloutUp
-                ? DisplayStyle.Flex : DisplayStyle.None;
+            _districts.SetVisible(View == ViewId.Base && _modal == null && !calloutUp);
             _leftStack.style.display = View == ViewId.Base && _modal == null && !calloutUp
                 ? DisplayStyle.Flex : DisplayStyle.None;
             _questTracker.style.display = QuestSystem.Current(state) != null ? DisplayStyle.Flex : DisplayStyle.None;

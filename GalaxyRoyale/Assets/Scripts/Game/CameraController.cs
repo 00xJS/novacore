@@ -210,7 +210,16 @@ namespace GalaxyRoyale.Game
         {
             if (_cam == null) return;
             var ray = _cam.ScreenPointToRay(new Vector3(screenPos.x, screenPos.y, 0f));
-            if (Physics.Raycast(ray, out var hit, 200f)) OnTapHit?.Invoke(hit);
+            // The planet has no collider, so a ray over bare ground runs on through it
+            // to the far side: only hits on the side facing the camera count (the
+            // Wilds and the Spaceport put tap targets all the way round).
+            RaycastHit? best = null;
+            foreach (var h in Physics.RaycastAll(ray, 200f))
+            {
+                if (_planet != null && Vector3.Dot((h.point - _planet.position).normalized, -ray.direction) < -0.05f) continue;
+                if (best == null || h.distance < best.Value.distance) best = h;
+            }
+            if (best is { } hit) OnTapHit?.Invoke(hit);
             else OnTapEmpty?.Invoke();
         }
 
