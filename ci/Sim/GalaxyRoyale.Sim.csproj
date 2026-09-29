@@ -1,0 +1,20 @@
+<!-- GalaxyRoyale.Sim outside Unity (CI): the deterministic simulation, which never
+     references UnityEngine (noEngineReferences in its asmdef). Same constraints as
+     the Unity assembly: .NET Standard 2.1, C# 9, nullable on, CS8632 an error. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <WarningsAsErrors>CS8632</WarningsAsErrors>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>GalaxyRoyale.Sim</AssemblyName>
+    <RootNamespace>GalaxyRoyale.Sim</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../GalaxyRoyale/Assets/Scripts/Sim/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Data/GalaxyRoyale.Data.csproj" />
+  </ItemGroup>
+</Project>

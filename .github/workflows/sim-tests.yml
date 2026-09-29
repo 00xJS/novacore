@@ -1,0 +1,36 @@
+# The simulation's test suite on every push to main and every pull request.
+# Sim and Data are engine-free (noEngineReferences), so they build with the
+# plain .NET SDK — no Unity licence or editor in CI. The projects in ci/ compile
+# the same sources as the Unity assemblies, with the same language version and
+# API level. Run it yourself with: dotnet test ci/Tests
+name: Sim tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build and test the simulation
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet test ci/Tests -c Release --logger "console;verbosity=detailed" 2>&1 | tee test-output.txt
+      - name: Pace readouts
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Pace readouts'
+            echo '```'
+            grep -E 'PACE |create\(' test-output.txt | sed -E 's/^[[:space:]]+//' || echo '(none)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,17 @@
+<!-- GalaxyRoyale.Data outside Unity (CI): the same sources and constraints as the
+     Unity assembly — .NET Standard 2.1 (Unity 6's API level), C# 9, nullable on
+     with CS8632 as an error (the csc.rsp next to the sources). -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <WarningsAsErrors>CS8632</WarningsAsErrors>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>GalaxyRoyale.Data</AssemblyName>
+    <RootNamespace>GalaxyRoyale.Data</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../GalaxyRoyale/Assets/Scripts/Data/**/*.cs" />
+  </ItemGroup>
+</Project>
