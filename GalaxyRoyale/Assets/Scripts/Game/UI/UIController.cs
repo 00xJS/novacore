@@ -55,6 +55,7 @@ namespace GalaxyRoyale.Game.UI
         readonly Dictionary<ViewId, Button> _navButtons = new();
         Button _mailButton = null!;
         VisualElement _mailDot = null!;
+        DistrictHud _districts = null!;
         bool _mailBadge;
         Button _queuesFab = null!;
         VisualElement _queuesBadge = null!;
@@ -172,12 +173,10 @@ namespace GalaxyRoyale.Game.UI
             _searchFab = LeftFab(Icon.Search, "FIND", () => SearchPanel.Open(_ctx), 56f);
             _favoritesFab = LeftFab(Icon.Star, null, () => FavoritesPanel.Open(_ctx), 112f);
 
-            // Auto-rotate toggle — top right of the BASE view, default off.
-            _spinToggle = Widgets.Fab(Icon.Rotate, "SPIN", ToggleSpin, 44f, UiTheme.Stroke);
-            _spinToggle.style.position = Position.Absolute;
-            _spinToggle.style.right = 12;
-            _spinToggle.style.top = 112; // just under the header (Update tracks the safe area)
-            _root.Add(_spinToggle);
+            // The globe base: district tabs above the ticker, and ORBIT / HOME / LAND at
+            // the top right where the old SPIN toggle sat (Update tracks the safe area).
+            _districts = new DistrictHud(_root, UiTheme.NavH + TickerH + 16);
+            _spinToggle = _districts.Fab;
 
             // Quest tracker + event chip share one column so the chip slides
             // up when the Commander's Path is finished.
@@ -218,7 +217,7 @@ namespace GalaxyRoyale.Game.UI
             _labelBlockers.AddRange(new[]
             {
                 _header, _nav, _ticker, _queuesFab, _moreFab, _moreMenu,
-                _spinToggle, _searchFab, _favoritesFab, _calloutLayer, _leftStack,
+                _spinToggle, _searchFab, _favoritesFab, _calloutLayer, _leftStack, _districts.Bar,
             });
 
             _ctx.Events!.Subscribe(OnSimEvent);
@@ -525,16 +524,6 @@ namespace GalaxyRoyale.Game.UI
             _root.Add(_moreMenu);
         }
 
-        void ToggleSpin()
-        {
-            var spin = GameObject.Find("Home Planet")?.GetComponent<PlanetSpin>();
-            if (spin == null) return;
-            spin.enabled = !spin.enabled;
-            Widgets.SetCaption(_spinToggle, spin.enabled ? "STOP" : "SPIN");
-            Widgets.SetButtonHighlight(_spinToggle, spin.enabled);
-            Toast(spin.enabled ? "Auto-rotate on — sit back and watch your world" : "Auto-rotate off");
-        }
-
         void ToggleMoreMenu()
         {
             _moreOpen = !_moreOpen;
@@ -675,6 +664,13 @@ namespace GalaxyRoyale.Game.UI
         {
             EnsureBuilt();
             return new WorldLabelLayer(_root, name, _labelBlockers);
+        }
+
+        /// <summary>The globe base's chips (name, level, timers, pad marks), under the HUD.</summary>
+        public BaseChipLayer CreateBaseChipLayer()
+        {
+            EnsureBuilt();
+            return new BaseChipLayer(_root, _labelBlockers);
         }
 
         /// <summary>HUD pieces world labels must keep clear of (see WorldLabelLayer).</summary>
@@ -1077,6 +1073,8 @@ namespace GalaxyRoyale.Game.UI
             _favoritesFab.style.display = mapFabDisplay;
             _spinToggle.style.display = View == ViewId.Base && _modal == null
                 ? DisplayStyle.Flex : DisplayStyle.None;
+            _districts.Bar.style.display = View == ViewId.Base && _modal == null && !calloutUp
+                ? DisplayStyle.Flex : DisplayStyle.None;
             _leftStack.style.display = View == ViewId.Base && _modal == null && !calloutUp
                 ? DisplayStyle.Flex : DisplayStyle.None;
             _questTracker.style.display = QuestSystem.Current(state) != null ? DisplayStyle.Flex : DisplayStyle.None;
@@ -1381,6 +1379,7 @@ namespace GalaxyRoyale.Game.UI
 
         void RefreshHeader(GameState state)
         {
+            _districts.Refresh(state);
             RefreshQuestTracker(state);
             RefreshEventChip(state);
             RefreshCoreChip(state);

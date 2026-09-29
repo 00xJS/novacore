@@ -20,7 +20,7 @@ namespace GalaxyRoyale.Game
         [Header("Atmosphere")]
         [Tooltip("Soft glow rim around the planet — reads as an atmosphere in space.")]
         [SerializeField] bool atmosphere = true;
-        [SerializeField] Color atmosphereColor = new(0.35f, 0.6f, 1f, 0.55f);
+        [SerializeField] Color atmosphereColor = new(1f, 0.55f, 0.22f, 0.5f); // Neon Hologram orange rim
         [Tooltip("Halo size relative to the planet radius.")]
         [SerializeField, Range(1f, 1.6f)] float atmosphereScale = 1.22f;
         [SerializeField] Color oceanColor    = new(0.10f, 0.28f, 0.55f);
@@ -46,6 +46,10 @@ namespace GalaxyRoyale.Game
         [SerializeField, Range(0f, 0.5f)] float saturationJitter = 0.15f;
         [Tooltip("Brightness multiplier range.")]
         [SerializeField, Range(0f, 0.3f)] float valueJitter = 0.08f;
+
+        [Header("Neon Hologram (2026-09-28)")]
+        [Tooltip("Recolour the surface into the violet hologram palette the globe base is drawn on; the terrain detail stays.")]
+        [SerializeField] bool hologramPalette = true;
 
         [Header("Seed source")]
         [Tooltip("When true, use GameContext.Seed (each player unique). When false, use planetSeed.")]
@@ -389,6 +393,7 @@ namespace GalaxyRoyale.Game
                         if (picks.Count == 0) t *= Mathf.Lerp(0.6f, 1f, elevation);
                         c = Color.Lerp(c, iceColor, Mathf.Clamp01(t));
                     }
+                    if (hologramPalette) c = Hologram(c);
                     pixels[y * width + x] = c;
                 }
             }
@@ -403,6 +408,24 @@ namespace GalaxyRoyale.Game
             string mix = names.Count > 0 ? string.Join(" + ", names) : "(procedural)";
             Debug.Log($"[GalaxyRoyale] Planet seed={seed}: mix=[{mix}], hue+={hueShift:F2}, sat×={satMul:F2}, val×={valMul:F2}");
             return tex;
+        }
+
+        // Dark space-violet to orchid by brightness, with a trace of the planet's own
+        // colour so every world still looks a little different.
+        static readonly Color HoloDeep = new(0.03f, 0.016f, 0.07f);
+        static readonly Color HoloMid = new(0.17f, 0.085f, 0.3f);
+        static readonly Color HoloHigh = new(0.4f, 0.2f, 0.52f);
+        static readonly Color HoloPeak = new(0.66f, 0.46f, 0.74f);
+
+        static Color Hologram(Color c)
+        {
+            float l = Mathf.Clamp01(0.3f * c.r + 0.59f * c.g + 0.11f * c.b);
+            var holo = l < 0.35f ? Color.Lerp(HoloDeep, HoloMid, l / 0.35f)
+                : l < 0.7f ? Color.Lerp(HoloMid, HoloHigh, (l - 0.35f) / 0.35f)
+                : Color.Lerp(HoloHigh, HoloPeak, (l - 0.7f) / 0.3f);
+            var mixed = Color.Lerp(holo, c * 0.45f, 0.12f);
+            mixed.a = 1f;
+            return mixed;
         }
     }
 }

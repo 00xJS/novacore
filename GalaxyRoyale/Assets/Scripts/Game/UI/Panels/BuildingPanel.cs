@@ -480,12 +480,23 @@ namespace GalaxyRoyale.Game.UI
         static readonly MineType[] Types =
             { MineType.GoldMine, MineType.QuartzExtractor, MineType.HeliumRefinery };
 
-        public static void Open(GameContext ctx, int plot)
+        /// <summary>An open Mining Belt pad: each pad takes one resource's mine
+        /// (its lane), so only that type is offered.</summary>
+        public static void Open(GameContext ctx, int plot, MineType only)
+        {
+            var name = Buildings.Defs[MineTypes.ToBuildingId(only)].Name;
+            Open(ctx, plot, new[] { only }, "BUILD HERE", $"This pad is on the {name.ToLowerInvariant()} lane: build another {name} here.");
+        }
+
+        public static void Open(GameContext ctx, int plot) =>
+            Open(ctx, plot, Types, "EXPANSION PLOT", "Construct an additional producer on this plot.");
+
+        static void Open(GameContext ctx, int plot, MineType[] types, string title, string blurb)
         {
             var ui = UIController.Instance!;
-            var (blocker, content) = Widgets.ModalPanel("EXPANSION PLOT", ui.CloseModal, 52f);
+            var (blocker, content) = Widgets.ModalPanel(title, ui.CloseModal, types.Length == 1 ? 0f : 52f);
 
-            var intro = Widgets.Text("Construct an additional producer on this plot.", 12, UiTheme.Dim);
+            var intro = Widgets.Text(blurb, 12, UiTheme.Dim);
             intro.style.whiteSpace = WhiteSpace.Normal;
             intro.style.marginBottom = 8;
             content.Add(intro);
@@ -497,13 +508,22 @@ namespace GalaxyRoyale.Game.UI
             void Refresh()
             {
                 var s = ctx.State!;
-                string key = s.Tick.ToString();
-                if (key == cache) return;
-                cache = key;
+                // Rebuild only when something shown changes: rebuilding every tick
+                // could swallow a tap that landed between a button's press and release.
+                var key = new System.Text.StringBuilder().Append(BuildingSystem.AllowedMinesForType(s));
+                foreach (var type in types)
+                {
+                    var id = MineTypes.ToBuildingId(type);
+                    key.Append('|').Append(BuildingSystem.MineCountOfType(s, type))
+                       .Append(ResourceSystem.CanAfford(s, BuildingSystem.GetUpgradeCost(id, 1)) ? 'y' : 'n')
+                       .Append(BuildingSystem.GetBuildTime(s, id, 1));
+                }
+                if (key.ToString() == cache) return;
+                cache = key.ToString();
 
                 list.Clear();
                 int allowed = BuildingSystem.AllowedMinesForType(s);
-                foreach (var type in Types)
+                foreach (var type in types)
                 {
                     var bid = MineTypes.ToBuildingId(type);
                     var def = Buildings.Defs[bid];
@@ -525,7 +545,7 @@ namespace GalaxyRoyale.Game.UI
                         $"H {UiTheme.FmtAmount(cost.Helium)} · {UiTheme.FmtDuration(seconds)}",
                         11, canAfford ? UiTheme.Dim : UiTheme.Bad));
 
-                    var build = Widgets.TextButton(
+                    var build = Widgets.Primary(Widgets.TextButton(
                         maxed ? "CC UNLOCKS MORE" : "BUILD", () =>
                     {
                         var res = BuildingSystem.BuildMine(ctx.State!, type, plot, out int newMineId);
@@ -539,7 +559,7 @@ namespace GalaxyRoyale.Game.UI
                         {
                             ui.Toast(res.Reason ?? "Cannot build");
                         }
-                    }, 11);
+                    }, 11));
                     Widgets.SetButtonEnabled(build, !maxed && canAfford);
                     build.style.marginTop = 6;
                     row.Add(build);

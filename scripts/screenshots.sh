@@ -25,7 +25,7 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${2:-$REPO/store/screenshots}"
 BUNDLE="${GR_BUNDLE_ID:-com.example.galaxyroyale}"
 WAIT="${GR_SHOT_WAIT:-70}"
-SCREENS=(${=GR_SHOTS:-base map core boss commander clan market rankings})
+SCREENS=(${=GR_SHOTS:-base mines orbit map core boss commander clan market rankings})
 
 mkdir -p "$OUT"
 xcrun simctl status_bar "$UDID" override --time 9:41 --dataNetwork wifi --wifiBars 3 \
