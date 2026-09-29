@@ -4,8 +4,14 @@
 # native size. A 6.9" iPhone (the Pro Max Simulators) gives 1320 × 2868, the
 # size App Store Connect asks for first.
 #
-#   scripts/screenshots.sh                    # the booted Simulator → store/screenshots/
+#   scripts/screenshots.sh                    # the booted Simulator → store/screenshots/raw/
 #   scripts/screenshots.sh <udid> <out-dir>
+#
+# Then frame the ones for the App Store with captions (store/screenshots/*.jpg):
+#   scripts/store_frames.py store/screenshots store/screenshots/raw/01-base.png=colony …
+# The replay's frame is caught mid-fight by hand: launch with GR_OPEN=demoreplay and
+# GR_SETTINGS="replaySpeed=1", screenshot every half second once the boot finishes,
+# and keep the busiest one.
 #
 # Needs the app installed in that Simulator (BuildScript.BuildIosSimulator +
 # xcodebuild, as for any Simulator run) and a save worth showing. The game
@@ -22,10 +28,10 @@ set -euo pipefail
 
 UDID="${1:-booted}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="${2:-$REPO/store/screenshots}"
+OUT="${2:-$REPO/store/screenshots/raw}"
 BUNDLE="${GR_BUNDLE_ID:-com.example.galaxyroyale}"
 WAIT="${GR_SHOT_WAIT:-70}"
-SCREENS=(${=GR_SHOTS:-base mines orbit map core boss commander clan market rankings})
+SCREENS=(${=GR_SHOTS:-base wilds port demoreport mapcore mines orbit map core boss commander clan market rankings})
 
 mkdir -p "$OUT"
 xcrun simctl status_bar "$UDID" override --time 9:41 --dataNetwork wifi --wifiBars 3 \

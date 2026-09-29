@@ -65,3 +65,5 @@ ci/**/obj/
 * [0-9]
 * [0-9][0-9].*
 * [0-9][0-9]
+# Raw Simulator captures (scripts/screenshots.sh); the framed App Store set is committed.
+store/screenshots/raw/
