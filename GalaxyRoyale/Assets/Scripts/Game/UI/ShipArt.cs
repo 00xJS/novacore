@@ -6,9 +6,10 @@
 //   Resources/Research/<TechId>.png   e.g. Resources/Research/IonThrusters.png
 // and it replaces the placeholder everywhere, zero code changes. (Raw renders
 // with a baked checkerboard can go through GalaxyRoyale → Process Ship &
-// Research Art first.) Until then every hull gets a painted top-down SCHEMATIC
-// generated from a per-hull shape table — distinct silhouettes, tinted by
-// battlefield role — and every tech gets a category emblem.
+// Research Art first.) All 23 hulls have renders now (the art upgrade,
+// 2026-09-29: lit metal hulls in the Neon Hologram palette, top-down, nose up);
+// a hull without one falls back to a painted top-down SCHEMATIC generated from
+// a per-hull shape table, and every tech without art gets a category emblem.
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -29,6 +30,42 @@ namespace GalaxyRoyale.Game.UI
                 _photos[hull] = tex;
             }
             return tex;
+        }
+
+        /// <summary>Enemy ships in reports and replays: the same art, warmed red.</summary>
+        public static readonly Color EnemyTint = new(1f, 0.74f, 0.76f);
+
+        /// <summary>How big a hull draws beside the others: a fighter is 0.85, the
+        /// heaviest destroyers 1.8 (it follows hull points).</summary>
+        public static float Bulk(HullId hull) =>
+            Mathf.Clamp(0.85f + 0.22f * Mathf.Log(Ships.Defs[hull].Hp / 60f, 2f), 0.75f, 1.8f);
+
+        /// <summary>
+        /// The hull's art on its own, no card: the render when there is one,
+        /// otherwise the schematic. Enemy ships face down and are warmed red.
+        /// <paramref name="size"/> 0 leaves the size to the caller.
+        /// </summary>
+        public static VisualElement Sprite(HullId hull, float size, bool enemy = false)
+        {
+            var photo = Photo(hull);
+            VisualElement e;
+            if (photo != null)
+            {
+                e = new VisualElement();
+                e.style.backgroundImage = new StyleBackground(photo);
+                e.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Contain);
+                if (enemy) e.style.unityBackgroundImageTintColor = EnemyTint;
+            }
+            else e = new ShipSchematic(hull);
+            e.pickingMode = PickingMode.Ignore;
+            e.style.flexShrink = 0f;
+            if (size > 0f)
+            {
+                e.style.width = size;
+                e.style.height = size;
+            }
+            if (enemy) e.style.rotate = new StyleRotate(new Rotate(Angle.Degrees(180f)));
+            return e;
         }
 
         /// <summary>Role tint used for frames, stripes and shield rings.</summary>
@@ -371,10 +408,7 @@ namespace GalaxyRoyale.Game.UI
 
             if (def.HullScope is HullId hull)
             {
-                var ship = new ShipSchematic(hull) { pickingMode = PickingMode.Ignore };
-                ship.style.width = size * 0.78f;
-                ship.style.height = size * 0.78f;
-                badge.Add(ship);
+                badge.Add(ShipArt.Sprite(hull, size * 0.82f));
                 return badge;
             }
 

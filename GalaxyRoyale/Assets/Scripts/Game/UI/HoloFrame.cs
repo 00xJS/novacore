@@ -127,6 +127,58 @@ namespace GalaxyRoyale.Game.UI
     public static class Holo
     {
         static readonly ConditionalWeakTable<VisualElement, HoloFrame> s_frames = new();
+        static Texture2D? s_glow;
+
+        /// <summary>A soft round glow: white, its alpha falling off smoothly from the
+        /// middle (stacked translucent shapes show rings; this doesn't).</summary>
+        public static Texture2D GlowTexture
+        {
+            get
+            {
+                if (s_glow != null) return s_glow;
+                const int n = 128;
+                var tex = new Texture2D(n, n, TextureFormat.RGBA32, false)
+                {
+                    name = "HoloGlow", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear,
+                };
+                var px = new Color32[n * n];
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        float dx = (x + 0.5f) / n * 2f - 1f, dy = (y + 0.5f) / n * 2f - 1f;
+                        float d = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy));
+                        float a = Mathf.Pow(1f - d, 2.2f);
+                        px[y * n + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255f));
+                    }
+                tex.SetPixels32(px);
+                tex.Apply(false, true);
+                s_glow = tex;
+                return tex;
+            }
+        }
+
+        /// <summary>A soft glow in <paramref name="color"/> (its alpha sets the strength),
+        /// stretched over the element's box; position it absolutely behind content.</summary>
+        public static VisualElement Glow(Color color)
+        {
+            var e = new VisualElement { pickingMode = PickingMode.Ignore };
+            e.style.position = Position.Absolute;
+            e.style.backgroundImage = new StyleBackground(GlowTexture);
+            e.style.backgroundSize = new BackgroundSize(Length.Percent(100f), Length.Percent(100f));
+            e.style.unityBackgroundImageTintColor = color;
+            return e;
+        }
+
+        /// <summary><see cref="Glow"/> placed by percentages of its parent's box.</summary>
+        public static VisualElement Glow(Color color, float leftPct, float topPct, float widthPct, float heightPct)
+        {
+            var e = Glow(color);
+            e.style.left = Length.Percent(leftPct);
+            e.style.top = Length.Percent(topPct);
+            e.style.width = Length.Percent(widthPct);
+            e.style.height = Length.Percent(heightPct);
+            return e;
+        }
 
         /// <summary>Give <paramref name="host"/> a painted frame (or restyle the one it
         /// has). The host's own background, border and corner radii are cleared.</summary>

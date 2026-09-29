@@ -95,7 +95,8 @@ namespace GalaxyRoyale.Sim.Systems
             return ValueOf(Lost(report.Fleet, report.Survivors)).Scaled(rate);
         }
 
-        /// <summary>File a report's salvage in the yard; returns what was actually added (milli).</summary>
+        /// <summary>File a report's salvage in the yard and note it on the report;
+        /// returns what was actually added (milli).</summary>
         public static ResourceBag OnMail(GameState state, MailItem item)
         {
             var gain = item switch
@@ -104,7 +105,9 @@ namespace GalaxyRoyale.Sim.Systems
                 BossReport boss => FromBoss(state, boss),
                 _ => new ResourceBag(),
             };
-            return Store(state, gain);
+            var added = Store(state, gain);
+            if (added.Total > 0) item.Salvaged = added;
+            return added;
         }
 
         /// <summary>Add salvage up to the yard's capacity; returns what fitted (milli).</summary>

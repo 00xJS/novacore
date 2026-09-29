@@ -156,8 +156,36 @@ namespace GalaxyRoyale.Sim.Tests
         public void WithoutASalvageYard_WrecksAreLost()
         {
             var s = Colony(8);
-            BotSystem.InsertMail(s, Defense(raidersLost: 10, cruisersLost: 2));
+            var mail = Defense(raidersLost: 10, cruisersLost: 2);
+            BotSystem.InsertMail(s, mail);
             Assert.AreEqual(0, s.SalvageStored.Total);
+            Assert.IsNull(mail.Salvaged, "the report has no salvage line");
+        }
+
+        [Test]
+        public void TheReport_RemembersWhatTheYardRecovered()
+        {
+            var s = Colony(8, salvage: 5);
+            var mail = Defense(raidersLost: 10, cruisersLost: 1);
+            BotSystem.InsertMail(s, mail);
+            Assert.IsNotNull(mail.Salvaged);
+            Assert.AreEqual(s.SalvageStored.Gold, mail.Salvaged!.Gold);
+            Assert.AreEqual(s.SalvageStored.Helium, mail.Salvaged.Helium);
+
+            var back = (BattleMailReport)SaveCodec.DecodeState(SaveCodec.EncodeState(s)).Mailbox[0];
+            Assert.AreEqual(mail.Salvaged.Gold, back.Salvaged!.Gold);
+            Assert.AreEqual(mail.Salvaged.Quartz, back.Salvaged.Quartz);
+        }
+
+        [Test]
+        public void AFullYard_NotesOnlyWhatFitted()
+        {
+            var s = Colony(8, salvage: 1);
+            long cap = SalvageSystem.CapacityMilli(s);
+            s.SalvageStored = new ResourceBag(cap, cap, cap);
+            var mail = Defense(raidersLost: 10, cruisersLost: 1);
+            BotSystem.InsertMail(s, mail);
+            Assert.IsNull(mail.Salvaged, "nothing fitted, so nothing to report");
         }
 
         [Test]

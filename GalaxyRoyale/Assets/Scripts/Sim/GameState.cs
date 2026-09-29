@@ -100,6 +100,9 @@ namespace GalaxyRoyale.Sim
         public bool Read;
         /// <summary>Favorited reports are protected from the 50-item ring buffer + delete.</summary>
         public bool Favorite;
+        /// <summary>What the Salvage Yard recovered from this fight (milli), set as
+        /// the report is filed; null when it recovered nothing.</summary>
+        public ResourceBag? Salvaged;
     }
 
     public sealed class SpyIntel

@@ -930,6 +930,7 @@ namespace GalaxyRoyale.Sim.Save
             }
             d["read"] = item.Read;
             d["favorite"] = item.Favorite;
+            if (item.Salvaged is { Total: > 0 } salvaged) d["salvaged"] = Bag(salvaged);
             return d;
         }
 
@@ -1024,6 +1025,7 @@ namespace GalaxyRoyale.Sim.Save
             item.Subject = Str(d, "subject");
             item.Read = d.TryGetValue("read", out var rd) && rd is bool rb && rb;
             item.Favorite = d.TryGetValue("favorite", out var f) && f is bool fb && fb;
+            if (d.TryGetValue("salvaged", out var sg) && sg is Dictionary<string, object?> sgd) item.Salvaged = DecBag(sgd);
             if (item is BattleMailReport mail)
             {
                 mail.Defending = IsDefenseReport(mail,
