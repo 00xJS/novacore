@@ -236,6 +236,17 @@ namespace GalaxyRoyale.Game
             if (node != null) SelectNode(node);
         }
 
+        /// <summary>Center the map on a tile at a zoom (half-height in tiles), selecting
+        /// nothing — for launch hooks and screenshots.</summary>
+        public void Frame(TileXY tile, float viewSize)
+        {
+            if (!_active) EnterMap();
+            if (_mapCam == null || _camCtl == null) return;
+            var w = TileToWorld(tile.X, tile.Y);
+            _camCtl.ViewSize = viewSize;
+            _camCtl.Frame(new Vector2(w.x, w.y));
+        }
+
         static Vector3 TileToWorld(double x, double y, float z = 0f) =>
             new((float)(x + 0.5), -(float)(y + 0.5), z);
 

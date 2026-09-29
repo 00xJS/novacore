@@ -26,13 +26,14 @@ code stayed home.)
 
 ## Screenshots
 
-Running on an iPhone — the base view, the living galaxy of 249 rivals, and
-the supernova at its heart:
+Running on iPhone (iOS Simulator) — your colony on its globe, the living
+galaxy of 249 rivals, and the Galactic Core at its heart:
 
-| Your planet | The galaxy | The core |
+| Your colony | The Mining Belt | From orbit |
 |---|---|---|
-| ![Base view](Screenshots/base-view.jpeg) | ![Rival planets](Screenshots/galaxy-rivals.jpeg) | ![Galaxy core](Screenshots/galaxy-core.jpeg) |
-| ![Commander profile](Screenshots/commander-profile.jpeg) | ![Galaxy map](Screenshots/galaxy-map.jpeg) | ![More rivals](Screenshots/galaxy-map-2.jpeg) |
+| ![The Command district of the globe base](Screenshots/base-view.jpeg) | ![The Mining Belt, with open and locked pads](Screenshots/base-mines.jpeg) | ![The whole colony from orbit](Screenshots/base-orbit.jpeg) |
+| **Your home in the galaxy** | **The Galactic Core** | **Your commander** |
+| ![The galaxy map around your home planet](Screenshots/galaxy-map.jpeg) | ![The Galactic Core and the rivals around it](Screenshots/galaxy-core.jpeg) | ![The commander profile](Screenshots/commander-profile.jpeg) |
 
 ## The game
 
