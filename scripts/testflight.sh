@@ -19,13 +19,16 @@
 #                     App Store Connect API key (.p8) instead of the Xcode account
 #   GR_UNITY          Unity editor binary (default: the Hub's 6000.5.2f1)
 #   GR_ICLOUD=0       build without the iCloud save-backup capability
+#   GR_GAMECENTER=0   build without the Game Center capability
+#   GR_WIDGET=0       build without the home-screen widget / raid Live Activity
+#                     (its extension and App Group)
 set -euo pipefail
 
 UPLOAD=0
 for arg in "$@"; do
   case "$arg" in
     --upload) UPLOAD=1 ;;
-    -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done

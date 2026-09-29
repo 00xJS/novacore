@@ -38,6 +38,7 @@ GROW AS A COMMANDER
 PLAY YOUR WAY
 • Choose Easy, Standard or Brutal — how hard the galaxy leans on you.
 • Single-player and offline: no account, no server, no ads. Your empire saves on your phone and backs up to your iCloud.
+• A home-screen widget for your timers, and a Live Activity that counts down an incoming raid on your Lock Screen and in the Dynamic Island.
 • Text size, colour-blind colours and reduced motion options; synthesized music and sound, and haptics.
 
 ## Keywords (100, comma-separated, no spaces)
