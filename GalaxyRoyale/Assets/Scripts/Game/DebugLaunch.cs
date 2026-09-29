@@ -13,11 +13,13 @@ namespace GalaxyRoyale.Game
     {
         /// <summary>Names GR_OPEN accepts.</summary>
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
-            "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity";
+            "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail";
 
         public static void Run(GameContext ctx)
         {
             ApplySettings(Environment.GetEnvironmentVariable("GR_SETTINGS"));
+            // GR_AI=<proxy URL> points the AI writers at a proxy (a local test server, say).
+            if (Environment.GetEnvironmentVariable("GR_AI") is { } ai) AiWriter.ProxyUrl = ai;
             string? open = Environment.GetEnvironmentVariable("GR_OPEN");
             if (string.IsNullOrWhiteSpace(open)) return;
             // After the boot-time panels (the "while you were away" debrief) have had their turn.
@@ -59,6 +61,9 @@ namespace GalaxyRoyale.Game
                     case "market": ui.OpenMarket(); break;
                     case "settings": UI.SettingsPanel.Open(ctx); break;
                     case "liveactivity": HomeWidget.Publish(ctx); HomeWidget.ShowSampleRaid(); break;
+                    case "hail":
+                        if (ctx.Bots?.Bots.Count > 0) UI.HailPanel.Open(ctx, ctx.Bots.Bots[0].Id);
+                        break;
                     case "clan": ui.OpenClan(); break;
                     case "rankings": ui.OpenRankings(); break;
                     case "season": ui.OpenRankings(season: true); break;

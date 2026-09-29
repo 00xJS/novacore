@@ -325,6 +325,7 @@ namespace GalaxyRoyale.Game.UI
                     watch.style.height = 38;
                     content.Add(watch);
                 }
+                if (!deflected && r.Rounds.Count > 0) content.Add(Correspondent(ctx, battle));
 
                 // Fleet breakdown: a labeled section with ONE hull per line (user
                 // spec: don't crunch every ship type onto one run-on line).
@@ -665,6 +666,36 @@ namespace GalaxyRoyale.Game.UI
         }
 
         static MapView? GetMapView(GameContext ctx) => ctx.GetComponent<MapView>();
+
+        /// <summary>WAR CORRESPONDENT: the battle told as a story — the game's own telling at
+        /// once; with the AI writers set up, the AI's (once per report per session).</summary>
+        static VisualElement Correspondent(GameContext ctx, BattleMailReport battle)
+        {
+            var box = new VisualElement();
+            box.style.marginTop = 10;
+            var head = Widgets.Text("WAR CORRESPONDENT", 10, UiTheme.Accent, bold: true);
+            box.Add(head);
+            var story = Widgets.Text("", 11, UiTheme.Text);
+            story.style.whiteSpace = WhiteSpace.Normal;
+            story.style.marginTop = 3;
+            story.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Italic;
+            box.Add(story);
+            var byline = Widgets.Text("", 9, UiTheme.Dim);
+            byline.style.marginTop = 3;
+            box.Add(byline);
+
+            var facts = GalaxyRoyale.Sim.Text.FlavorText.RecapFacts(ctx.State!, ctx.Bots, battle);
+            string fallback = GalaxyRoyale.Sim.Text.FlavorText.RecapFallback(facts, battle.Id);
+            void Show(string text, bool ai)
+            {
+                story.text = AiWriter.Clean(text);
+                byline.text = ai ? "Filed by the AI correspondent" : "";
+                byline.style.display = ai ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+            Show(fallback, false);
+            AiWriter.Write(ctx, "recap", facts, battle.Id, $"recap-{battle.Id}", fallback, Show);
+            return box;
+        }
 
         static string HullLeft(BossReport b) => b.MaxHp > 0 ? $"{Math.Round(b.HpAfter * 100.0 / b.MaxHp):0}%" : "?";
 

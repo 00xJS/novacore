@@ -1,0 +1,9 @@
+{
+  "name": "galaxy-royale-ai",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker that writes Galaxy Royale flavour text with Claude, so the API key never ships in the app.",
+  "scripts": {
+    "test": "node --test test/*.test.ts"
+  }
+}

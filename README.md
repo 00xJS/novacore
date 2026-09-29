@@ -67,6 +67,12 @@ Portrait-mode mobile 4X, built in **Unity 6** (URP + UI Toolkit, pure-C# UI):
   Activity counts down an incoming raid on the Lock Screen and in the Dynamic
   Island (a WidgetKit extension in `GalaxyRoyale/iOSWidget/`, added to the Xcode
   project by the build).
+- **Optional AI writers.** Deploy the small proxy in `server/ai-proxy/` (a
+  Cloudflare Worker that keeps the Anthropic API key) and paste its address into
+  Settings › AI WRITERS. Claude then writes the daily *Galactic Gazette*, a war
+  correspondent's recap of each battle, and in-character replies when you hail
+  a rival commander. Without a proxy, the game writes its own versions from the
+  same facts, so nothing depends on it.
 
 ## Why it's built the way it is
 
@@ -146,7 +152,9 @@ GalaxyRoyale/        — the Unity 6 project (open THIS folder in Unity Hub)
   Assets/Editor/     — batch iOS build + art-processing tools
   Assets/Resources/  — runtime-loaded art (drop-in replaceable)
 ci/                  — .NET projects that build Data + Sim + the tests without Unity (CI)
-.github/workflows/   — sim-tests.yml: the suite on every push and pull request
+server/ai-proxy/     — optional Cloudflare Worker that writes the AI text (holds the API key)
+.github/workflows/   — sim-tests.yml: the suite on every push and pull request;
+                       ai-proxy.yml: the proxy's tests
 scripts/             — testflight.sh (signed .ipa, optional upload), screenshots.sh
 store/               — App Store listing, privacy and review-notes drafts + checklist
 README.md            — you are here
@@ -185,6 +193,7 @@ repo.
 - `Balance.TestMode = true` — you start rich (1M premium currency, 500K
   resources). Deliberate, for exploration; flip it off in `Balance.cs`.
 - Fully offline — no accounts, no server, no analytics. Saves live on-device.
+  The optional AI writers talk only to a proxy you deploy yourself.
 - Tested on iPhone (iOS 13+ target) and in-editor on macOS. Android compiles
   from the same project but was never a focus.
 - No license has been chosen yet — if you want to build on this, open an

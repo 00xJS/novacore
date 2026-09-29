@@ -158,6 +158,10 @@ namespace GalaxyRoyale.Game.UI
             raid.style.width = Length.Percent(48f);
             actions.Add(raid);
             body.Add(actions);
+            // Open a channel: taunt, peace, clan talk or trade — they answer in character.
+            var hail = Widgets.IconButton(Icon.More, "HAIL", () => HailPanel.Open(ctx, botId), 10);
+            hail.style.marginTop = 8;
+            body.Add(hail);
         }
 
         static bool IsOnlineNow(GameContext ctx, BotEmpire bot, BotPersonality personality)

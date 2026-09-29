@@ -12,9 +12,10 @@ Why that's accurate:
 - The home-screen widget and the raid Live Activity read a small snapshot the game writes to an App Group on the device (timers, resources, might). It never leaves the phone.
 - **Game Center** (optional, off until the player turns it on in Settings) is Apple's service. Scores and achievements go to Apple under the player's Game Center account, and the developer doesn't collect them.
 - **Report a problem** only opens the iOS share sheet with a text report the player can read first. Nothing is sent unless the player chooses where to share it.
+- The **AI writers** are off unless the player enters the address of a proxy they run (Settings › AI WRITERS). Only then does the game send that proxy the facts for each text: commander names (the player's included), battle numbers and news headlines. Nothing about the device or the Apple ID is sent, and the developer runs no proxy.
 
 Revisit these answers if any of the following change:
-- The AI features (planned) send gameplay facts, but no personal data, to a proxy you run. If they ship, answer for that proxy: "Other data (gameplay content), not linked to the user, not used for tracking".
+- A build that ships with an AI proxy you run already set. Then answer for that proxy: "Other data (gameplay content), not linked to the user, not used for tracking".
 - Crash reporting, analytics or ads.
 
 **Privacy policy URL:** App Store Connect requires one even for no collection. A short page stating the above is enough (it can live in this repo or on GitHub Pages).

@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using UnityEngine.UIElements;
 using GalaxyRoyale.Sim;
 using GalaxyRoyale.Sim.Bots;
+using GalaxyRoyale.Sim.Text;
 
 namespace GalaxyRoyale.Game.UI
 {
@@ -17,6 +18,8 @@ namespace GalaxyRoyale.Game.UI
         {
             var ui = UIController.Instance!;
             var (blocker, content) = Widgets.ModalPanel("GALAXY NEWS", ui.CloseModal, 78f);
+
+            if (ctx.State != null && ctx.Bots != null) content.Add(Gazette(ctx));
 
             var body = new VisualElement();
             content.Add(body);
@@ -183,6 +186,57 @@ namespace GalaxyRoyale.Game.UI
                 foreach (var (meta, item) in ageLabels) meta.text = MetaText(item, tick);
             };
             return blocker;
+        }
+
+        /// <summary>THE GALACTIC GAZETTE: today's front page. The game's own edition at once;
+        /// with the AI writers set up, the AI's edition replaces it when it arrives, and is
+        /// kept for the rest of the galaxy day (on this device) so it's written once.</summary>
+        static VisualElement Gazette(GameContext ctx)
+        {
+            var state = ctx.State!;
+            var galaxy = ctx.Bots!;
+            int day = FlavorText.GazetteDay(state);
+            string cacheKey = $"gazette-{day}";
+            // An edition from earlier today (an earlier session) is reused as it was.
+            if (AiWriter.SavedGazette(day) is { } saved) AiWriter.Remember(cacheKey, saved);
+
+            var card = Widgets.Row();
+            Widgets.SetBorder(card, UiTheme.Energy, 1f);
+            card.style.marginBottom = 10;
+            var masthead = Widgets.HBox(Justify.SpaceBetween);
+            masthead.Add(Widgets.Text("THE GALACTIC GAZETTE", 11, UiTheme.Energy, bold: true));
+            masthead.Add(Widgets.Text($"DAY {day}", 10, UiTheme.Dim, bold: true));
+            card.Add(masthead);
+            var headline = Widgets.Text("", 14, UiTheme.Text, bold: true);
+            headline.style.whiteSpace = WhiteSpace.Normal;
+            headline.style.marginTop = 6;
+            card.Add(headline);
+            var items = Widgets.Text("", 11, UiTheme.Text);
+            items.style.whiteSpace = WhiteSpace.Normal;
+            items.style.marginTop = 4;
+            card.Add(items);
+            var byline = Widgets.Text("", 9, UiTheme.Dim);
+            byline.style.marginTop = 6;
+            card.Add(byline);
+
+            void Show(string text, bool ai)
+            {
+                string clean = AiWriter.Clean(text);
+                int nl = clean.IndexOf('\n');
+                headline.text = nl < 0 ? clean : clean.Substring(0, nl).Trim();
+                items.text = nl < 0 ? "" : clean.Substring(nl + 1).Trim();
+                byline.text = ai ? "Written by the Gazette's AI desk" : "From the Gazette's wire desk";
+            }
+
+            string fallback = FlavorText.GazetteFallback(state, galaxy);
+            Show(fallback, false);
+            if (AiWriter.Configured && !AiWriter.TryCached(cacheKey, out _)) byline.text = "The AI desk is writing today's edition...";
+            AiWriter.Write(ctx, "gazette", FlavorText.GazetteFacts(state, galaxy), day, cacheKey, fallback, (text, ai) =>
+            {
+                Show(text, ai);
+                if (ai) AiWriter.SaveGazette(day, text);
+            });
+            return card;
         }
 
         public static string NameOf(GameContext ctx, int empireId) =>
