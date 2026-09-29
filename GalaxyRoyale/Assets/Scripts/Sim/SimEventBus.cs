@@ -10,7 +10,8 @@ namespace GalaxyRoyale.Sim
 {
     public abstract record SimEvent;
 
-    public sealed record BuildingCompleted(BuildingId Building, int Level) : SimEvent;
+    /// <summary>An upgrade finished (MineId: which extra mine, when it was one).</summary>
+    public sealed record BuildingCompleted(BuildingId Building, int Level, int? MineId = null) : SimEvent;
     public sealed record ShipsCompleted(HullId Hull, int Count) : SimEvent;
     public sealed record MarchPhaseChanged(int MarchId, MarchPhase Phase) : SimEvent;
     public sealed record BattleResolved(BattleReport Report) : SimEvent;

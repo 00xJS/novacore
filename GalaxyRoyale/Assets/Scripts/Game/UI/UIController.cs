@@ -673,6 +673,29 @@ namespace GalaxyRoyale.Game.UI
             return new BaseChipLayer(_root, _labelBlockers);
         }
 
+        /// <summary>A full-screen layer under the HUD that lets taps through: the globe's
+        /// floating labels (GlobeFx).</summary>
+        public VisualElement CreateFxLayer()
+        {
+            EnsureBuilt();
+            var layer = new VisualElement { name = "globe-fx", pickingMode = PickingMode.Ignore };
+            layer.style.position = Position.Absolute;
+            layer.style.left = 0;
+            layer.style.right = 0;
+            layer.style.top = 0;
+            layer.style.bottom = 0;
+            layer.style.overflow = Overflow.Hidden;
+            _root.Insert(0, layer);
+            return layer;
+        }
+
+        /// <summary>Add a non-modal card over the HUD (the first-run tour), under any modal.</summary>
+        public void ShowOverlay(VisualElement overlay)
+        {
+            EnsureBuilt();
+            _root.Insert(_root.IndexOf(_modalLayer), overlay);
+        }
+
         /// <summary>HUD pieces world labels must keep clear of (see WorldLabelLayer).</summary>
         readonly List<VisualElement> _labelBlockers = new();
         VisualElement _header = null!, _nav = null!;

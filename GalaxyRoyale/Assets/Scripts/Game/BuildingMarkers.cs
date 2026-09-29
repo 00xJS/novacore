@@ -104,6 +104,7 @@ namespace GalaxyRoyale.Game
             // The rest of the globe (2026-09-29): the Wilds to the south, the Spaceport round the back.
             if (GetComponent<WildsView>() == null) gameObject.AddComponent<WildsView>();
             if (GetComponent<SpaceportView>() == null) gameObject.AddComponent<SpaceportView>();
+            if (GetComponent<GlobeFx>() == null) gameObject.AddComponent<GlobeFx>(); // fleets, raids, level-ups
 
             var planetGO = GameObject.Find("Home Planet");
             if (planetGO == null) { Warn("Home Planet not found in scene"); return; }

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using GalaxyRoyale.Data;
+using GalaxyRoyale.Sim.Systems;
 
 namespace GalaxyRoyale.Sim.Tests
 {
@@ -158,5 +159,23 @@ namespace GalaxyRoyale.Sim.Tests
             state.Buildings[BuildingId.CommandCenter].Level = 30;
             Assert.IsFalse(BaseLayout.Unlocked(state, BaseLayout.Pads.First(p => p.Kind == PadKind.Reserved)));
         }
-    }
+    
+        [Test]
+        public void AFinishedUpgrade_SaysWhichMineItWas_SoTheGlobeLightsTheRightPad()
+        {
+            var state = NewState(10);
+            var mine = AddMine(state, MineType.QuartzExtractor, level: 1);
+            state.BuildQueue.Add(new BuildOrder { Building = BuildingId.QuartzExtractor, ToLevel = 2, EndsAtTick = state.Tick, MineId = mine.Id });
+            state.BuildQueue.Add(new BuildOrder { Building = BuildingId.RadarStation, ToLevel = 3, EndsAtTick = state.Tick });
+            var bus = new SimEventBus();
+            var done = new List<BuildingCompleted>();
+            bus.Subscribe(e => { if (e is BuildingCompleted b) done.Add(b); });
+            BuildingSystem.Tick(state, bus);
+            Assert.AreEqual(2, done.Count);
+            var quartz = done.Find(d => d.Building == BuildingId.QuartzExtractor);
+            Assert.AreEqual(mine.Id, quartz!.MineId);
+            Assert.AreEqual(2, mine.Level);
+            Assert.IsNull(done.Find(d => d.Building == BuildingId.RadarStation)!.MineId, "the core buildings carry no mine");
+        }
+}
 }

@@ -140,6 +140,11 @@ namespace GalaxyRoyale.Game.UI
 
             // ---- help ----
             content.Add(Header("HELP", 14));
+            var tour = Widgets.IconButton(Icon.Compass, "REPLAY THE TOUR", () => GlobeTour.Start(), 11);
+            tour.style.marginTop = 6;
+            content.Add(tour);
+            content.Add(Note("Half a minute round your globe: the colony, the Mining Belt, the Frontier, the Spaceport, " +
+                "the Wilds and the galaxy.", 4));
             var report = Widgets.IconButton(Icon.Warning, "REPORT A PROBLEM", () =>
             {
                 bool shared = ProblemReport.Share(ctx.State);

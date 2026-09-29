@@ -18,7 +18,8 @@ namespace GalaxyRoyale.Game
         /// <summary>Names GR_OPEN accepts.</summary>
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
             "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail, " +
-            "command, mines, frontier, port, wilds, sector, find, orbit, orbitsouth, mapcore, report, replay, demoreport, demoreplay";
+            "command, mines, frontier, port, wilds, sector, find, orbit, orbitsouth, mapcore, report, replay, demoreport, demoreplay, " +
+            "tour, fxdemo";
 
         public static void Run(GameContext ctx)
         {
@@ -141,6 +142,13 @@ namespace GalaxyRoyale.Game
                         if (index >= 0) UI.SectorPanel.Open(ctx, index);
                         break;
                     }
+                    case "tour": UI.GlobeTour.Start(); break;
+                    // The globe's effects on a loop, for a look (and screenshots): level-ups at the
+                    // Command Center, a raid, a fleet lifting off and landing at the Spaceport.
+                    case "fxdemo":
+                        ui.CloseModal();
+                        if (GlobeFx.Instance != null) GlobeFx.Instance.StartCoroutine(GlobeFx.Instance.Demo());
+                        break;
                     case "orbitsouth":
                         ui.CloseModal();
                         BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Wilds, orbit: true, lon: WildsFront(ctx));
