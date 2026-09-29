@@ -14,7 +14,7 @@ namespace GalaxyRoyale.Game
         /// <summary>Names GR_OPEN accepts.</summary>
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
             "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail, " +
-            "command, mines, frontier, orbit";
+            "command, mines, frontier, orbit, mapcore";
 
         public static void Run(GameContext ctx)
         {
@@ -79,6 +79,12 @@ namespace GalaxyRoyale.Game
                     case "profile": ui.OpenProfile(); break;
                     case "fleet": ui.SwitchView(UI.ViewId.Fleet); break;
                     case "map": ui.SwitchView(UI.ViewId.Map); break;
+                    // The galaxy map framed on the Galactic Core and the rivals around it.
+                    case "mapcore":
+                        ui.CloseModal();
+                        ui.SwitchView(UI.ViewId.Map);
+                        ctx.GetComponent<MapView>()?.Frame(Sim.Systems.CoreSystem.CoreTile, 520f);
+                        break;
                     // The globe base's views (any boot-time panel closed first).
                     case "command": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Command); break;
                     case "mines": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.MiningBelt); break;
