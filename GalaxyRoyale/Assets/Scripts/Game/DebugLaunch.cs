@@ -1,5 +1,5 @@
-// Test hook: open a screen straight after boot, chosen by the GR_OPEN
-// environment variable. The Simulator passes it with
+// Test hooks: open a screen straight after boot, chosen by the GR_OPEN
+// environment variable (and set display/audio settings with GR_SETTINGS). The Simulator passes it with
 //   SIMCTL_CHILD_GR_OPEN=core xcrun simctl launch <device> <bundle>
 // so screens can be checked (and App Store screenshots taken) without driving
 // the Simulator's laggy taps. A player can't set environment variables, so on
@@ -17,10 +17,31 @@ namespace GalaxyRoyale.Game
 
         public static void Run(GameContext ctx)
         {
+            ApplySettings(Environment.GetEnvironmentVariable("GR_SETTINGS"));
             string? open = Environment.GetEnvironmentVariable("GR_OPEN");
             if (string.IsNullOrWhiteSpace(open)) return;
             // After the boot-time panels (the "while you were away" debrief) have had their turn.
             ctx.StartCoroutine(OpenSoon(ctx, open!));
+        }
+
+        /// <summary>GR_SETTINGS="colorBlind=1;reducedMotion=1;textSize=2;music=0" — set before a
+        /// screenshot or a check, without tapping through Settings.</summary>
+        static void ApplySettings(string? spec)
+        {
+            if (string.IsNullOrWhiteSpace(spec)) return;
+            foreach (var pair in spec!.Split(';', ','))
+            {
+                var kv = pair.Split('=');
+                if (kv.Length != 2 || !int.TryParse(kv[1].Trim(), out int v)) continue;
+                switch (kv[0].Trim())
+                {
+                    case "colorBlind": Settings.ColorBlind = v != 0; break;
+                    case "reducedMotion": Settings.ReducedMotion = v != 0; break;
+                    case "textSize": Settings.TextSize = (TextSize)Mathf.Clamp(v, 0, 2); break;
+                    case "music": Settings.MusicOn = v != 0; Music.Sync(); break;
+                    default: Debug.LogWarning($"[DebugLaunch] GR_SETTINGS: unknown setting '{kv[0]}'"); break;
+                }
+            }
         }
 
         static System.Collections.IEnumerator OpenSoon(GameContext ctx, string open)

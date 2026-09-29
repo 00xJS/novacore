@@ -17,9 +17,10 @@ code stayed home.)
 
 > ⚠️ **This is an experiment, not a product.** It was built to answer "can this
 > be done and what does it feel like," not to ship on an app store. Balance is
-> in flux, a developer test-mode economy is switched ON by default, and rough
-> edges are part of the artifact. Read it like a lab notebook with a playable
-> result.
+> in flux, NEW GAME offers a developer TESTING economy next to the honest
+> STANDARD start, and rough edges are part of the artifact. Read it like a lab
+> notebook with a playable result. (`store/` holds the drafts for taking it to
+> the App Store anyway.)
 
 ---
 
@@ -109,11 +110,17 @@ The interesting engineering lives in a few decisions:
    in Xcode after opening the generated project.
 3. Open in Xcode, select your device, Run.
 
+**TestFlight / the App Store:** `scripts/testflight.sh` builds, archives and
+exports a signed `.ipa` (`--upload` sends it to App Store Connect).
+`store/README.md` is the checklist, with drafts of the listing, privacy
+answers and review notes. `scripts/screenshots.sh` takes the App Store
+screenshots in the Simulator.
+
 **Tuning the galaxy:** every pacing knob — bot count, aggression, raid
 cooldowns, punch-up limits, burn duration — is a named constant on
 `BotSystem` (`GalaxyRoyale/Assets/Scripts/Sim/Bots/Bots.cs`) or in
-`Balance.cs`. `Balance.TestMode` (on by default) grants a fat testing wallet;
-turn it off for an honest early game.
+`Balance.cs`. The difficulty (NEW GAME, or the profile) scales how hard the
+rivals lean on you (`Data/Difficulty.cs`).
 
 ## Repo map
 
@@ -128,6 +135,8 @@ GalaxyRoyale/        — the Unity 6 project (open THIS folder in Unity Hub)
     Tests/           — EditMode NUnit suite (sim, codec, bots, perf)
   Assets/Editor/     — batch iOS build + art-processing tools
   Assets/Resources/  — runtime-loaded art (drop-in replaceable)
+scripts/             — testflight.sh (signed .ipa, optional upload), screenshots.sh
+store/               — App Store listing, privacy and review-notes drafts + checklist
 README.md            — you are here
 UNITY_SETUP.md       — editor/build settings cheatsheet
 ```

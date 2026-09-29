@@ -911,6 +911,7 @@ namespace GalaxyRoyale.Game.UI
                 case AchievementUnlocked unlocked:
                 {
                     var a = unlocked.Achievement;
+                    GameCenter.PostAchievement(a.Id); // if the player opted in to Game Center
                     Toast(a.Title != null
                         ? $"Achievement: {a.Name} · +{a.RewardDM} DM · title \"{a.Title}\" unlocked"
                         : $"Achievement: {a.Name} · +{a.RewardDM} DM", Icon.Trophy, UiTheme.Energy);

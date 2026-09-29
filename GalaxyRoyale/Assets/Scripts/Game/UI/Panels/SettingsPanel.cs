@@ -1,6 +1,7 @@
 // SETTINGS (profile › SETTINGS): sound, haptics and music; text size,
-// colour-blind colours and reduced motion; and which notifications the game
-// sends while it's closed. Everything is saved on this device as it changes.
+// colour-blind colours and reduced motion; which notifications the game sends
+// while it's closed; Game Center; and Report a problem. Everything is saved on
+// this device as it changes.
 using System;
 using UnityEngine.UIElements;
 
@@ -89,6 +90,28 @@ namespace GalaxyRoyale.Game.UI
                 var k = kind;
                 content.Add(Toggle(Settings.NotifyLabel(k), () => Settings.NotifyOn(k), on => Settings.SetNotify(k, on)));
             }
+
+            // ---- Game Center ----
+            content.Add(Header("GAME CENTER", 14));
+            content.Add(Toggle("Game Center", () => GameCenter.Enabled, on =>
+            {
+                GameCenter.Enabled = on;
+                if (on) GameCenter.Sync(ctx.State, ok => ui.Toast(ok ? "Signed in to Game Center"
+                    : "Game Center sign-in didn't complete — try again later", Icon.Trophy, ok ? UiTheme.Good : UiTheme.Dim));
+            }, "Posts your might to the Game Center leaderboard and unlocks your achievements there. " +
+               "It signs in to Game Center when you turn it on."));
+
+            // ---- help ----
+            content.Add(Header("HELP", 14));
+            var report = Widgets.IconButton(Icon.Warning, "REPORT A PROBLEM", () =>
+            {
+                bool shared = ProblemReport.Share(ctx.State);
+                if (!shared) ui.Toast("Problem report copied to the clipboard", Icon.Check, UiTheme.Good);
+            }, 11);
+            report.style.marginTop = 6;
+            content.Add(report);
+            content.Add(Note("Opens the share sheet with a short report — the game version, your device, the state of " +
+                "your galaxy and any recent errors. You read it first and choose where it goes; the game sends nothing.", 4));
 
             footer.Add(Widgets.TextButton("DONE", ui.CloseModal, 12));
             ui.OpenModal(blocker);

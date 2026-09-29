@@ -241,8 +241,8 @@ namespace GalaxyRoyale.Game.UI
                     bool won = (r is BattleMailReport br && PlayerWon(br))
                         || r is BossReport { Kind: not BossReportKind.Missed };
                     var row = Widgets.Row();
-                    if (won) row.style.backgroundColor = new UnityEngine.Color(0.1f, 0.16f, 0.12f, r.Read ? 0.5f : 0.9f);
-                    else if (isBattle) row.style.backgroundColor = new UnityEngine.Color(0.165f, 0.1f, 0.1f, r.Read ? 0.5f : 0.9f);
+                    if (won) row.style.backgroundColor = UiTheme.Wash(UiTheme.Good, r.Read ? 0.5f : 0.9f);
+                    else if (isBattle) row.style.backgroundColor = UiTheme.Wash(UiTheme.Bad, r.Read ? 0.5f : 0.9f);
                     else if (r.Read) row.style.backgroundColor = new UnityEngine.Color(UiTheme.PanelLight.r, UiTheme.PanelLight.g, UiTheme.PanelLight.b, 0.4f);
                     row.RegisterCallback<PointerUpEvent>(_ => OpenDetail(ctx, r));
 

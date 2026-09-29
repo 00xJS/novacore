@@ -38,6 +38,9 @@ namespace GalaxyRoyale.Game.UI
             Bad = colorBlind ? Rgb(0xffa347) : Rgb(0xff7a7a);
         }
 
+        /// <summary>A dark wash of a colour for a card's background (won / lost rows).</summary>
+        public static Color Wash(Color c, float alpha) => new(c.r * 0.17f, c.g * 0.17f, c.b * 0.17f, alpha);
+
         public static readonly Color Gold   = Rgb(0xaab4c0);
         public static readonly Color Quartz = Rgb(0x6fd3e8);
         public static readonly Color Helium     = Rgb(0x86e08a);

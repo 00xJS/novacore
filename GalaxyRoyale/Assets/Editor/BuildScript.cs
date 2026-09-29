@@ -69,6 +69,10 @@ public static class BuildScript
             PlayerSettings.iOS.sdkVersion = simulator ? iOSSdkVersion.SimulatorSDK : iOSSdkVersion.DeviceSDK;
             if (simulator) PlayerSettings.iOS.simulatorSdkArchitecture = AppleMobileArchitectureSimulator.ARM64;
 
+            // iPhone only: the layout is a portrait phone design (an iPad build would
+            // need its own screenshots and review on iPad).
+            PlayerSettings.iOS.targetDevice = iOSTargetDevice.iPhoneOnly;
+
             // Portrait-locked, like v1's shell.
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.allowedAutorotateToPortrait = true;
