@@ -176,8 +176,14 @@ namespace GalaxyRoyale.Sim.Systems
                 atkByHull[hull] = AtkMultFor(state, hull) + atk;
                 hpByHull[hull] = HpMultFor(state, hull) + hp;
             }
-            return new Combat.FleetMods(AtkMult(state) + atk, HpMult(state) + hp, atkByHull, hpByHull,
-                ShieldMult(state) + EffectTotal(state, TechEffectKind.DefShieldMult), BatteryLevel(state));
+            // The Command Bastion's armoured docks protect everything docked at home.
+            int bastion = state.Buildings.TryGetValue(BuildingId.CommandBastion, out var b) ? b.Level : 0;
+            float docks = bastion * Balance.BastionDockArmourPerLevel;
+            if (docks > 0f)
+                foreach (var hull in Ships.All) hpByHull[hull] += docks;
+            return new Combat.FleetMods(AtkMult(state) + atk, HpMult(state) + hp + docks, atkByHull, hpByHull,
+                ShieldMult(state) + EffectTotal(state, TechEffectKind.DefShieldMult), BatteryLevel(state),
+                Balance.BastionDamage(bastion));
         }
 
         /// <summary>Attacking combat mods — military research only (global scalars +

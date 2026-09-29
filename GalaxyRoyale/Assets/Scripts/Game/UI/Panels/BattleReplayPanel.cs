@@ -54,7 +54,8 @@ namespace GalaxyRoyale.Game.UI
             var theirIcons = AllocateIcons(theirs[0], out var theirPerHull);
             var yourIcons = AllocateIcons(yours[0], out var yourPerHull);
             // Orbital Batteries sit with the defender: them when you attacked, you when raided.
-            int battery = mail.Report.DefenderBattery;
+            // Planetary guns (Orbital Batteries, Bastion railguns) sit with the defender.
+            int battery = mail.Report.DefenderBattery + (mail.Report.DefenderTurret > 0 ? 1 : 0);
             var stage = new ReplayStage(theirIcons, yourIcons, mail.Id,
                 batteries: battery > 0 ? 3 : 0, batteriesAreTheirs: youAttacked);
             stage.style.height = 280;

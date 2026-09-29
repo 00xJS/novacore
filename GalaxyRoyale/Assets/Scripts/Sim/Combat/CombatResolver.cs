@@ -10,7 +10,8 @@
 // Both sides fight with their research (FleetMods): military research counts
 // in every battle, and a defender at home adds the Defense branch — including
 // Orbital Batteries, planetary guns that hit every attacking stack each round
-// straight through ship shields, even when no defending fleet is docked.
+// straight through ship shields, even when no defending fleet is docked — and
+// the Command Bastion's railguns, which fire at the heaviest hull present.
 using System;
 using System.Collections.Generic;
 using GalaxyRoyale.Data;
@@ -181,12 +182,14 @@ namespace GalaxyRoyale.Sim.Combat
             var rounds = new List<RoundLog>();
             int battery = Math.Max(0, defMods.BatteryLevel);
             float batteryDamage = battery * (float)Balance.BatteryDamagePerLevel;
+            int turret = Math.Max(0, defMods.TurretDamage);
+            bool guns = battery > 0 || turret > 0;
 
             int round = 0;
             while (round < Balance.MaxCombatRounds
                 && TotalSurvivors(atkPools) > 0
-                // The batteries keep firing a few rounds even with no fleet home.
-                && (TotalSurvivors(defPools) > 0 || (battery > 0 && round < Balance.BatteryOnlyRounds)))
+                // The planetary guns keep firing a few rounds even with no fleet home.
+                && (TotalSurvivors(defPools) > 0 || (guns && round < Balance.BatteryOnlyRounds)))
             {
                 round++;
                 var atkBefore = Survivors(atkPools);
@@ -207,6 +210,9 @@ namespace GalaxyRoyale.Sim.Combat
                 if (batteryDamage > 0f)
                     foreach (var kv in SpreadByHp(atkPools, batteryDamage))
                         Add(dmgToAtk, kv.Key, kv.Value / atkMods.HpFor(kv.Key));
+                // Bastion railguns: anti-capital — the heaviest hull still standing takes it all.
+                if (turret > 0 && HeaviestHull(atkPools) is HullId heavy)
+                    Add(dmgToAtk, heavy, turret / atkMods.HpFor(heavy));
                 ApplyDamage(defPools, dmgToDef);
                 ApplyDamage(atkPools, dmgToAtk);
 
@@ -223,7 +229,7 @@ namespace GalaxyRoyale.Sim.Combat
             // A raid that outlasts the batteries still takes an empty colony; one
             // the batteries wipe out is repelled.
             var winner = (atkAlive && !defAlive) ? BattleWinner.Attacker
-                       : (!atkAlive && (defAlive || battery > 0)) ? BattleWinner.Defender
+                       : (!atkAlive && (defAlive || guns)) ? BattleWinner.Defender
                        : BattleWinner.Draw;
 
             return new BattleReport
@@ -235,7 +241,22 @@ namespace GalaxyRoyale.Sim.Combat
                 AttackerSurvivors = Survivors(atkPools),
                 DefenderSurvivors = Survivors(defPools),
                 DefenderBattery = battery,
+                DefenderTurret = turret,
             };
+        }
+
+        /// <summary>The attacking hull with the most HP per ship that still has ships left.</summary>
+        static HullId? HeaviestHull(Dictionary<HullId, int> pools)
+        {
+            HullId? best = null;
+            int bestHp = -1;
+            foreach (var hull in Ships.All)
+            {
+                if (!pools.TryGetValue(hull, out var pool) || pool <= 0) continue;
+                int hp = Ships.Defs[hull].Hp;
+                if (hp > bestHp) { bestHp = hp; best = hull; }
+            }
+            return best;
         }
     }
 }

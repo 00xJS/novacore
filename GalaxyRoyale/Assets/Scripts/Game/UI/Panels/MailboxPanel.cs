@@ -393,6 +393,15 @@ namespace GalaxyRoyale.Game.UI
                     battery.Add(Widgets.Text($"Lv {r.DefenderBattery}", 11, UiTheme.Text, bold: true));
                     content.Add(battery);
                 }
+                if (r.DefenderTurret > 0)
+                {
+                    var turret = Widgets.HBox(Justify.SpaceBetween);
+                    turret.style.marginTop = 6;
+                    turret.Add(Widgets.IconText(Icon.Target,
+                        defending ? "Your Bastion railguns" : "Their Bastion railguns", 11, UiTheme.Dim));
+                    turret.Add(Widgets.Text($"{r.DefenderTurret:N0} a round", 11, UiTheme.Text, bold: true));
+                    content.Add(turret);
+                }
 
                 if (r.Loot is { Total: > 0 } loot)
                 {

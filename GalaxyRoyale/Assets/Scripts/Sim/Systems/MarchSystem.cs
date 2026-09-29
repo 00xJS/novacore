@@ -668,7 +668,7 @@ namespace GalaxyRoyale.Sim.Systems
                     BattleWinner.Defender => $"Defeat at {march.Node.X},{march.Node.Y} — {report.DefenderName ?? "defender"}",
                     _                     => $"Stalemate at {march.Node.X},{march.Node.Y}",
                 };
-                state.Mailbox.Insert(0, new BattleMailReport
+                var mail = new BattleMailReport
                 {
                     Id = state.NextReportId++,
                     AtTick = state.Tick,
@@ -677,7 +677,9 @@ namespace GalaxyRoyale.Sim.Systems
                     Report = report,
                     Read = false,
                     Favorite = false,
-                });
+                };
+                SalvageSystem.OnMail(state, mail); // the Salvage Yard strips the wrecks
+                state.Mailbox.Insert(0, mail);
                 TrimMailbox(state);
                 // Emit AFTER the report is filed: the UI pops Mailbox[0] on this
                 // event, and emitting first showed the PREVIOUS battle's report.

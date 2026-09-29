@@ -15,6 +15,9 @@ namespace GalaxyRoyale.Data
         Warehouse,
         ResearchLab,
         RadarStation,
+        // The Frontier (2026-09-28), appended so saved enum values stay put.
+        CommandBastion,
+        SalvageYard,
     }
 
     public enum BuildingKind
@@ -26,6 +29,8 @@ namespace GalaxyRoyale.Data
         Research,   // lab
         Command,    // command center (gates every other level)
         Radar,      // radar station (incoming-threat warnings + probe speed)
+        Defense,    // command bastion (railguns + armoured docks at home)
+        Salvage,    // salvage yard (resources back from wrecks)
     }
 
     public sealed class BuildingDef
@@ -50,6 +55,11 @@ namespace GalaxyRoyale.Data
         public int MaxLevel = 30;
         /// <summary>The resource id this producer yields.</summary>
         public string? Resource;
+        /// <summary>Frontier buildings: the Command Center level that opens them (0 = from the start).</summary>
+        public int UnlockCc;
+        /// <summary>False for buildings the simulated commanders never build (their
+        /// effect runs on the player's battle reports).</summary>
+        public bool BotsBuild = true;
     }
 
     public static class Buildings
@@ -65,7 +75,20 @@ namespace GalaxyRoyale.Data
             BuildingId.Warehouse,
             BuildingId.ResearchLab,
             BuildingId.RadarStation,
+            BuildingId.CommandBastion,
+            BuildingId.SalvageYard,
         };
+
+        /// <summary>The nine buildings every colony starts with room for (the Command district).</summary>
+        public static readonly IReadOnlyList<BuildingId> Core = new[]
+        {
+            BuildingId.CommandCenter, BuildingId.GoldMine, BuildingId.QuartzExtractor, BuildingId.HeliumRefinery,
+            BuildingId.PowerPlant, BuildingId.Shipyard, BuildingId.Warehouse, BuildingId.ResearchLab,
+            BuildingId.RadarStation,
+        };
+
+        /// <summary>Frontier buildings open later (UnlockCc) and sit in the Frontier district.</summary>
+        public static bool IsFrontier(BuildingId id) => Defs[id].UnlockCc > 0;
 
         public static readonly IReadOnlyDictionary<BuildingId, BuildingDef> Defs =
             new Dictionary<BuildingId, BuildingDef>
@@ -165,6 +188,31 @@ namespace GalaxyRoyale.Data
                 BaseCost = new ResourceBag(600, 400, 150),
                 BaseTimeSec = 300,
                 MaxLevel = 30,
+            },
+            [BuildingId.CommandBastion] = new BuildingDef
+            {
+                Name = "Command Bastion",
+                Desc = "Railguns and armoured docks. The railguns fire on raiders at your colony every round, " +
+                       "aimed at the heaviest hulls and straight through shields, even with no fleet home.",
+                Kind = BuildingKind.Defense,
+                BaseEnergyUse = 30,
+                BaseCost = new ResourceBag(800, 500, 200),
+                BaseTimeSec = 300,
+                MaxLevel = 30,
+                UnlockCc = 6,
+            },
+            [BuildingId.SalvageYard] = new BuildingDef
+            {
+                Name = "Salvage Yard",
+                Desc = "Crews strip the wrecks after your battles: part of every ship you lose, and of every " +
+                       "raider shot down over your colony, comes back as resources to collect here.",
+                Kind = BuildingKind.Salvage,
+                BaseEnergyUse = 15,
+                BaseCost = new ResourceBag(500, 350, 100),
+                BaseTimeSec = 240,
+                MaxLevel = 30,
+                UnlockCc = 8,
+                BotsBuild = false,
             },
         };
     }

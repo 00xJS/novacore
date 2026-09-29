@@ -459,6 +459,7 @@ namespace GalaxyRoyale.Sim.Save
                     ["helium"] = mk.HeliumImpact,
                     ["at"] = (long)mk.ImpactTick,
                 };
+            if (s.SalvageStored.Total > 0) root["salvage"] = Bag(s.SalvageStored);
             if (s.QuestStep > 0) root["questStep"] = (long)s.QuestStep;
             if (s.Achievements.Count > 0)
             {
@@ -546,6 +547,9 @@ namespace GalaxyRoyale.Sim.Save
                     HeliumImpact = F64(mko, "helium"),
                     ImpactTick = I32(mko, "at"),
                 };
+
+            if (d.TryGetValue("salvage", out var svRaw) && svRaw is Dictionary<string, object?> svo)
+                s.SalvageStored = DecBag(svo);
 
             var profile = AsObj(d["profile"], "profile");
             s.Profile = new Profile { Name = Str(profile, "name"), AvatarSeed = I32(profile, "avatarSeed") };
@@ -1108,6 +1112,7 @@ namespace GalaxyRoyale.Sim.Save
             if (r.Location is TileXY loc) d["location"] = Tile(loc);
             if (r.DefenderName != null) d["defenderName"] = r.DefenderName;
             if (r.DefenderBattery > 0) d["battery"] = (long)r.DefenderBattery;
+            if (r.DefenderTurret > 0) d["turret"] = (long)r.DefenderTurret;
             return d;
         }
 
@@ -1125,6 +1130,7 @@ namespace GalaxyRoyale.Sim.Save
                     ? (TileXY?)DecTile(AsObj(loc, "report.location")) : null,
                 DefenderName = d.TryGetValue("defenderName", out var n) && n is string ns ? ns : null,
                 DefenderBattery = d.TryGetValue("battery", out var bt) && bt is long btl ? (int)btl : 0,
+                DefenderTurret = d.TryGetValue("turret", out var tu) && tu is long tul ? (int)tul : 0,
             };
             foreach (var raw in AsArr(d["rounds"], "report.rounds"))
             {
@@ -1198,6 +1204,8 @@ namespace GalaxyRoyale.Sim.Save
             BuildingId.Warehouse => "warehouse",
             BuildingId.ResearchLab => "researchLab",
             BuildingId.RadarStation => "radarStation",
+            BuildingId.CommandBastion => "commandBastion",
+            BuildingId.SalvageYard => "salvageYard",
             _ => throw new InvalidOperationException($"unknown BuildingId {id}"),
         };
 
@@ -1212,6 +1220,8 @@ namespace GalaxyRoyale.Sim.Save
             "warehouse" => BuildingId.Warehouse,
             "researchLab" => BuildingId.ResearchLab,
             "radarStation" => BuildingId.RadarStation,
+            "commandBastion" => BuildingId.CommandBastion,
+            "salvageYard" => BuildingId.SalvageYard,
             _ => throw new FormatException($"unknown building '{s}'"),
         };
 

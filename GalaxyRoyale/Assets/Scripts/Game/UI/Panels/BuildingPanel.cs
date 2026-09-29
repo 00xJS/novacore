@@ -205,6 +205,46 @@ namespace GalaxyRoyale.Game.UI
                     body.Add(fleet);
                 }
 
+                if (id == BuildingId.SalvageYard && level >= 1 && mineId == null)
+                {
+                    var stored = s.SalvageStored;
+                    long cap = SalvageSystem.CapacityMilli(s);
+                    var header = Widgets.Heading("IN THE YARD", 10, UiTheme.Dim, 1.4f);
+                    header.style.marginTop = 12;
+                    body.Add(header);
+                    void Line(string caption, long amount, UnityEngine.Color color)
+                    {
+                        var line = Widgets.HBox(Justify.SpaceBetween);
+                        line.style.marginTop = 3;
+                        line.Add(Widgets.Text(caption, 12, color));
+                        line.Add(Widgets.Text($"{UiTheme.FmtAmount(amount)} / {UiTheme.FmtAmount(cap)}", 12,
+                            amount >= cap ? UiTheme.Bad : UiTheme.Text));
+                        body.Add(line);
+                    }
+                    Line("gold", stored.Gold, UiTheme.Gold);
+                    Line("quartz", stored.Quartz, UiTheme.Quartz);
+                    Line("helium", stored.Helium, UiTheme.Helium);
+                    if (SalvageSystem.Full(s))
+                    {
+                        var full = Widgets.Text("The yard is full: collect it, or new salvage is lost.", 11, UiTheme.Bad);
+                        full.style.whiteSpace = WhiteSpace.Normal;
+                        full.style.marginTop = 4;
+                        body.Add(full);
+                    }
+                    var collect = Widgets.Primary(Widgets.TextButton("COLLECT SALVAGE", () =>
+                    {
+                        if (SalvageSystem.Collect(ctx.State!, out var got).Ok)
+                        {
+                            GameAudio.Feedback(Sfx.Coins, Haptic.Success);
+                            ui.Toast($"Salvage collected: +{UiTheme.FmtAmount(got.Total)}", Icon.Crate, UiTheme.Good);
+                        }
+                    }, 12));
+                    Widgets.SetButtonEnabled(collect, stored.Total > 0);
+                    collect.style.marginTop = 8;
+                    collect.style.height = 38;
+                    body.Add(collect);
+                }
+
                 int idx = OrderIdx(s);
                 if (idx >= 0)
                 {
@@ -402,6 +442,8 @@ namespace GalaxyRoyale.Game.UI
                             sig += (h++) * (long)(s.Ships.TryGetValue(hull, out var n) ? n : 0);
                         extras = sig.ToString();
                     }
+                    else if (id == BuildingId.SalvageYard)
+                        extras = $"{s.SalvageStored.Gold}:{s.SalvageStored.Quartz}:{s.SalvageStored.Helium}";
                     key = $"{level}|{idx}|{running}|{check.Ok}|{check.Reason}|" +
                           $"{s.Resources.Gold >= cost.Gold}{s.Resources.Quartz >= cost.Quartz}{s.Resources.Helium >= cost.Helium}|{extras}";
                 }
@@ -457,6 +499,13 @@ namespace GalaxyRoyale.Game.UI
                         ? $"next unlock: {string.Join(", ", unlocked)}"
                         : "higher levels unlock heavier hulls";
                 }
+                case BuildingKind.Defense:
+                    return $"railguns: {Balance.BastionDamage(level):N0} → {Balance.BastionDamage(next):N0} damage a round · " +
+                           $"armoured docks: +{level}% → +{next}% armour for ships at home";
+                case BuildingKind.Salvage:
+                    return $"recovers {Math.Round(Balance.SalvageRate(level) * 100)}% → {Math.Round(Balance.SalvageRate(next) * 100)}% " +
+                           $"of wrecks · holds {UiTheme.FmtAmount(Balance.SalvageCapacity(level) * 1000L)} → " +
+                           $"{UiTheme.FmtAmount(Balance.SalvageCapacity(next) * 1000L)} each";
                 case BuildingKind.Radar:
                 {
                     string lead(int l) => l < 1 ? "no warning"
