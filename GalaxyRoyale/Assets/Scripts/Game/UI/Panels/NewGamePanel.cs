@@ -71,7 +71,7 @@ namespace GalaxyRoyale.Game.UI
                 },
                 "START STANDARD", () => onStart(false, difficulty)));
 
-            content.Add(ModeCard("TESTING", UiTheme.Energy,
+            content.Add(ModeCard("TESTING", UiTheme.Magenta, // magenta, so it never reads as a second orange
                 "A sandbox for playtesting every system without waiting.",
                 new[]
                 {
@@ -95,12 +95,7 @@ namespace GalaxyRoyale.Game.UI
             card.style.paddingRight = 16;
             card.style.paddingTop = 14;
             card.style.paddingBottom = 14;
-            card.style.backgroundColor = UiTheme.Panel;
-            Widgets.SetBorder(card, color, 1.5f);
-            card.style.borderTopLeftRadius = 12;
-            card.style.borderTopRightRadius = 12;
-            card.style.borderBottomLeftRadius = 12;
-            card.style.borderBottomRightRadius = 12;
+            Holo.Frame(card, UiTheme.Panel, color, 11f, 1.5f);
 
             card.Add(Widgets.Text(title, 18, color, bold: true));
             var pitchLabel = Widgets.Text(pitch, 12, UiTheme.Text);
@@ -115,10 +110,9 @@ namespace GalaxyRoyale.Game.UI
                 line.style.marginTop = 3;
                 card.Add(line);
             }
-            var button = Widgets.TextButton(buttonLabel, onTap, 14);
+            var button = Widgets.Primary(Widgets.TextButton(buttonLabel, onTap, 14), color);
             button.style.height = 46;
             button.style.marginTop = 12;
-            Widgets.SetBorder(button, color, 1.5f);
             card.Add(button);
             return card;
         }

@@ -49,8 +49,7 @@ namespace GalaxyRoyale.Game.UI
             params CalloutAction[] actions)
         {
             var card = Widgets.Row();
-            card.style.backgroundColor = new UnityEngine.Color(
-                UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.96f);
+            Holo.SetFill(card, new UnityEngine.Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.96f));
             // Tight strip — no dead space (user feedback).
             card.style.paddingTop = 6;
             card.style.paddingBottom = 6;

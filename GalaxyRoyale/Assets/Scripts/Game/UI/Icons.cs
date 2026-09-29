@@ -17,6 +17,9 @@ namespace GalaxyRoyale.Game.UI
         Close, Menu, More, Search, Rotate, Chart, Dot, Ring, Eye,
         Play, FastForward, Skip, Shield, Target,
         Trophy, Pact, Bolt, Clock,
+        // Neon Hologram restyle (2026-09-28): the nav bar and the globe base.
+        Compass, Ship, Planet, Crate, Mail, Lock, Plus, Home, Orbit, Land, Question,
+        Coin, Crystal, Drop,
     }
 
     /// <summary>A square element that paints one <see cref="Icon"/> in a tint color.</summary>
@@ -314,6 +317,133 @@ namespace GalaxyRoyale.Game.UI
                     p.lineWidth = Mathf.Max(1.2f, s * 0.09f);
                     Line(0.5f, 0.5f, 0.5f, 0.26f);
                     Line(0.5f, 0.5f, 0.67f, 0.6f);
+                    break;
+                // Shapes below are the Neon Hologram mock-up's 24-unit icons, scaled to 0..1.
+                case Icon.Compass: // the galaxy map
+                    p.lineWidth = Mathf.Max(1f, s * 0.075f);
+                    Circle(0.5f, 0.5f, 0.354f, fill: false);
+                    Path(true, 0.354f, 0.646f, 0.4375f, 0.4375f, 0.646f, 0.354f, 0.5625f, 0.5625f);
+                    break;
+                case Icon.Ship: // the fleet
+                    p.lineWidth = Mathf.Max(1f, s * 0.075f);
+                    p.BeginPath();
+                    p.MoveTo(P(0.5f, 0.125f));
+                    p.LineTo(P(0.625f, 0.417f));
+                    p.LineTo(P(0.5f, 0.875f));
+                    p.LineTo(P(0.375f, 0.417f));
+                    p.ClosePath();
+                    p.Stroke();
+                    Path(false, 0.375f, 0.417f, 0.167f, 0.583f, 0.375f, 0.542f);
+                    Path(false, 0.625f, 0.417f, 0.833f, 0.583f, 0.625f, 0.542f);
+                    break;
+                case Icon.Planet: // the base
+                    p.lineWidth = Mathf.Max(1f, s * 0.075f);
+                    Circle(0.5f, 0.5f, 0.23f, fill: false);
+                    p.BeginPath();
+                    p.MoveTo(P(0.146f, 0.604f));
+                    p.BezierCurveTo(P(0.27f, 0.54f), P(0.73f, 0.4f), P(0.854f, 0.375f));
+                    p.Stroke();
+                    break;
+                case Icon.Crate: // items
+                    p.lineWidth = Mathf.Max(1f, s * 0.075f);
+                    p.BeginPath();
+                    p.MoveTo(P(0.167f, 0.333f));
+                    p.LineTo(P(0.5f, 0.167f));
+                    p.LineTo(P(0.833f, 0.333f));
+                    p.LineTo(P(0.5f, 0.5f));
+                    p.ClosePath();
+                    p.Stroke();
+                    Path(false, 0.167f, 0.333f, 0.167f, 0.667f, 0.5f, 0.833f, 0.833f, 0.667f, 0.833f, 0.333f);
+                    Line(0.5f, 0.5f, 0.5f, 0.833f);
+                    break;
+                case Icon.Mail:
+                    p.lineWidth = Mathf.Max(1f, s * 0.075f);
+                    p.BeginPath();
+                    p.MoveTo(P(0.146f, 0.229f));
+                    p.LineTo(P(0.854f, 0.229f));
+                    p.LineTo(P(0.854f, 0.771f));
+                    p.LineTo(P(0.146f, 0.771f));
+                    p.ClosePath();
+                    p.Stroke();
+                    Path(false, 0.167f, 0.292f, 0.5f, 0.542f, 0.833f, 0.292f);
+                    break;
+                case Icon.Lock:
+                    p.lineWidth = Mathf.Max(1f, s * 0.08f);
+                    Path(true, 0.23f, 0.44f, 0.77f, 0.44f, 0.77f, 0.83f, 0.23f, 0.83f);
+                    p.BeginPath();
+                    p.MoveTo(P(0.354f, 0.44f));
+                    p.LineTo(P(0.354f, 0.333f));
+                    p.Arc(P(0.5f, 0.333f), 0.146f * s, Angle.Degrees(180f), Angle.Degrees(360f));
+                    p.LineTo(P(0.646f, 0.44f));
+                    p.Stroke();
+                    break;
+                case Icon.Plus:
+                    p.lineWidth = Mathf.Max(1.4f, s * 0.11f);
+                    Line(0.5f, 0.23f, 0.5f, 0.77f);
+                    Line(0.23f, 0.5f, 0.77f, 0.5f);
+                    break;
+                case Icon.Home:
+                    p.lineWidth = Mathf.Max(1f, s * 0.08f);
+                    Path(false, 0.1875f, 0.458f, 0.5f, 0.1875f, 0.8125f, 0.458f);
+                    Path(false, 0.27f, 0.396f, 0.27f, 0.8125f, 0.73f, 0.8125f, 0.73f, 0.396f);
+                    Path(false, 0.417f, 0.8125f, 0.417f, 0.604f, 0.583f, 0.604f, 0.583f, 0.8125f);
+                    break;
+                case Icon.Orbit: // a planet in a tilted ring: the orbit view
+                {
+                    p.lineWidth = Mathf.Max(1f, s * 0.075f);
+                    Circle(0.5f, 0.5f, 0.15f, fill: false);
+                    float tilt = -24f * Mathf.Deg2Rad;
+                    p.BeginPath();
+                    for (int i = 0; i <= 40; i++)
+                    {
+                        float t = i / 40f * Mathf.PI * 2f;
+                        float ex = Mathf.Cos(t) * 0.417f, ey = Mathf.Sin(t) * 0.175f;
+                        var q = P(0.5f + ex * Mathf.Cos(tilt) - ey * Mathf.Sin(tilt), 0.5f + ex * Mathf.Sin(tilt) + ey * Mathf.Cos(tilt));
+                        if (i == 0) p.MoveTo(q); else p.LineTo(q);
+                    }
+                    p.Stroke();
+                    break;
+                }
+                case Icon.Land: // back down to the surface
+                    p.lineWidth = Mathf.Max(1f, s * 0.08f);
+                    Circle(0.5f, 0.375f, 0.1875f, fill: false);
+                    Line(0.5f, 0.646f, 0.5f, 0.854f);
+                    Path(false, 0.375f, 0.75f, 0.5f, 0.875f, 0.625f, 0.75f);
+                    break;
+                case Icon.Question: // a reserved pad
+                    p.lineWidth = Mathf.Max(1.2f, s * 0.1f);
+                    p.BeginPath();
+                    p.MoveTo(P(0.36f, 0.36f));
+                    p.BezierCurveTo(P(0.36f, 0.16f), P(0.66f, 0.14f), P(0.66f, 0.36f));
+                    p.BezierCurveTo(P(0.66f, 0.5f), P(0.5f, 0.5f), P(0.5f, 0.62f));
+                    p.Stroke();
+                    Circle(0.5f, 0.78f, 0.06f, fill: true);
+                    break;
+                case Icon.Coin: // gold
+                    p.lineWidth = Mathf.Max(1f, s * 0.075f);
+                    Circle(0.5f, 0.5f, 0.31f, fill: false);
+                    Circle(0.5f, 0.5f, 0.15f, fill: false);
+                    break;
+                case Icon.Crystal: // quartz
+                    p.lineWidth = Mathf.Max(1f, s * 0.075f);
+                    p.BeginPath();
+                    p.MoveTo(P(0.5f, 0.125f));
+                    p.LineTo(P(0.708f, 0.375f));
+                    p.LineTo(P(0.5f, 0.875f));
+                    p.LineTo(P(0.292f, 0.375f));
+                    p.ClosePath();
+                    p.Stroke();
+                    Line(0.292f, 0.375f, 0.708f, 0.375f);
+                    break;
+                case Icon.Drop: // helium
+                    p.lineWidth = Mathf.Max(1f, s * 0.075f);
+                    p.BeginPath();
+                    p.MoveTo(P(0.5f, 0.146f));
+                    p.BezierCurveTo(P(0.646f, 0.333f), P(0.75f, 0.47f), P(0.75f, 0.583f));
+                    p.BezierCurveTo(P(0.75f, 0.72f), P(0.638f, 0.833f), P(0.5f, 0.833f));
+                    p.BezierCurveTo(P(0.362f, 0.833f), P(0.25f, 0.72f), P(0.25f, 0.583f));
+                    p.BezierCurveTo(P(0.25f, 0.47f), P(0.354f, 0.333f), P(0.5f, 0.146f));
+                    p.Stroke();
                     break;
             }
         }

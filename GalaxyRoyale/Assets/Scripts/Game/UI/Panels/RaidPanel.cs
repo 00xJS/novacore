@@ -326,6 +326,7 @@ namespace GalaxyRoyale.Game.UI
                 ui.Toast(message);
                 if (ok) ui.CloseModal();
             }, 14);
+            Widgets.Primary(launchBtn);
             launchBtn.style.height = 42;
             footer.Add(launchBtn);
 

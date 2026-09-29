@@ -23,8 +23,7 @@ namespace GalaxyRoyale.Game.UI
             Root.style.paddingRight = 10;
             Root.style.paddingTop = 6;
             Root.style.paddingBottom = 6;
-            Root.style.backgroundColor = UiTheme.PanelLight;
-            Widgets.SetBorder(Root, UiTheme.Stroke, 1f);
+            Holo.Frame(Root, UiTheme.PanelLight, UiTheme.Stroke, 9f, 1f);
             _detail = Widgets.Text("", 11, UiTheme.Text);
             _detail.style.whiteSpace = WhiteSpace.Normal;
             _detail.style.marginTop = 2;

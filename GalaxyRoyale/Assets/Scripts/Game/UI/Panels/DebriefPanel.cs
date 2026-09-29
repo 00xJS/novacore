@@ -132,6 +132,7 @@ namespace GalaxyRoyale.Game.UI
                 buttons.Add(mail);
             }
             var ok = Widgets.TextButton("CONTINUE", ui.CloseModal, 12);
+            Widgets.Primary(ok);
             ok.style.width = Length.Percent(d.NewMail > 0 ? 48f : 100f);
             Widgets.SetBorder(ok, UiTheme.Accent, 1.5f);
             buttons.Add(ok);

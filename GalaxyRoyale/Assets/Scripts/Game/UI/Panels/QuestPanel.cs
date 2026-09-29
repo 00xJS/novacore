@@ -87,12 +87,7 @@ namespace GalaxyRoyale.Game.UI
             card.style.paddingRight = 12;
             card.style.paddingTop = 10;
             card.style.paddingBottom = 12;
-            card.style.backgroundColor = UiTheme.PanelLight;
-            Widgets.SetBorder(card, complete ? UiTheme.Good : UiTheme.Energy, 1.5f);
-            card.style.borderTopLeftRadius = 10;
-            card.style.borderTopRightRadius = 10;
-            card.style.borderBottomLeftRadius = 10;
-            card.style.borderBottomRightRadius = 10;
+            Holo.Frame(card, UiTheme.PanelLight, complete ? UiTheme.Good : UiTheme.Energy, 11f, 1.5f);
 
             card.Add(Widgets.IconText(Icon.Star, quest.Title, 14, UiTheme.Energy, bold: true));
             var detail = Widgets.Text(quest.Detail, 11, UiTheme.Text);

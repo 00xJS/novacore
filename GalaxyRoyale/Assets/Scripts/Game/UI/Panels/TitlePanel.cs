@@ -69,6 +69,7 @@ namespace GalaxyRoyale.Game.UI
             if (hasSave)
             {
                 var cont = Widgets.TextButton("CONTINUE GAME", () => boot!.ContinueGame(), 15);
+                Widgets.Primary(cont);
                 cont.style.height = 52;
                 Widgets.SetBorder(cont, UiTheme.Accent, 2f);
                 body.Add(cont);

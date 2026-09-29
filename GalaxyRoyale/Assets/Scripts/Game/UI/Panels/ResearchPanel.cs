@@ -120,12 +120,7 @@ namespace GalaxyRoyale.Game.UI
             detail.style.right = Length.Percent(6f);
             detail.style.bottom = 78f; // sits just inside the modal's bottom edge
             detail.style.maxHeight = Length.Percent(44f);
-            detail.style.backgroundColor = UiTheme.Panel;
-            Widgets.SetBorder(detail, ResearchAccent, 1.5f);
-            detail.style.borderTopLeftRadius = 10;
-            detail.style.borderTopRightRadius = 10;
-            detail.style.borderBottomLeftRadius = 10;
-            detail.style.borderBottomRightRadius = 10;
+            Holo.Frame(detail, UiTheme.Panel, ResearchAccent, 11f, 1.5f);
             detail.style.paddingLeft = 12;
             detail.style.paddingRight = 12;
             detail.style.paddingTop = 10;
@@ -163,12 +158,7 @@ namespace GalaxyRoyale.Game.UI
                 card.style.paddingRight = 8;
                 card.style.paddingTop = 8;
                 card.style.paddingBottom = 8;
-                card.style.backgroundColor = new UnityEngine.Color(color.r, color.g, color.b, sel ? 0.30f : 0.12f);
-                Widgets.SetBorder(card, color, sel ? 2.5f : 1f);
-                card.style.borderTopLeftRadius = 8;
-                card.style.borderTopRightRadius = 8;
-                card.style.borderBottomLeftRadius = 8;
-                card.style.borderBottomRightRadius = 8;
+                Holo.Frame(card, new UnityEngine.Color(color.r, color.g, color.b, sel ? 0.30f : 0.12f), color, 9f, sel ? 2f : 1f);
                 card.RegisterCallback<PointerUpEvent>(_ => { selected = id; Invalidate(); });
 
                 // Tech emblem (drop-in Resources/Research art, else a painted badge).
