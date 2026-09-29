@@ -12,8 +12,8 @@ namespace GalaxyRoyale.Game
     public static class DebugLaunch
     {
         /// <summary>Names GR_OPEN accepts.</summary>
-        public const string Screens = "core, commander, clan, rankings, season, mail, news, events, awards, daily, " +
-            "queues, shop, research, profile, fleet, map, newgame";
+        public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
+            "awards, daily, queues, shop, research, profile, fleet, map, newgame";
 
         public static void Run(GameContext ctx)
         {
@@ -34,6 +34,8 @@ namespace GalaxyRoyale.Game
                 {
                     case "core": UI.CorePanel.Open(ctx); break;
                     case "commander": ui.OpenCommander(); break;
+                    case "boss": ui.OpenBoss(); break;
+                    case "market": ui.OpenMarket(); break;
                     case "clan": ui.OpenClan(); break;
                     case "rankings": ui.OpenRankings(); break;
                     case "season": ui.OpenRankings(season: true); break;

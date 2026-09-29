@@ -10,9 +10,10 @@ namespace GalaxyRoyale.Sim
     public enum MarchPhase { Outbound, Gathering, Returning }
     /// <summary>Intercept: meet a rival fleet in flight (StrikeSystem). Garrison:
     /// stand guard at a clanmate's colony until recalled. Core: assault (then,
-    /// if it wins, garrison) the Galactic Core (CoreSystem). All three hold where
-    /// they land (Phase Gathering, no due tick) until their system settles them.</summary>
-    public enum MarchMission { Gather, Attack, Spy, Intercept, Garrison, Core }
+    /// if it wins, garrison) the Galactic Core (CoreSystem). Boss: strike the
+    /// Pirate Dreadnought (BossSystem). All four hold where they land (Phase
+    /// Gathering, no due tick) until their system settles them.</summary>
+    public enum MarchMission { Gather, Attack, Spy, Intercept, Garrison, Core, Boss }
 
     public sealed class March
     {
@@ -39,7 +40,8 @@ namespace GalaxyRoyale.Sim
         public bool Recalled;
         /// <summary>Intercept: the rival fleet it hunts — a BotAttack aimed at the
         /// player (TargetInbound) or a BotMarch — on which leg of its flight
-        /// (0 outbound, 1 homeward), and the tick the fleets meet.</summary>
+        /// (0 outbound, 1 homeward), and the tick the fleets meet. Boss: the
+        /// dreadnought's visit number it was sent against.</summary>
         public int TargetFleetId;
         public bool TargetInbound;
         public int TargetLeg;
@@ -147,6 +149,35 @@ namespace GalaxyRoyale.Sim
         /// <summary>Warships the other side's clanmates sent (already counted).</summary>
         public Dictionary<HullId, int>? EnemyAllyShips;
         public string? EnemyAllyNames;
+    }
+
+    /// <summary>The Pirate Dreadnought (BossSystem): one of your strikes, a strike
+    /// that found it gone, or how a visit you fought in ended.</summary>
+    public enum BossReportKind { Strike, Missed, Result }
+
+    public sealed class BossReport : MailItem
+    {
+        public BossReportKind Kind;
+        public int Visit;
+        // Strike
+        public long Damage;
+        public long HpBefore;
+        public long HpAfter;
+        public long MaxHp;
+        public int Rounds;
+        public Dictionary<HullId, int> Fleet = new();
+        public Dictionary<HullId, int> Survivors = new();
+        /// <summary>Salvage your survivors carried off (milli).</summary>
+        public ResourceBag Salvage = new();
+        public bool FinalBlow;
+        // Result
+        public bool Killed;
+        public long YourDamage;
+        public long TotalDamage;
+        public int Rank;
+        public int Of;
+        public string? TopClan;
+        public int RewardDM;
     }
 
     /// <summary>
@@ -263,6 +294,21 @@ namespace GalaxyRoyale.Sim
         /// <summary>Galactic Core: times you seized it, and hours of tribute it paid you.</summary>
         public int CoresSeized;
         public int CoreHoursHeld;
+        /// <summary>Pirate Dreadnought: strikes flown, damage dealt, final blows landed.</summary>
+        public int BossStrikes;
+        public long BossDamage;
+        public int BossFinalBlows;
+        /// <summary>Trades on the galactic market.</summary>
+        public int MarketTrades;
+    }
+
+    /// <summary>Your mark on the galactic market (MarketSystem): how far your own
+    /// trades pushed each resource's price (1 = not at all), as of ImpactTick —
+    /// it wears off over the following hours.</summary>
+    public sealed class MarketState
+    {
+        public double GoldImpact = 1, QuartzImpact = 1, HeliumImpact = 1;
+        public int ImpactTick;
     }
 
     /// <summary>Commander progression (CommanderSystem): XP earned, how much of the
@@ -315,6 +361,8 @@ namespace GalaxyRoyale.Sim
         public Difficulty Difficulty;
         /// <summary>Commander level, XP and skills (CommanderSystem).</summary>
         public CommanderState Commander = new();
+        /// <summary>Your price impact on the galactic market (MarketSystem).</summary>
+        public MarketState Market = new();
         /// <summary>Commander's Path progress — index of the next quest in
         /// Quests.Chain (runs in both modes).</summary>
         public int QuestStep;

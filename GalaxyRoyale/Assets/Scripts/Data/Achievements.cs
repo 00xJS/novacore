@@ -10,7 +10,7 @@ namespace GalaxyRoyale.Data
         BattlesWon, CampsCleared, RaidsWon, DefensesWon, ShipsBuilt, LootWhole,
         CommandCenter, ResearchLevels, DefenseResearchLevels, QuestsDone,
         ClanJoined, ClanSize, ClanWarsWon, SeasonTop, EventsCompleted, Might,
-        CoresSeized, CoreHoursHeld,
+        CoresSeized, CoreHoursHeld, BossDamage, BossFinalBlows, MarketTrades,
     }
 
     public sealed class AchievementDef
@@ -59,6 +59,9 @@ namespace GalaxyRoyale.Data
             A("rising-power", "Rising Power", "Reach 50,000 might", AchievementGoal.Might, 50_000, 200, "Rising Power"),
             A("core-breacher", "Core Breacher", "Seize the Galactic Core", AchievementGoal.CoresSeized, 1, 250, "Core Breacher"),
             A("warden", "Warden of the Core", "Collect 24 hours of Core tribute", AchievementGoal.CoreHoursHeld, 24, 500, "Warden of the Core"),
+            A("dreadnought-hunter", "Dreadnought Hunter", "Deal 500,000 damage to Pirate Dreadnoughts", AchievementGoal.BossDamage, 500_000, 200, "Dreadnought Hunter"),
+            A("final-blow", "Leviathan Slayer", "Land the final blow on a Pirate Dreadnought", AchievementGoal.BossFinalBlows, 1, 300, "Leviathan Slayer"),
+            A("trader", "Merchant Prince", "Make 25 trades on the galactic market", AchievementGoal.MarketTrades, 25, 100, "Merchant Prince"),
         };
 
         public static AchievementDef? ById(string id)

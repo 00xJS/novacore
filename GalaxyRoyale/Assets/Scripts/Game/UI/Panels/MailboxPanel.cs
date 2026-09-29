@@ -30,6 +30,8 @@ namespace GalaxyRoyale.Game.UI
             BattleMailReport b when b.Report.Winner == BattleWinner.Draw => UiTheme.Energy,
             BattleMailReport => UiTheme.Bad,
             RadarWarning => UiTheme.Bad,
+            BossReport { Kind: BossReportKind.Missed } => UiTheme.Dim,
+            BossReport => UiTheme.Energy,
             _ => UiTheme.Text,
         };
 
@@ -92,6 +94,13 @@ namespace GalaxyRoyale.Game.UI
 
         static string IntelLine(GameState state, MailItem item)
         {
+            if (item is BossReport boss)
+                return boss.Kind switch
+                {
+                    BossReportKind.Missed => "It was gone before your fleet arrived",
+                    BossReportKind.Result => $"{(boss.Killed ? "Destroyed" : "Escaped")} · you dealt {boss.YourDamage:N0} · +{boss.RewardDM} DM",
+                    _ => $"{boss.Damage:N0} damage · {HullLeft(boss)} hull left · lost {Lost(boss)}",
+                };
             if (item is BattleMailReport { Defending: true, GuardedBotId: CoreSystem.CoreGuardId } core)
                 return core.Report.Winner == BattleWinner.Attacker
                     ? "Core lost — your garrison fell"
@@ -190,7 +199,7 @@ namespace GalaxyRoyale.Game.UI
 
             List<MailItem> Filtered(GameState state) => tab switch
             {
-                Tab.Battle => state.Mailbox.Where(m => m is BattleMailReport).ToList(),
+                Tab.Battle => state.Mailbox.Where(m => m is BattleMailReport || m is BossReport).ToList(),
                 Tab.Spy => state.Mailbox.Where(m => m is SpyReport).ToList(),
                 Tab.Fav => state.Mailbox.Where(m => m.Favorite).ToList(),
                 _ => state.Mailbox.ToList(),
@@ -229,7 +238,8 @@ namespace GalaxyRoyale.Game.UI
                 {
                     var r = report;
                     bool isBattle = r is BattleMailReport || r is RadarWarning;
-                    bool won = r is BattleMailReport br && PlayerWon(br);
+                    bool won = (r is BattleMailReport br && PlayerWon(br))
+                        || r is BossReport { Kind: not BossReportKind.Missed };
                     var row = Widgets.Row();
                     if (won) row.style.backgroundColor = new UnityEngine.Color(0.1f, 0.16f, 0.12f, r.Read ? 0.5f : 0.9f);
                     else if (isBattle) row.style.backgroundColor = new UnityEngine.Color(0.165f, 0.1f, 0.1f, r.Read ? 0.5f : 0.9f);
@@ -499,6 +509,60 @@ namespace GalaxyRoyale.Game.UI
                         content.Add(Widgets.Text("No research completed yet.", 11, UiTheme.Dim));
                 }
             }
+            else if (report is BossReport boss)
+            {
+                void Line(string label, string value, UnityEngine.Color color)
+                {
+                    var row = Widgets.HBox(Justify.SpaceBetween);
+                    row.style.marginTop = 3;
+                    row.Add(Widgets.Text(label, 11, UiTheme.Dim));
+                    row.Add(Widgets.Text(value, 11, color, bold: true));
+                    content.Add(row);
+                }
+                string title = boss.Kind switch
+                {
+                    BossReportKind.Missed => "NOTHING THERE",
+                    BossReportKind.Result => boss.Killed ? "DESTROYED" : "ESCAPED",
+                    _ => boss.FinalBlow ? "FINAL BLOW" : "STRIKE LANDED",
+                };
+                var head = Widgets.Text(title, 18, boss.Kind == BossReportKind.Missed ? UiTheme.Dim : UiTheme.Energy, bold: true);
+                head.style.marginTop = 8;
+                content.Add(head);
+                if (boss.Kind == BossReportKind.Missed)
+                {
+                    var note = Widgets.Text("The Pirate Dreadnought had broken apart or jumped away before your fleet arrived. " +
+                        "Your ships are on their way home.", 11, UiTheme.Dim);
+                    note.style.whiteSpace = WhiteSpace.Normal;
+                    content.Add(note);
+                }
+                else if (boss.Kind == BossReportKind.Result)
+                {
+                    Line("Your damage", $"{boss.YourDamage:N0}", UiTheme.Text);
+                    Line("Everyone's damage", $"{boss.TotalDamage:N0}", UiTheme.Text);
+                    Line("Your place", $"#{boss.Rank} of {boss.Of}", UiTheme.Text);
+                    if (boss.TopClan != null) Line("Top clan", boss.TopClan, UiTheme.Text);
+                    Line("Your reward", $"+{boss.RewardDM} Dark Matter", UiTheme.Good);
+                }
+                else
+                {
+                    Line("Damage dealt", $"{boss.Damage:N0}", UiTheme.Text);
+                    Line("Its hull", $"{boss.HpBefore:N0} → {boss.HpAfter:N0} ({HullLeft(boss)})", UiTheme.Text);
+                    Line("Rounds", boss.Rounds.ToString(), UiTheme.Text);
+                    if (boss.FinalBlow) Line("Final blow", $"+{BossSystem.FinalBlowDM} Dark Matter", UiTheme.Good);
+                    if (boss.Salvage.Total > 0)
+                        Line("Salvage", $"{UiTheme.FmtAmount(boss.Salvage.Gold)} G  {UiTheme.FmtAmount(boss.Salvage.Quartz)} Q  " +
+                            $"{UiTheme.FmtAmount(boss.Salvage.Helium)} H", UiTheme.Good);
+                    var fleetHead = Widgets.Text("YOUR FLEET", 10, UiTheme.Accent, bold: true);
+                    fleetHead.style.marginTop = 10;
+                    content.Add(fleetHead);
+                    foreach (var hull in Ships.All)
+                    {
+                        if (!boss.Fleet.TryGetValue(hull, out int sent) || sent <= 0) continue;
+                        int back = boss.Survivors.TryGetValue(hull, out var sv) ? sv : 0;
+                        Line(Ships.Defs[hull].Name, $"{back:N0} / {sent:N0}", back < sent ? UiTheme.Bad : UiTheme.Text);
+                    }
+                }
+            }
             else if (report is RadarWarning warn)
             {
                 var headline = Widgets.Text(IntelLine(state, warn), 14, UiTheme.Bad, bold: true);
@@ -601,5 +665,15 @@ namespace GalaxyRoyale.Game.UI
         }
 
         static MapView? GetMapView(GameContext ctx) => ctx.GetComponent<MapView>();
+
+        static string HullLeft(BossReport b) => b.MaxHp > 0 ? $"{Math.Round(b.HpAfter * 100.0 / b.MaxHp):0}%" : "?";
+
+        static string Lost(BossReport b)
+        {
+            int sent = 0, back = 0;
+            foreach (var v in b.Fleet.Values) sent += v;
+            foreach (var v in b.Survivors.Values) back += v;
+            return $"{sent - back:N0} of {sent:N0}";
+        }
     }
 }

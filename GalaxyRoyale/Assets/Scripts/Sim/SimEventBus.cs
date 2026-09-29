@@ -48,6 +48,12 @@ namespace GalaxyRoyale.Sim
     public sealed record CoreTributePaid(ResourceBag Resources, int DarkMatter, bool Clan) : SimEvent;
     /// <summary>A commander launched an assault on the core you hold (arriving at ArrivesAtTick).</summary>
     public sealed record CoreUnderAttack(int AttackerId, int ArrivesAtTick) : SimEvent;
+    /// <summary>A Pirate Dreadnought dropped in at Tile; it leaves at LeavesTick.</summary>
+    public sealed record BossAppeared(TileXY Tile, int LeavesTick) : SimEvent;
+    /// <summary>One of your strikes on the dreadnought landed (its report is in the mailbox).</summary>
+    public sealed record BossStrikeLanded(BossReport Report) : SimEvent;
+    /// <summary>The dreadnought's visit ended: destroyed or escaped; your reward (already paid).</summary>
+    public sealed record BossDeparted(bool Killed, long YourDamage, int RewardDM) : SimEvent;
     /// <summary>The commander reached <paramref name="Level"/>, <paramref name="Gained"/> levels
     /// at once (their Dark Matter and milestone items, by shop id, are already paid).</summary>
     public sealed record CommanderLevelUp(int Level, int Gained, int DarkMatter, IReadOnlyList<string> Items) : SimEvent;

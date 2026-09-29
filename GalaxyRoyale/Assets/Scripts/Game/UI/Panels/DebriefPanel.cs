@@ -51,9 +51,12 @@ namespace GalaxyRoyale.Game.UI
                 if (d.SpyScans > 0) Line(Icon.Eye, $"Spy probes swept your colony {d.SpyScans}×", UiTheme.DarkMatter);
             }
 
-            if (d.FleetsHome + d.BattlesWon + d.BattlesLost + d.SpyReports > 0)
+            if (d.FleetsHome + d.BattlesWon + d.BattlesLost + d.SpyReports + d.BossStrikes > 0)
             {
                 Section("YOUR FLEETS");
+                if (d.BossStrikes > 0)
+                    Line(Icon.Warning, $"{N(d.BossStrikes, "strike", "strikes")} on the Pirate Dreadnought — {d.BossDamage:N0} damage",
+                        UiTheme.Energy);
                 if (d.FleetsHome > 0)
                     Line(Icon.ArrowDown, d.CargoHomeMilli > 0
                         ? $"{N(d.FleetsHome, "fleet", "fleets")} home with {UiTheme.FmtAmount(d.CargoHomeMilli)} cargo"
@@ -71,9 +74,13 @@ namespace GalaxyRoyale.Game.UI
                 if (d.ShipsBuilt > 0) Line(Icon.Check, $"{N(d.ShipsBuilt, "ship", "ships")} built", UiTheme.Text);
             }
 
-            if (d.Achievements.Count + d.SeasonsEnded.Count + d.SupplyRuns + d.ClanWarsWon + d.LevelsGained > 0)
+            if (d.Achievements.Count + d.SeasonsEnded.Count + d.SupplyRuns + d.ClanWarsWon + d.LevelsGained > 0
+                || d.BossResult != null)
             {
                 Section("PROGRESS");
+                if (d.BossResult is { } boss)
+                    Line(Icon.Trophy, $"The Pirate Dreadnought {(boss.Killed ? "was destroyed" : "escaped")} — you placed " +
+                        $"#{boss.Rank} of {boss.Of} (+{boss.RewardDM} DM)", UiTheme.Energy);
                 if (d.LevelsGained > 0)
                 {
                     int dm = 0;

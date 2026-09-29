@@ -579,7 +579,7 @@ namespace GalaxyRoyale.Sim.Systems
             // colony, CoreSystem the core — even when the spot happens to be a
             // resource node or a camp.
             if (march.Mission == MarchMission.Intercept || march.Mission == MarchMission.Garrison
-                || march.Mission == MarchMission.Core)
+                || march.Mission == MarchMission.Core || march.Mission == MarchMission.Boss)
             {
                 Hold(state, march);
                 events.Emit(new MarchPhaseChanged(march.Id, march.Phase));

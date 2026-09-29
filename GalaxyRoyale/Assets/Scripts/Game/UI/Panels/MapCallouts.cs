@@ -216,6 +216,7 @@ namespace GalaxyRoyale.Game.UI
         public static string MissionLabel(March m) =>
             m.Mission == MarchMission.Attack && m.Ships.Count == 1 && m.Ships.ContainsKey(HullId.Probe) ? "Spy"
             : m.Mission == MarchMission.Core ? (m.GuardEmpireId == CoreSystem.CoreGuardId ? "Core garrison" : "Core assault")
+            : m.Mission == MarchMission.Boss ? "Dreadnought strike"
             : m.Mission.ToString();
 
         public static void Open(GameContext ctx, int marchId, Action onClose)
@@ -316,6 +317,7 @@ namespace GalaxyRoyale.Game.UI
                         BotMarchKind.Garrison => left > 0 ? $"coming to guard your colony · arrives in {UiTheme.FmtDuration(left)}"
                                                           : "standing guard at your colony",
                         BotMarchKind.CoreAssault => $"assaulting the Galactic Core · arrives in {UiTheme.FmtDuration(left)}",
+                        BotMarchKind.BossStrike => $"striking the Pirate Dreadnought · arrives in {UiTheme.FmtDuration(left)}",
                         _ => $"{(m.IsSpy ? "scouting" : "raiding")} {target} · arrives in {UiTheme.FmtDuration(left)}",
                     };
                 }
@@ -335,6 +337,8 @@ namespace GalaxyRoyale.Game.UI
                 actions.Add(CalloutChrome.Act("TARGET", () => { Close(); PlayerProfilePanel.Open(ctx, targetId, target); }));
             else if (kind == BotMarchKind.CoreAssault)
                 actions.Add(CalloutChrome.Act("CORE", () => { Close(); CorePanel.Open(ctx); }));
+            else if (kind == BotMarchKind.BossStrike)
+                actions.Add(CalloutChrome.Act("DREADNOUGHT", () => { Close(); BossPanel.Open(ctx); }));
             // Raid fleets (outbound or carrying plunder home) can be intercepted —
             // not your clanmates', and not probes.
             if ((kind == BotMarchKind.Raid || kind == BotMarchKind.CoreAssault) && ctx.State is { } st
@@ -350,6 +354,7 @@ namespace GalaxyRoyale.Game.UI
                     BotMarchKind.Escort => $"{attacker}'s strike wing · {ships} ships",
                     BotMarchKind.Garrison => $"{attacker}'s garrison · {ships} ships",
                     BotMarchKind.CoreAssault => $"{attacker}'s core assault · {ships} ships",
+                    BotMarchKind.BossStrike => $"{attacker}'s dreadnought strike · {ships} ships",
                     _ => $"{attacker}'s raid fleet · {ships} ships",
                 },
                 $"{Status(march)} · following",

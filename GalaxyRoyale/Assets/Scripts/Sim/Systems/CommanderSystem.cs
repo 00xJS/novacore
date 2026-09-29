@@ -1,6 +1,6 @@
 // Commander progression. XP comes from the empire's record: every building and
 // research level (worth more the higher it goes), ships, battles, plunder,
-// quests, events, achievements and the Galactic Core. Reading it off the
+// quests, events, achievements, the Galactic Core and the Pirate Dreadnought. Reading it off the
 // record means offline catch-up needs nothing special and older saves start
 // at the level their history earned. Only a new high on the record earns XP,
 // at the difficulty's rate when it lands.
@@ -73,6 +73,7 @@ namespace GalaxyRoyale.Sim.Systems
             xp += s.QuestStep * 50L + s.Achievements.Count * 25L;
             xp += st.EventsCompleted * 100L + st.ClanWarsWon * 150L;
             xp += st.CoresSeized * 300L + st.CoreHoursHeld * 10L;
+            xp += st.BossDamage / 2_000 + st.BossFinalBlows * 200L; // damage, not strikes: nothing to farm
             return xp;
         }
 
