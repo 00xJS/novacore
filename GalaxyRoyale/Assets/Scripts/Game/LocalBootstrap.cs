@@ -148,7 +148,8 @@ namespace GalaxyRoyale.Game
             ui?.Toast(testMode
                 ? $"TESTING galaxy founded{level} — {BotSystem.BotCount} rivals, a full war chest"
                 : $"Welcome to the galaxy, Commander{level} — {BotSystem.BotCount} rivals await");
-            ui?.ShowRookieHints();
+            // Half a minute round the new colony first, then the rookie hints.
+            UI.GlobeTour.Start(() => ui?.ShowRookieHints());
         }
 
         void FinishBoot()

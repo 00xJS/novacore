@@ -69,7 +69,10 @@ Portrait-mode mobile 4X, built in **Unity 6** (URP + UI Toolkit, pure-C# UI):
   every extra mine, opening as the Command Center levels up), the Frontier
   (the Command Bastion's railguns, the Salvage Yard, the Drone Factory) and,
   round the back, the Spaceport where your docked fleet parks; or pinch out to
-  orbit. Tap a building for its quick actions: upgrade, info, boost.
+  orbit. Tap a building for its quick actions: upgrade, info, boost. The globe
+  is alive: fleets lift off the Spaceport and land on it, ships ride low orbits,
+  raids streak in over the colony and finished upgrades flare with their new
+  level. A new commander gets a half-minute tour of it all.
 - **The Wilds.** Tip the planet south and its whole southern half is wild land
   under survey fog: 58 sectors in rings down to the pole. Survey them one at a
   time to find gold seams, crystal fields and helium vents for your harvester
