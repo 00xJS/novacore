@@ -12,7 +12,12 @@
 //     extension (iOSWidget/GalaxyWidget.swift, plus the shared
 //     Plugins/iOS/RaidAttributes.swift) embedded in the app, and an App Group
 //     both share for the game's snapshot (Game/HomeWidget.cs). GR_WIDGET=0
-//     builds without them (the app's widget calls then do nothing).
+//     builds without them (the app's widget calls then do nothing);
+//   * the launch screen's logo (iOSLaunch/LaunchLogo.png, 960 px) moved into the
+//     app's asset catalog at @3x. Unity's launch storyboard (Player settings:
+//     image and background, relative) points at loose 1x images in the bundle,
+//     which iOS treats as 1024 points wide and its launch snapshot drew as a
+//     grey box; from the asset catalog the logo shows.
 #if UNITY_IOS
 using System;
 using System.IO;
@@ -64,6 +69,7 @@ public static class IosPostProcess
         project.AddBuildProperty(frameworkGuid, "OTHER_LDFLAGS", "-weak_framework ActivityKit");
         if (widget) AddWidgetExtension(project, path, mainGuid, bundleId, appGroup);
         project.WriteToFile(projPath);
+        UseCatalogLaunchLogo(path);
 
         if (!iCloud && !gameCenter && !widget) return;
         var capabilities = new ProjectCapabilityManager(projPath, EntitlementsFile, null, mainGuid);
@@ -72,6 +78,32 @@ public static class IosPostProcess
         if (gameCenter) capabilities.AddGameCenter();
         if (widget) capabilities.AddAppGroups(new[] { appGroup });
         capabilities.WriteToFile();
+    }
+
+    /// <summary>Point the launch storyboard's image views at the logo in the asset catalog
+    /// (a 3x image set) instead of the loose 1x launch images Unity exports.</summary>
+    static void UseCatalogLaunchLogo(string path)
+    {
+        string logo = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "iOSLaunch", "LaunchLogo.png"));
+        string storyboard = Path.Combine(path, "LaunchScreen-iPhone.storyboard");
+        string catalog = Path.Combine(path, "Unity-iPhone", "Images.xcassets");
+        if (!File.Exists(logo) || !File.Exists(storyboard) || !Directory.Exists(catalog))
+        {
+            Debug.LogWarning("[IosPostProcess] launch logo not moved to the asset catalog (logo, storyboard or catalog missing)");
+            return;
+        }
+        string set = Path.Combine(catalog, "LaunchLogo.imageset");
+        Directory.CreateDirectory(set);
+        File.Copy(logo, Path.Combine(set, "LaunchLogo.png"), true);
+        File.WriteAllText(Path.Combine(set, "Contents.json"),
+            "{\n  \"images\" : [ { \"filename\" : \"LaunchLogo.png\", \"idiom\" : \"universal\", \"scale\" : \"3x\" } ],\n" +
+            "  \"info\" : { \"author\" : \"xcode\", \"version\" : 1 }\n}\n");
+        string xml = File.ReadAllText(storyboard);
+        xml = System.Text.RegularExpressions.Regex.Replace(xml, "image=\"LaunchScreen-iPhone(Portrait|Landscape)\\.png\"", "image=\"LaunchLogo\"");
+        xml = System.Text.RegularExpressions.Regex.Replace(xml,
+            "<image name=\"LaunchScreen-iPhone(Portrait|Landscape)\\.png\" width=\"[0-9.]+\" height=\"[0-9.]+\"\\s*/>",
+            "<image name=\"LaunchLogo\" width=\"320\" height=\"320\"/>");
+        File.WriteAllText(storyboard, xml);
     }
 
     /// <summary>The WidgetKit extension: its sources, Info.plist and entitlements
