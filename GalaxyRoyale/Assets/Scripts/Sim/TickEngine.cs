@@ -42,6 +42,10 @@ namespace GalaxyRoyale.Sim
             ResourceSystem.Tick(_state, _events);
             MarchSystem.Tick(_state, _events);
             MapSystem.Tick(_state, _events);
+            // The Wilds (2026-09-29) go last: surveys and the drones' haul read the
+            // resources and buildings as this tick left them, and nothing above
+            // depends on them.
+            WildsSystem.Tick(_state, _events);
         }
 
         /// <summary>

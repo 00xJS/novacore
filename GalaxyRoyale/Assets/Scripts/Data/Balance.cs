@@ -93,6 +93,36 @@ namespace GalaxyRoyale.Data
         public static long SalvageCapacity(int level) =>
             level < 1 ? 0 : (long)Math.Floor(20000.0 * Math.Pow(1.4, level - 1));
 
+        // The Wilds (2026-09-29): the southern hemisphere under survey fog, five
+        // rings of sectors down to the pole. A survey costs more and takes longer
+        // the deeper its ring, and deposits there hold more. Harvester drones (the
+        // colony's own, plus the Drone Factory's) bring the deposits' stock home;
+        // a drained deposit refills, and a claimed cache or relic's sector drifts
+        // back under the fog to be surveyed again, so the Wilds never run out.
+        public static readonly int[] WildsSurveySec = { 300, 1200, 3600, 3 * 3600, 8 * 3600 };
+        /// <summary>Whole units: 600 / 300 / 150 on the first ring, ×3 each ring deeper.</summary>
+        public static ResourceBag WildsSurveyCost(int ring)
+        {
+            long k = (long)Math.Pow(3, Math.Max(0, ring));
+            return new ResourceBag(600 * k, 300 * k, 150 * k);
+        }
+        /// <summary>A full deposit (whole units) before its ±30% roll: 6,000 on the first ring, ×2 each ring.</summary>
+        public static long WildsDepositSize(int ring) => 6000L << Math.Max(0, ring);
+        /// <summary>A supply cache (whole units, spread across the three resources).</summary>
+        public static long WildsCacheSize(int ring) => 3000L << Math.Max(0, ring);
+        public static int WildsRelicDarkMatter(int ring) => 15 * (Math.Max(0, ring) + 1);
+        /// <summary>A drained deposit fills back up this long after it runs dry.</summary>
+        public const int WildsRefillSec = 6 * 3600;
+        /// <summary>A claimed cache or relic's sector goes back under the fog this long after.</summary>
+        public const int WildsShiftSec = 24 * 3600;
+        /// <summary>A harvester drone's round trip.</summary>
+        public const int DroneTripSec = 600;
+        /// <summary>The colony's own drone, then 2 at the Drone Factory's first level and one more every 3.</summary>
+        public static int WildsDrones(int factoryLevel) => factoryLevel < 1 ? 1 : 2 + factoryLevel / 3;
+        /// <summary>What one drone carries home a trip (whole units): 120, +8% a factory level.</summary>
+        public static long DroneCarry(int factoryLevel) =>
+            (long)Math.Round(120 * Math.Pow(1.08, Math.Max(0, factoryLevel)));
+
         // Prototype/testing conveniences. Testing economy per user request
         // (2026-07-07): 500K of each resource + 1M Dark Matter + a stack of
         // every speed-up token so nothing gates a playtest. Since 2026-09-27 it's

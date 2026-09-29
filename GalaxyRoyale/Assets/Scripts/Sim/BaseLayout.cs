@@ -1,11 +1,13 @@
 // The globe base (2026-09-28): every building has a fixed pad on the home
-// planet, placed by latitude and longitude. Three districts sit around the
-// equator: Command (the nine core buildings), the Mining Belt to the east (a
-// pad for every extra mine the Command Center can unlock: one column per
+// planet, placed by latitude and longitude. Four districts sit around the
+// northern band: Command (the nine core buildings), the Mining Belt to the east
+// (a pad for every extra mine the Command Center can unlock: one column per
 // unlock, one row per resource, each row in line with that resource's first
-// mine) and the Frontier to the west (the buildings that open later — the
-// Command Bastion and the Salvage Yard, with the Exchange Terminal and the
-// Drone Factory still to come — and reserved pads).
+// mine), the Frontier to the west (the buildings that open later — the Command
+// Bastion, the Salvage Yard and the Drone Factory, with the Exchange Terminal
+// as the Market's home — and reserved pads) and, on the far side, the
+// Spaceport where the docked fleet parks (2026-09-29). The southern half is
+// the Wilds (Sim/Wilds.cs).
 //
 // Pure data; BuildingMarkers draws it. A mine's pad follows from the order its
 // type's mines were built, so saves need no new fields.
@@ -14,7 +16,7 @@ using GalaxyRoyale.Data;
 
 namespace GalaxyRoyale.Sim
 {
-    public enum BaseDistrict { Command, MiningBelt, Frontier }
+    public enum BaseDistrict { Command, MiningBelt, Frontier, Spaceport, Wilds }
 
     public enum PadKind
     {
@@ -28,7 +30,7 @@ namespace GalaxyRoyale.Sim
         Reserved,
     }
 
-    public enum PlannedBuilding { None, ExchangeTerminal, DroneFactory }
+    public enum PlannedBuilding { None, ExchangeTerminal }
 
     public sealed class BasePad
     {
@@ -59,10 +61,12 @@ namespace GalaxyRoyale.Sim
         /// <summary>The belt's columns, west to east: one per Command Center unlock.</summary>
         public static readonly double[] BeltLon = { 67.5, 82.5, 97.5, 112.5 };
 
+        /// <summary>The longitude a district faces the camera at (the Wilds spin freely).</summary>
         public static double DistrictLon(BaseDistrict d) => d switch
         {
             BaseDistrict.MiningBelt => 90,
             BaseDistrict.Frontier => -90,
+            BaseDistrict.Spaceport => 180,
             _ => 0,
         };
 
@@ -70,8 +74,19 @@ namespace GalaxyRoyale.Sim
         {
             BaseDistrict.MiningBelt => "Mining Belt",
             BaseDistrict.Frontier => "Frontier",
+            BaseDistrict.Spaceport => "Spaceport",
+            BaseDistrict.Wilds => "The Wilds",
             _ => "Command District",
         };
+
+        /// <summary>The districts around the northern band, west to east of Command and round the back.</summary>
+        public static readonly IReadOnlyList<BaseDistrict> NorthBand = new[]
+        {
+            BaseDistrict.Command, BaseDistrict.MiningBelt, BaseDistrict.Frontier, BaseDistrict.Spaceport,
+        };
+
+        /// <summary>The Spaceport's landing field: its centre and half its span (degrees).</summary>
+        public const double PortLat = MiddleRow, PortLon = 180, PortSpan = 21;
 
         /// <summary>Gold on the top row, quartz in the middle, helium at the bottom:
         /// the same rows as the first mine of each in the Command district.</summary>
@@ -128,7 +143,7 @@ namespace GalaxyRoyale.Sim
                 UnlockCc = Buildings.Defs[id].UnlockCc,
             });
             Frontier(BuildingId.CommandBastion, TopRow, -71);
-            Plan(PlannedBuilding.DroneFactory, "Drone Factory", BottomRow, -106, 10);
+            Frontier(BuildingId.DroneFactory, BottomRow, -106);
             Frontier(BuildingId.SalvageYard, BottomRow, -74);
             foreach (double lon in new[] { -112.0, -90.0, -68.0 })
                 pads.Add(new BasePad

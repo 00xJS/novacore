@@ -57,6 +57,8 @@ namespace GalaxyRoyale.Sim
     /// <summary>The commander reached <paramref name="Level"/>, <paramref name="Gained"/> levels
     /// at once (their Dark Matter and milestone items, by shop id, are already paid).</summary>
     public sealed record CommanderLevelUp(int Level, int Gained, int DarkMatter, IReadOnlyList<string> Items) : SimEvent;
+    /// <summary>A survey of the Wilds landed: what it found in the sector.</summary>
+    public sealed record WildsSurveyed(int Sector, WildsFind Find) : SimEvent;
 
     public sealed class SimEventBus
     {

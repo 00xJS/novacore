@@ -18,6 +18,7 @@ namespace GalaxyRoyale.Data
         // The Frontier (2026-09-28), appended so saved enum values stay put.
         CommandBastion,
         SalvageYard,
+        DroneFactory,
     }
 
     public enum BuildingKind
@@ -31,6 +32,7 @@ namespace GalaxyRoyale.Data
         Radar,      // radar station (incoming-threat warnings + probe speed)
         Defense,    // command bastion (railguns + armoured docks at home)
         Salvage,    // salvage yard (resources back from wrecks)
+        Drones,     // drone factory (harvester drones for the Wilds' deposits)
     }
 
     public sealed class BuildingDef
@@ -77,6 +79,7 @@ namespace GalaxyRoyale.Data
             BuildingId.RadarStation,
             BuildingId.CommandBastion,
             BuildingId.SalvageYard,
+            BuildingId.DroneFactory,
         };
 
         /// <summary>The nine buildings every colony starts with room for (the Command district).</summary>
@@ -212,6 +215,19 @@ namespace GalaxyRoyale.Data
                 BaseTimeSec = 240,
                 MaxLevel = 30,
                 UnlockCc = 8,
+                BotsBuild = false,
+            },
+            [BuildingId.DroneFactory] = new BuildingDef
+            {
+                Name = "Drone Factory",
+                Desc = "Builds harvester drones for the Wilds. They fly out to your charted deposits and bring " +
+                       "back what they carry: more drones, and bigger holds, every level.",
+                Kind = BuildingKind.Drones,
+                BaseEnergyUse = 25,
+                BaseCost = new ResourceBag(1200, 900, 300),
+                BaseTimeSec = 420,
+                MaxLevel = 30,
+                UnlockCc = 10,
                 BotsBuild = false,
             },
         };

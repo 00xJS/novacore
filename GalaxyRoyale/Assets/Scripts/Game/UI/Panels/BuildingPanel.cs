@@ -245,6 +245,35 @@ namespace GalaxyRoyale.Game.UI
                     body.Add(collect);
                 }
 
+                if (id == BuildingId.DroneFactory && mineId == null)
+                {
+                    var header = Widgets.Heading("IN THE WILDS", 10, UiTheme.Dim, 1.4f);
+                    header.style.marginTop = 12;
+                    body.Add(header);
+                    void Stat(string caption, string value)
+                    {
+                        var line = Widgets.HBox(Justify.SpaceBetween);
+                        line.style.marginTop = 3;
+                        line.Add(Widgets.Text(caption, 12, UiTheme.Dim));
+                        line.Add(Widgets.Text(value, 12, UiTheme.Text, bold: true));
+                        body.Add(line);
+                    }
+                    int deposits = WildsSystem.ActiveDeposits(s);
+                    Stat("Harvester drones", WildsSystem.Drones(s).ToString());
+                    Stat("Each carries", $"{WildsSystem.Carry(s):N0} a trip");
+                    Stat("Deposits being worked", $"{deposits} of {WildsSystem.ChartedCount(s)} charted sectors");
+                    Stat("Brought home an hour", deposits > 0 ? UiTheme.FmtAmount(WildsSystem.HaulPerHourMilli(s)) : "idle: chart a deposit");
+                    Stat("Brought home so far", UiTheme.FmtAmount(s.Wilds.Harvested.Total));
+                    var go = Widgets.IconButton(Icon.Compass, "GO TO THE WILDS", () =>
+                    {
+                        ui.CloseModal();
+                        BaseGlobe.Instance?.FlyTo(BaseDistrict.Wilds);
+                    }, 12);
+                    go.style.marginTop = 8;
+                    go.style.height = 38;
+                    body.Add(go);
+                }
+
                 int idx = OrderIdx(s);
                 if (idx >= 0)
                 {
@@ -506,6 +535,9 @@ namespace GalaxyRoyale.Game.UI
                     return $"recovers {Math.Round(Balance.SalvageRate(level) * 100)}% → {Math.Round(Balance.SalvageRate(next) * 100)}% " +
                            $"of wrecks · holds {UiTheme.FmtAmount(Balance.SalvageCapacity(level) * 1000L)} → " +
                            $"{UiTheme.FmtAmount(Balance.SalvageCapacity(next) * 1000L)} each";
+                case BuildingKind.Drones:
+                    return $"harvester drones: {Balance.WildsDrones(level)} → {Balance.WildsDrones(next)} · " +
+                           $"each carries {Balance.DroneCarry(level):N0} → {Balance.DroneCarry(next):N0} a trip";
                 case BuildingKind.Radar:
                 {
                     string lead(int l) => l < 1 ? "no warning"

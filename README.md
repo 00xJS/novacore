@@ -34,6 +34,8 @@ galaxy of 249 rivals, and the Galactic Core at its heart:
 | ![The Command district of the globe base](Screenshots/base-view.jpeg) | ![The Mining Belt, with open and locked pads](Screenshots/base-mines.jpeg) | ![The whole colony from orbit](Screenshots/base-orbit.jpeg) |
 | **Your home in the galaxy** | **The Galactic Core** | **Your commander** |
 | ![The galaxy map around your home planet](Screenshots/galaxy-map.jpeg) | ![The Galactic Core and the rivals around it](Screenshots/galaxy-core.jpeg) | ![The commander profile](Screenshots/commander-profile.jpeg) |
+| **The Wilds** | **The Spaceport** | **After a battle** |
+| ![The Wilds: charted finds, a survey under way and sectors under the fog](Screenshots/wilds.jpeg) | ![The Spaceport with the docked fleet parked by class](Screenshots/spaceport.jpeg) | ![A battle report: the outcome, both flagships and every hull's losses](Screenshots/battle-report.jpeg) |
 
 ## The game
 
@@ -64,9 +66,18 @@ Portrait-mode mobile 4X, built in **Unity 6** (URP + UI Toolkit, pure-C# UI):
   anyone (attack or turtle — not both).
 - **Your colony on a globe.** Every building stands on a fixed pad on your
   home planet. Spin between the Command district, the Mining Belt (a pad for
-  every extra mine, opening as the Command Center levels up) and the Frontier
-  (buildings still to come), or pinch out to orbit. Tap a building for its
-  quick actions: upgrade, info, boost.
+  every extra mine, opening as the Command Center levels up), the Frontier
+  (the Command Bastion's railguns, the Salvage Yard, the Drone Factory) and,
+  round the back, the Spaceport where your docked fleet parks; or pinch out to
+  orbit. Tap a building for its quick actions: upgrade, info, boost.
+- **The Wilds.** Tip the planet south and its whole southern half is wild land
+  under survey fog: 58 sectors in rings down to the pole. Survey them one at a
+  time to find gold seams, crystal fields and helium vents for your harvester
+  drones, supply caches and Dark Matter relics. Drained deposits refill and
+  claimed finds drift back under the fog, so the Wilds never run out.
+- **Battles you can watch.** Every hull has its own art. Battle reports show
+  the outcome, both flagships and each hull's losses, and the replay plays the
+  fight out with the real ships: bolts, fireballs and wrecks, round by round.
 - **No accounts, no server.** Everything saves to the device — atomic writes
   with a rolling backup file.
 - **Beyond the app.** A home-screen widget shows your next timers, and a Live

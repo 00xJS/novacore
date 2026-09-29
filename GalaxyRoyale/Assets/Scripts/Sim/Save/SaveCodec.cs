@@ -460,6 +460,20 @@ namespace GalaxyRoyale.Sim.Save
                     ["at"] = (long)mk.ImpactTick,
                 };
             if (s.SalvageStored.Total > 0) root["salvage"] = Bag(s.SalvageStored);
+            var wilds = s.Wilds;
+            if (wilds.Sectors.Count > 0 || wilds.Surveying >= 0 || wilds.HarvestTick > 0)
+            {
+                var sectors = new List<WildsSector>(wilds.Sectors.Values);
+                sectors.Sort((a, b) => a.Index.CompareTo(b.Index));
+                root["wilds"] = new Dictionary<string, object?>
+                {
+                    ["sectors"] = Arr(sectors, EncodeSector),
+                    ["surveying"] = (long)wilds.Surveying,
+                    ["surveyDone"] = (long)wilds.SurveyDoneTick,
+                    ["harvestTick"] = (long)wilds.HarvestTick,
+                    ["harvested"] = Bag(wilds.Harvested),
+                };
+            }
             if (s.QuestStep > 0) root["questStep"] = (long)s.QuestStep;
             if (s.Achievements.Count > 0)
             {
@@ -550,6 +564,8 @@ namespace GalaxyRoyale.Sim.Save
 
             if (d.TryGetValue("salvage", out var svRaw) && svRaw is Dictionary<string, object?> svo)
                 s.SalvageStored = DecBag(svo);
+            if (d.TryGetValue("wilds", out var wRaw) && wRaw is Dictionary<string, object?> wo)
+                s.Wilds = DecodeWilds(wo);
 
             var profile = AsObj(d["profile"], "profile");
             s.Profile = new Profile { Name = Str(profile, "name"), AvatarSeed = I32(profile, "avatarSeed") };
@@ -1208,6 +1224,7 @@ namespace GalaxyRoyale.Sim.Save
             BuildingId.RadarStation => "radarStation",
             BuildingId.CommandBastion => "commandBastion",
             BuildingId.SalvageYard => "salvageYard",
+            BuildingId.DroneFactory => "droneFactory",
             _ => throw new InvalidOperationException($"unknown BuildingId {id}"),
         };
 
@@ -1224,6 +1241,7 @@ namespace GalaxyRoyale.Sim.Save
             "radarStation" => BuildingId.RadarStation,
             "commandBastion" => BuildingId.CommandBastion,
             "salvageYard" => BuildingId.SalvageYard,
+            "droneFactory" => BuildingId.DroneFactory,
             _ => throw new FormatException($"unknown building '{s}'"),
         };
 
@@ -1497,6 +1515,72 @@ namespace GalaxyRoyale.Sim.Save
             "draw" => BattleWinner.Draw,
             _ => throw new FormatException($"unknown winner '{s}'"),
         };
+
+        // ---------- the Wilds ----------
+
+        static object? EncodeSector(WildsSector x)
+        {
+            var d = new Dictionary<string, object?>
+            {
+                ["i"] = (long)x.Index,
+                ["find"] = x.Find switch
+                {
+                    WildsFind.Deposit => "deposit", WildsFind.Cache => "cache", WildsFind.Relic => "relic", _ => "fog",
+                },
+                ["surveys"] = (long)x.Surveys,
+            };
+            if (x.Find == WildsFind.Deposit)
+            {
+                d["res"] = x.Resource switch { ResourceId.Gold => "gold", ResourceId.Quartz => "quartz", _ => "helium" };
+                d["stock"] = x.StockMilli;
+                d["max"] = x.MaxMilli;
+                if (x.RefillTick > 0) d["refill"] = (long)x.RefillTick;
+            }
+            if (x.Reward.Total > 0) d["reward"] = Bag(x.Reward);
+            if (x.RewardDM > 0) d["dm"] = (long)x.RewardDM;
+            if (x.Claimed) d["claimed"] = true;
+            if (x.FogTick > 0) d["fog"] = (long)x.FogTick;
+            if (x.HarvestedMilli > 0) d["harvested"] = x.HarvestedMilli;
+            return d;
+        }
+
+        static WildsState DecodeWilds(Dictionary<string, object?> wo)
+        {
+            var w = new WildsState
+            {
+                Surveying = I32(wo, "surveying"),
+                SurveyDoneTick = I32(wo, "surveyDone"),
+                HarvestTick = I32(wo, "harvestTick"),
+                Harvested = wo.TryGetValue("harvested", out var hv) && hv is Dictionary<string, object?> hvo ? DecBag(hvo) : new(),
+            };
+            if (!WildsLayout.Valid(w.Surveying)) w.Surveying = -1;
+            foreach (var raw in AsArr(wo["sectors"], "wilds.sectors"))
+            {
+                var o = AsObj(raw, "wilds.sectors[]");
+                var x = new WildsSector
+                {
+                    Index = I32(o, "i"),
+                    Find = Str(o, "find") switch
+                    {
+                        "deposit" => WildsFind.Deposit, "cache" => WildsFind.Cache, "relic" => WildsFind.Relic,
+                        _ => WildsFind.None,
+                    },
+                    Surveys = I32(o, "surveys"),
+                };
+                if (o.TryGetValue("res", out var res) && res is string rs)
+                    x.Resource = rs switch { "gold" => ResourceId.Gold, "quartz" => ResourceId.Quartz, _ => ResourceId.Helium };
+                if (o.TryGetValue("stock", out var st) && st != null) x.StockMilli = ToI64(st);
+                if (o.TryGetValue("max", out var mx) && mx != null) x.MaxMilli = ToI64(mx);
+                if (o.TryGetValue("refill", out var rf) && rf != null) x.RefillTick = ToI32(rf);
+                if (o.TryGetValue("reward", out var rw) && rw is Dictionary<string, object?> rwo) x.Reward = DecBag(rwo);
+                if (o.TryGetValue("dm", out var dm) && dm != null) x.RewardDM = ToI32(dm);
+                x.Claimed = o.TryGetValue("claimed", out var cl) && cl is bool cb && cb;
+                if (o.TryGetValue("fog", out var fg) && fg != null) x.FogTick = ToI32(fg);
+                if (o.TryGetValue("harvested", out var hm) && hm != null) x.HarvestedMilli = ToI64(hm);
+                if (WildsLayout.Valid(x.Index)) w.Sectors[x.Index] = x;
+            }
+            return w;
+        }
 
         // ---------- JSON access helpers ----------
 
