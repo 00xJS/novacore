@@ -1,0 +1,29 @@
+<!-- The EditMode suite outside Unity (CI), on .NET 8 with NUnit 3 (the classic
+     asserts Unity's NUnit uses). CloudSaveTests needs GalaxyRoyale.Local, which is
+     Unity-side (PlayerPrefs, iCloud bridge), so it stays in the Unity run only.
+     Like Unity's test assembly: C# 9, no nullable context (CS8632 silenced). -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);CS8632</NoWarn>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>GalaxyRoyale.Sim.Tests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../GalaxyRoyale/Assets/Scripts/Tests/**/*.cs"
+             Exclude="../../GalaxyRoyale/Assets/Scripts/Tests/CloudSaveTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Data/GalaxyRoyale.Data.csproj" />
+    <ProjectReference Include="../Sim/GalaxyRoyale.Sim.csproj" />
+  </ItemGroup>
+</Project>

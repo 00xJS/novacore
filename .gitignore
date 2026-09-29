@@ -52,3 +52,8 @@ crashlytics-build.properties
 
 # Unity/Mono native crash dumps (batch-mode shutdown crashes on macOS 27)
 mono_crash.*.json
+
+# CI projects for the engine-free tests (ci/) — kept, unlike Unity's generated ones
+!ci/**/*.csproj
+ci/**/bin/
+ci/**/obj/
