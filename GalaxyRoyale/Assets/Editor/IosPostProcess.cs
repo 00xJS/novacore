@@ -5,7 +5,9 @@
 //   * the iCloud key-value store capability for the save backup (CloudSave,
 //     Plugins/iOS/GRCloudSave.mm). Automatic signing with
 //     -allowProvisioningUpdates enables iCloud on the App ID by itself. Set
-//     GR_ICLOUD=0 to build without it (e.g. a team that can't use iCloud).
+//     GR_ICLOUD=0 to build without it (e.g. a team that can't use iCloud);
+//   * the Game Center capability (GameCenter.cs — the player opts in from
+//     Settings). GR_GAMECENTER=0 builds without it.
 #if UNITY_IOS
 using System;
 using System.IO;
@@ -28,14 +30,17 @@ public static class IosPostProcess
         plist.root.SetBoolean("ITSAppUsesNonExemptEncryption", false);
         plist.WriteToFile(plistPath);
 
-        if (Environment.GetEnvironmentVariable("GR_ICLOUD") == "0") return;
+        bool iCloud = Environment.GetEnvironmentVariable("GR_ICLOUD") != "0";
+        bool gameCenter = Environment.GetEnvironmentVariable("GR_GAMECENTER") != "0";
+        if (!iCloud && !gameCenter) return;
         string projPath = PBXProject.GetPBXProjectPath(path);
         var project = new PBXProject();
         project.ReadFromFile(projPath);
         var capabilities = new ProjectCapabilityManager(projPath, EntitlementsFile, null,
             project.GetUnityMainTargetGuid());
         // Key-value storage only: no iCloud Documents, no CloudKit, no containers.
-        capabilities.AddiCloud(true, false, false, false, null);
+        if (iCloud) capabilities.AddiCloud(true, false, false, false, null);
+        if (gameCenter) capabilities.AddGameCenter();
         capabilities.WriteToFile();
     }
 }

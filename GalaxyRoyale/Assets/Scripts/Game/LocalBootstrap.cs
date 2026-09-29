@@ -157,6 +157,7 @@ namespace GalaxyRoyale.Game
             _booted = true;
             _nextAutosave = Time.time + AutosaveSeconds;
             Music.Sync(); // the ambient score (Settings › Music)
+            GameCenter.Sync(_ctx.State); // only if the player turned it on
             DebugLaunch.Run(_ctx);
         }
 
@@ -199,7 +200,11 @@ namespace GalaxyRoyale.Game
 
         void OnApplicationPause(bool paused)
         {
-            if (paused && _booted && _ctx.State != null) SaveNow(forceCloud: true);
+            if (paused && _booted && _ctx.State != null)
+            {
+                SaveNow(forceCloud: true);
+                GameCenter.PostAll(_ctx.State); // might to the leaderboard, if opted in
+            }
         }
 
         void OnApplicationQuit()
