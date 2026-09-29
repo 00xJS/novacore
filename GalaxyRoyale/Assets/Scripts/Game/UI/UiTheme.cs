@@ -22,8 +22,21 @@ namespace GalaxyRoyale.Game.UI
         public static readonly Color Text   = Rgb(0xdbe4f0);
         public static readonly Color Dim    = Rgb(0x8892a6);
         public static readonly Color Accent = Rgb(0x7fd4ff);
-        public static readonly Color Good   = Rgb(0x7fe08a);
-        public static readonly Color Bad    = Rgb(0xff7a7a);
+        // Good / bad news: green / red, or blue / orange with colour-blind colours on
+        // (Settings.ColorBlind — screens pick it up as they're built).
+        public static Color Good = Rgb(0x7fe08a);
+        public static Color Bad  = Rgb(0xff7a7a);
+
+        static UiTheme()
+        {
+            if (Settings.ColorBlind) ApplyPalette(true);
+        }
+
+        public static void ApplyPalette(bool colorBlind)
+        {
+            Good = colorBlind ? Rgb(0x5eb8ff) : Rgb(0x7fe08a);
+            Bad = colorBlind ? Rgb(0xffa347) : Rgb(0xff7a7a);
+        }
 
         public static readonly Color Gold   = Rgb(0xaab4c0);
         public static readonly Color Quartz = Rgb(0x6fd3e8);
