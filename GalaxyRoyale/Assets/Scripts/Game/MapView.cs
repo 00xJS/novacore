@@ -705,6 +705,19 @@ namespace GalaxyRoyale.Game
                 }
             }
 
+            // The Pirate Dreadnought, while one is in the galaxy.
+            if (_boss != null)
+            {
+                float bx = world.x - _boss.position.x, by = world.y - _boss.position.y;
+                float br = Mathf.Max(30f, _boss.localScale.x * 0.9f);
+                if (bx * bx + by * by <= br * br)
+                {
+                    _selected = null;
+                    UI.BossPanel.OpenCallout(_ctx);
+                    return;
+                }
+            }
+
             // The Galactic Core: a tap on the station itself opens it (the traffic
             // crossing it can still be tapped anywhere else along its path).
             float dx = world.x - _coreWorld.x, dy = world.y - _coreWorld.y;
@@ -1066,6 +1079,8 @@ namespace GalaxyRoyale.Game
                     seed: 0f);
             }
 
+            SyncBoss(t);
+
             // Coordinates readout replaces the header's HQ line while on the map.
             // Use the ground TARGET the camera frames, not its (tilted) position.
             var lookingAt = WorldToTile(new Vector3(_camCtl!.Target.x, _camCtl.Target.y, 0f));
@@ -1161,6 +1176,7 @@ namespace GalaxyRoyale.Game
                     MarchMission.Intercept => new Color(1f, 0.66f, 0.25f),
                     MarchMission.Garrison  => new Color(0.45f, 0.9f, 0.55f),
                     MarchMission.Core      => new Color(0.95f, 0.82f, 0.35f),
+                    MarchMission.Boss      => new Color(1f, 0.42f, 0.36f),
                     _                      => new Color(0.5f, 0.83f, 1f),
                 };
                 vis.Line.startColor = WithAlpha(color, 0.55f);
@@ -1326,6 +1342,7 @@ namespace GalaxyRoyale.Game
                 var wingColor = new Color(0.35f, 0.9f, 0.8f);
                 var guardColor = new Color(0.45f, 0.9f, 0.55f); // matches your own garrisons
                 var coreColor = new Color(0.98f, 0.72f, 0.3f);  // an assault on the Galactic Core
+                var bossColor = new Color(1f, 0.36f, 0.3f);     // a strike on the Pirate Dreadnought
                 foreach (var m in galaxy.Marches)
                 {
                     var color = m.Kind switch
@@ -1334,6 +1351,7 @@ namespace GalaxyRoyale.Game
                         GalaxyRoyale.Sim.Bots.BotMarchKind.Escort => wingColor,
                         GalaxyRoyale.Sim.Bots.BotMarchKind.Garrison => guardColor,
                         GalaxyRoyale.Sim.Bots.BotMarchKind.CoreAssault => coreColor,
+                        GalaxyRoyale.Sim.Bots.BotMarchKind.BossStrike => bossColor,
                         _ => raidColor,
                     };
                     string art = m.IsSpy ? "probe" : "fleet";
@@ -1514,6 +1532,18 @@ namespace GalaxyRoyale.Game
                     12, CoreLabelColor, above: true, declutter: false);
             }
 
+            // The Pirate Dreadnought's hull, while it's here.
+            if (_boss != null && _ctx.Bots is { } g && g.Boss.Active)
+            {
+                if (state.Tick != _bossLabelTick)
+                {
+                    _bossLabelTick = state.Tick;
+                    _bossLabelText = $"PIRATE DREADNOUGHT · {System.Math.Round(GalaxyRoyale.Sim.Systems.BossSystem.HullShare(g.Boss) * 100):0}% hull";
+                }
+                _labels.Place(LabelAnchor(_boss.position, _boss.localScale.y * 0.6f), _bossLabelText,
+                    12, BossLabelColor, above: true, declutter: false);
+            }
+
             if (_mapCam.orthographicSize <= HideNameLabelsAbove)
             {
                 foreach (int id in _labelOrder)
@@ -1546,6 +1576,43 @@ namespace GalaxyRoyale.Game
         /// <summary>World units (≈ tiles) around the core centre that open the core.</summary>
         const float CoreTapRadius = 110f;
         static readonly Color CoreLabelColor = new(0.98f, 0.82f, 0.45f, 0.97f);
+        int _bossLabelTick = -1;
+        string _bossLabelText = "";
+        static readonly Color BossLabelColor = new(1f, 0.5f, 0.45f, 0.97f);
+
+        // ---------- the Pirate Dreadnought ----------
+
+        Transform? _boss;
+        int _bossVisit = -1;
+
+        /// <summary>A red hulk (the fleet art, or a disc) in a pulsing glow while a
+        /// dreadnought is in the galaxy; gone when it leaves.</summary>
+        void SyncBoss(float t)
+        {
+            var boss = _ctx.Bots?.Boss;
+            if (boss == null || !boss.Active || _root == null)
+            {
+                if (_boss != null) { Destroy(_boss.gameObject); _boss = null; }
+                return;
+            }
+            if (_boss == null || _bossVisit != boss.Visit)
+            {
+                if (_boss != null) Destroy(_boss.gameObject);
+                _bossVisit = boss.Visit;
+                var root = new GameObject("Pirate Dreadnought").transform;
+                root.SetParent(_root.transform, false);
+                root.localPosition = TileToWorld(boss.Tile.X, boss.Tile.Y);
+                MapVisuals.Spawn(root, "Glow", MapVisuals.Glow, new Vector3(0f, 0f, 0.4f), 2.4f, 2.4f,
+                    new Color(1f, 0.22f, 0.18f, 0.6f), 6);
+                var art = MapVisuals.OverrideSprite("fleet");
+                MapVisuals.Spawn(root, "Hull", art ?? MapVisuals.Disc, Vector3.zero, 1f, 1f,
+                    art != null ? new Color(1f, 0.55f, 0.5f) : new Color(0.85f, 0.25f, 0.22f), 9);
+                root.gameObject.AddComponent<MapBillboard>(); // stands up facing the viewer
+                _boss = root;
+            }
+            float s = PlayerMarkerScale(_mapCam!.orthographicSize) * 1.6f * (1f + 0.06f * Mathf.Sin(t * 3f));
+            _boss.localScale = new Vector3(s, s, 1f);
+        }
 
         // ---------- rival planets (the simulated commanders) ----------
 

@@ -27,7 +27,7 @@ namespace GalaxyRoyale.Sim.Combat
         }
 
         /// <summary>HP pool per hull — damage carries between rounds within a stack.</summary>
-        static Dictionary<HullId, int> InitPools(Dictionary<HullId, int> comp)
+        internal static Dictionary<HullId, int> InitPools(Dictionary<HullId, int> comp)
         {
             var pools = new Dictionary<HullId, int>();
             foreach (var hull in Ships.All)
@@ -38,7 +38,7 @@ namespace GalaxyRoyale.Sim.Combat
             return pools;
         }
 
-        static Dictionary<HullId, int> Survivors(Dictionary<HullId, int> pools)
+        internal static Dictionary<HullId, int> Survivors(Dictionary<HullId, int> pools)
         {
             var outSurv = new Dictionary<HullId, int>();
             foreach (var hull in Ships.All)
@@ -108,7 +108,7 @@ namespace GalaxyRoyale.Sim.Combat
 
         /// <summary>Area fire split across every stack by remaining HP share, with
         /// freighters drawing extra — the Orbital Batteries' pattern.</summary>
-        static Dictionary<HullId, float> SpreadByHp(Dictionary<HullId, int> pools, float damage)
+        internal static Dictionary<HullId, float> SpreadByHp(Dictionary<HullId, int> pools, float damage)
         {
             var spread = new Dictionary<HullId, float>();
             int total = 0;
@@ -146,7 +146,7 @@ namespace GalaxyRoyale.Sim.Combat
             return outD;
         }
 
-        static void ApplyDamage(Dictionary<HullId, int> pools, Dictionary<HullId, float> damage)
+        internal static void ApplyDamage(Dictionary<HullId, int> pools, Dictionary<HullId, float> damage)
         {
             foreach (var hull in Ships.All)
             {
@@ -157,7 +157,7 @@ namespace GalaxyRoyale.Sim.Combat
             }
         }
 
-        static Dictionary<HullId, int> LossesBetween(Dictionary<HullId, int> before, Dictionary<HullId, int> after)
+        internal static Dictionary<HullId, int> LossesBetween(Dictionary<HullId, int> before, Dictionary<HullId, int> after)
         {
             var outL = new Dictionary<HullId, int>();
             foreach (var hull in Ships.All)

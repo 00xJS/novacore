@@ -92,8 +92,10 @@ namespace GalaxyRoyale.Sim.Bots
     /// assault — it waits at the target until the player's battle settles it.
     /// Garrison: a clanmate's wing standing guard at the player's colony
     /// (StrikeSystem). CoreAssault: a commander's (or its clanmates') fleet
-    /// bound for the Galactic Core; wings of one assault share a LinkId (CoreSystem).</summary>
-    public enum BotMarchKind { Raid, Spy, Escort, Garrison, CoreAssault }
+    /// bound for the Galactic Core; wings of one assault share a LinkId (CoreSystem).
+    /// BossStrike: a commander's strike on the Pirate Dreadnought; TargetBotId holds
+    /// the visit it flies against (BossSystem).</summary>
+    public enum BotMarchKind { Raid, Spy, Escort, Garrison, CoreAssault, BossStrike }
 
     /// <summary>
     /// A bot fleet flying between two points in real time (visible on the galaxy
@@ -202,6 +204,8 @@ namespace GalaxyRoyale.Sim.Bots
         public int NextPoliticsTick;
         /// <summary>The Galactic Core (CoreSystem).</summary>
         public CoreState Core = new();
+        /// <summary>The Pirate Dreadnought (BossSystem).</summary>
+        public BossState Boss = new();
 
         public BotEmpire? Find(int botId) => Bots.Find(b => b.Id == botId);
         public Clan? FindClan(int clanId) => clanId == 0 ? null : Clans.Find(c => c.Id == clanId);
@@ -505,6 +509,7 @@ namespace GalaxyRoyale.Sim.Bots
             // and garrisons change the guard only after the raids of their watch.
             StrikeSystem.BeforeRaids(player, galaxy, events);
             CoreSystem.Tick(player, galaxy, events);
+            BossSystem.Tick(player, galaxy, events);
             ResolveBotMarches(player, galaxy, events);
             ResolveInbound(player, galaxy, events);
             StrikeSystem.AfterRaids(player, galaxy, events, prevTick);
@@ -1374,9 +1379,9 @@ namespace GalaxyRoyale.Sim.Bots
 
                 // Joint-strike wings wait for your battle; garrison wings stand guard
                 // (StrikeSystem and RaidArrivals send them home); core assaults are
-                // fought by CoreSystem.
+                // fought by CoreSystem, dreadnought strikes by BossSystem.
                 bool wing = march.Kind == BotMarchKind.Escort || march.Kind == BotMarchKind.Garrison
-                    || march.Kind == BotMarchKind.CoreAssault;
+                    || march.Kind == BotMarchKind.CoreAssault || march.Kind == BotMarchKind.BossStrike;
                 if (!march.Resolved && !wing && player.Tick >= march.ArrivesAtTick)
                 {
                     var defender = galaxy.Find(march.TargetBotId);

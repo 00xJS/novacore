@@ -49,6 +49,10 @@ namespace GalaxyRoyale.Sim
         // Your fleets.
         public int BattlesWon, BattlesLost, SpyReports, FleetsHome;
         public long CargoHomeMilli;
+        /// <summary>Strikes on the Pirate Dreadnought and the damage they did; a visit's result.</summary>
+        public int BossStrikes;
+        public long BossDamage;
+        public BossReport? BossResult;
 
         // Colony work.
         public int Upgrades, Research, ShipsBuilt;
@@ -67,7 +71,7 @@ namespace GalaxyRoyale.Sim
         /// <summary>Anything worth a full report (vs. a resources-only toast)?</summary>
         public bool Notable =>
             RaidsSuffered + RaidsRepelled + RaidsDeflected + SpyScans
-            + BattlesWon + BattlesLost + SpyReports + FleetsHome
+            + BattlesWon + BattlesLost + SpyReports + FleetsHome + BossStrikes + (BossResult != null ? 1 : 0)
             + Upgrades + Research + ShipsBuilt
             + Achievements.Count + SeasonsEnded.Count + SupplyRuns + ClanWarsWon + LevelsGained > 0
             || RankAfter != RankBefore;
@@ -136,6 +140,13 @@ namespace GalaxyRoyale.Sim
                     case BattleMailReport battle:
                         if (battle.Report.Winner == BattleWinner.Attacker) d.BattlesWon++;
                         else d.BattlesLost++;
+                        break;
+                    case BossReport { Kind: BossReportKind.Strike } strike:
+                        d.BossStrikes++;
+                        d.BossDamage += strike.Damage;
+                        break;
+                    case BossReport { Kind: BossReportKind.Result } result:
+                        d.BossResult ??= result; // newest first: the latest visit
                         break;
                     case RadarWarning:
                         d.SpyScans++;

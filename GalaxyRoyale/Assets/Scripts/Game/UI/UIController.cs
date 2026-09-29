@@ -188,6 +188,7 @@ namespace GalaxyRoyale.Game.UI
             BuildQuestTracker();
             BuildEventChip();
             BuildCoreChip();
+            BuildBossChip();
 
             _calloutLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             _calloutLayer.style.position = Position.Absolute;
@@ -477,7 +478,9 @@ namespace GalaxyRoyale.Game.UI
             }
             // Stacked bottom-up visually; add in top-down order.
             MiniFab(Icon.Target, "CORE", () => CorePanel.Open(_ctx));
+            MiniFab(Icon.Warning, "BOSS", OpenBoss);
             _clanFab = MiniFab(Icon.Pact, "CLAN", OpenClan);
+            MiniFab(Icon.Rotate, "MARKET", OpenMarket);
             MiniFab(Icon.Trophy, "AWARDS", OpenAchievements);
             _eventsFab = MiniFab(Icon.Bolt, "EVENTS", () => OpenEvents());
             _dailyFab = MiniFab(Icon.Check, "DAILY", OpenDaily);
@@ -676,6 +679,8 @@ namespace GalaxyRoyale.Game.UI
         public void OpenEvents() => OpenModal(EventsPanel.Build(_ctx, out var r), r);
         public void OpenAchievements() => OpenModal(AchievementsPanel.Build(_ctx, out var r), r);
         public void OpenCommander() => CommanderPanel.Open(_ctx);
+        public void OpenBoss() => BossPanel.Open(_ctx);
+        public void OpenMarket() => MarketPanel.Open(_ctx);
         public void OpenClan() => OpenModal(ClanPanel.Build(_ctx, out var r), r);
         public void OpenNews() => OpenModal(NewsPanel.Build(_ctx, out var r), r);
         public void OpenDaily() => OpenModal(DailyPanel.Build(_ctx, out var r), r);
@@ -780,7 +785,8 @@ namespace GalaxyRoyale.Game.UI
                 {
                     var held = _ctx.State?.Marches.Find(m => m.Id == mpc.MarchId);
                     // The battle report (or the garrison merge) follows at once.
-                    if (held?.Mission == MarchMission.Intercept || held?.Mission == MarchMission.Core) break;
+                    if (held?.Mission == MarchMission.Intercept || held?.Mission == MarchMission.Core
+                        || held?.Mission == MarchMission.Boss) break;
                     Toast(held?.Mission == MarchMission.Garrison
                         ? $"Your garrison is on guard at {_ctx.Bots?.Find(held.GuardEmpireId)?.Name ?? "your clanmate"}'s colony"
                         : "Fleet on station — gathering",
@@ -865,6 +871,31 @@ namespace GalaxyRoyale.Game.UI
                         ShowBattle(cr);
                     else
                         Toast($"Your colony was raided by {raided.AttackerName} — check Mail");
+                    break;
+                case BossAppeared appeared:
+                {
+                    int left = Math.Max(0, appeared.LeavesTick - (_ctx.State?.Tick ?? 0));
+                    Toast($"A Pirate Dreadnought dropped in at {appeared.Tile.X}, {appeared.Tile.Y} — it leaves in " +
+                        $"{UiTheme.FmtLong(left)}. MORE › BOSS", Icon.Warning, UiTheme.Bad);
+                    GameAudio.Feedback(Sfx.Alert, Haptic.Warning);
+                    break;
+                }
+                case BossStrikeLanded landed:
+                {
+                    var r = landed.Report;
+                    Toast(r.FinalBlow ? $"You broke the dreadnought apart! +{BossSystem.FinalBlowDM} DM for the final blow"
+                        : $"Your strike hit the dreadnought for {r.Damage:N0} — {Math.Round(r.MaxHp > 0 ? r.HpAfter * 100.0 / r.MaxHp : 0):0}% hull left",
+                        Icon.Swords, UiTheme.Energy);
+                    GameAudio.Feedback(r.FinalBlow ? Sfx.Victory : Sfx.Success, Haptic.Success);
+                    break;
+                }
+                case BossDeparted departed:
+                    if (departed.YourDamage > 0)
+                        Toast(departed.Killed
+                            ? $"The dreadnought is destroyed — your share: +{departed.RewardDM} DM"
+                            : $"The dreadnought jumped away — your share: +{departed.RewardDM} DM", Icon.Trophy, UiTheme.Energy);
+                    else if (departed.Killed)
+                        Toast("The Pirate Dreadnought was destroyed", Icon.Warning, UiTheme.Dim);
                     break;
                 case CommanderLevelUp up:
                 {
@@ -1271,11 +1302,69 @@ namespace GalaxyRoyale.Game.UI
             Widgets.SetBorder(_coreChip, underAttack ? UiTheme.Bad : UiTheme.Good, 1.5f);
         }
 
+        // ---------- Pirate Dreadnought chip (base view) ----------
+        // Shown while a dreadnought is in the galaxy: its hull and time left.
+
+        VisualElement _bossChip = null!;
+        Label _bossChipInfo = null!;
+        string _bossKey = "";
+
+        void BuildBossChip()
+        {
+            var c = _bossChip = new VisualElement();
+            c.style.maxWidth = 300;
+            c.style.marginTop = 6;
+            c.style.flexDirection = FlexDirection.Row;
+            c.style.alignItems = Align.Center;
+            c.style.paddingLeft = 10;
+            c.style.paddingRight = 10;
+            c.style.paddingTop = 5;
+            c.style.paddingBottom = 5;
+            c.style.backgroundColor = new Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.92f);
+            Widgets.SetBorder(c, UiTheme.Bad, 1.5f);
+            c.style.borderTopLeftRadius = 12;
+            c.style.borderTopRightRadius = 12;
+            c.style.borderBottomLeftRadius = 12;
+            c.style.borderBottomRightRadius = 12;
+            var icon = Icons.Make(Icon.Warning, 14f, UiTheme.Bad);
+            icon.style.marginRight = 7;
+            c.Add(icon);
+            var col = new VisualElement { pickingMode = PickingMode.Ignore };
+            col.style.flexShrink = 1f;
+            var title = Widgets.Text("PIRATE DREADNOUGHT", 10, UiTheme.Bad, bold: true);
+            title.pickingMode = PickingMode.Ignore;
+            _bossChipInfo = Widgets.Text("", 9, UiTheme.Dim);
+            _bossChipInfo.pickingMode = PickingMode.Ignore;
+            col.Add(title);
+            col.Add(_bossChipInfo);
+            c.Add(col);
+            c.style.display = DisplayStyle.None;
+            c.RegisterCallback<ClickEvent>(_ => BossPanel.Open(_ctx));
+            _leftStack.Add(c);
+        }
+
+        void RefreshBossChip(GameState state)
+        {
+            var galaxy = _ctx.Bots;
+            if (galaxy == null) return;
+            var boss = galaxy.Boss;
+            string key = boss.Active ? $"{boss.Hp}|{(boss.LeavesTick - state.Tick) / 60}" : "off";
+            if (key == _bossKey) return;
+            _bossKey = key;
+            _bossChip.style.display = boss.Active ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!boss.Active) return;
+            // Minutes only: the chip refreshes when the hull or the minute changes.
+            long left = Math.Max(0, boss.LeavesTick - state.Tick);
+            string time = left >= 3600 ? $"{left / 3600}h {left % 3600 / 60}m" : $"{left / 60}m";
+            _bossChipInfo.text = $"{Math.Round(BossSystem.HullShare(boss) * 100):0}% hull · leaves in {time}";
+        }
+
         void RefreshHeader(GameState state)
         {
             RefreshQuestTracker(state);
             RefreshEventChip(state);
             RefreshCoreChip(state);
+            RefreshBossChip(state);
             for (int i = 0; i < 3; i++)
             {
                 var res = Resources_All[i];

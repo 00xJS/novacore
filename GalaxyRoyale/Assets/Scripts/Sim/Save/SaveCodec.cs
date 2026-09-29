@@ -119,6 +119,7 @@ namespace GalaxyRoyale.Sim.Save
                 ["nextTribute"] = (long)g.Core.NextTributeTick,
                 ["seized"] = (long)g.Core.TimesSeized,
             },
+            ["boss"] = EncodeBoss(g.Boss),
             ["empires"] = Arr(g.Bots, b => (object?)new Dictionary<string, object?>
             {
                 ["id"] = (long)b.Id,
@@ -239,6 +240,9 @@ namespace GalaxyRoyale.Sim.Save
                 g.Core.NextTributeTick = I32(co, "nextTribute");
                 g.Core.TimesSeized = I32(co, "seized");
             }
+            // The Pirate Dreadnought (2026-09-28) — older galaxies schedule their first visit on load.
+            if (d.TryGetValue("boss", out var rawBoss) && rawBoss is Dictionary<string, object?> bo)
+                g.Boss = DecodeBoss(bo);
 
             foreach (var raw in AsArr(d["empires"], "bots.empires"))
             {
@@ -264,6 +268,60 @@ namespace GalaxyRoyale.Sim.Save
                 });
             }
             return g;
+        }
+
+        static Dictionary<string, object?> EncodeBoss(Bots.BossState b)
+        {
+            var damage = new Dictionary<string, object?>();
+            foreach (var kv in b.Damage) damage[kv.Key.ToString(System.Globalization.CultureInfo.InvariantCulture)] = kv.Value;
+            return new Dictionary<string, object?>
+            {
+                ["visit"] = (long)b.Visit,
+                ["active"] = b.Active,
+                ["tile"] = Tile(b.Tile),
+                ["maxHp"] = b.MaxHp,
+                ["hp"] = b.Hp,
+                ["cannon"] = (long)b.Cannon,
+                ["arrived"] = (long)b.ArrivedTick,
+                ["leaves"] = (long)b.LeavesTick,
+                ["nextVisit"] = (long)b.NextVisitTick,
+                ["nextRoll"] = (long)b.NextRollTick,
+                ["damage"] = damage,
+                ["lastKilled"] = b.LastKilled,
+                ["lastTopClan"] = b.LastTopClan,
+                ["lastYourDamage"] = b.LastYourDamage,
+                ["lastYourRank"] = (long)b.LastYourRank,
+                ["lastReward"] = (long)b.LastRewardDM,
+            };
+        }
+
+        static Bots.BossState DecodeBoss(Dictionary<string, object?> o)
+        {
+            long L(string key) => o.TryGetValue(key, out var v) && v != null ? ToI64(v) : 0;
+            var b = new Bots.BossState
+            {
+                Visit = (int)L("visit"),
+                Active = o.TryGetValue("active", out var a) && a is bool ab && ab,
+                Tile = o.TryGetValue("tile", out var t) && t is Dictionary<string, object?> td ? DecTile(td) : default,
+                MaxHp = L("maxHp"),
+                Hp = L("hp"),
+                Cannon = (int)L("cannon"),
+                ArrivedTick = (int)L("arrived"),
+                LeavesTick = (int)L("leaves"),
+                NextVisitTick = (int)L("nextVisit"),
+                NextRollTick = (int)L("nextRoll"),
+                LastKilled = o.TryGetValue("lastKilled", out var lk) && lk is bool lkb && lkb,
+                LastTopClan = o.TryGetValue("lastTopClan", out var lt) ? lt as string : null,
+                LastYourDamage = L("lastYourDamage"),
+                LastYourRank = (int)L("lastYourRank"),
+                LastRewardDM = (int)L("lastReward"),
+            };
+            if (o.TryGetValue("damage", out var dm) && dm is Dictionary<string, object?> dmd)
+                foreach (var kv in dmd)
+                    if (kv.Value != null && int.TryParse(kv.Key, System.Globalization.NumberStyles.Integer,
+                            System.Globalization.CultureInfo.InvariantCulture, out int id))
+                        b.Damage[id] = ToI64(kv.Value);
+            return b;
         }
 
         // ---------- state ----------
@@ -392,6 +450,15 @@ namespace GalaxyRoyale.Sim.Save
                     ["respecs"] = (long)cmd.Respecs,
                 };
             }
+            var mk = s.Market;
+            if (mk.ImpactTick != 0 || mk.GoldImpact != 1 || mk.QuartzImpact != 1 || mk.HeliumImpact != 1)
+                root["market"] = new Dictionary<string, object?>
+                {
+                    ["gold"] = mk.GoldImpact,
+                    ["quartz"] = mk.QuartzImpact,
+                    ["helium"] = mk.HeliumImpact,
+                    ["at"] = (long)mk.ImpactTick,
+                };
             if (s.QuestStep > 0) root["questStep"] = (long)s.QuestStep;
             if (s.Achievements.Count > 0)
             {
@@ -471,6 +538,14 @@ namespace GalaxyRoyale.Sim.Save
                         if (kv.Value != null && CommanderSkills.ById(kv.Key) != null)
                             s.Commander.Skills[kv.Key] = ToI32(kv.Value);
             }
+            if (d.TryGetValue("market", out var mkRaw) && mkRaw is Dictionary<string, object?> mko)
+                s.Market = new MarketState
+                {
+                    GoldImpact = F64(mko, "gold"),
+                    QuartzImpact = F64(mko, "quartz"),
+                    HeliumImpact = F64(mko, "helium"),
+                    ImpactTick = I32(mko, "at"),
+                };
 
             var profile = AsObj(d["profile"], "profile");
             s.Profile = new Profile { Name = Str(profile, "name"), AvatarSeed = I32(profile, "avatarSeed") };
@@ -610,6 +685,10 @@ namespace GalaxyRoyale.Sim.Save
                 ClanWarsWon = Opt("clanWarsWon"),
                 CoresSeized = Opt("coresSeized"),
                 CoreHoursHeld = Opt("coreHoursHeld"),
+                BossStrikes = Opt("bossStrikes"),
+                BossDamage = stats.TryGetValue("bossDamage", out var bd) && bd != null ? ToI64(bd) : 0,
+                BossFinalBlows = Opt("bossFinalBlows"),
+                MarketTrades = Opt("marketTrades"),
             };
 
             if (d.TryGetValue("achievements", out var ach) && ach != null)
@@ -759,7 +838,8 @@ namespace GalaxyRoyale.Sim.Save
         {
             var d = new Dictionary<string, object?>
             {
-                ["kind"] = item is BattleMailReport ? "battle" : item is RadarWarning ? "radar" : "spy",
+                ["kind"] = item is BattleMailReport ? "battle" : item is RadarWarning ? "radar"
+                    : item is BossReport ? "boss" : "spy",
                 ["id"] = (long)item.Id,
                 ["atTick"] = (long)item.AtTick,
                 ["target"] = Tile(item.Target),
@@ -809,6 +889,29 @@ namespace GalaxyRoyale.Sim.Save
                     d["intel"] = intel;
                     break;
                 }
+                case BossReport boss:
+                    d["boss"] = new Dictionary<string, object?>
+                    {
+                        ["kind"] = boss.Kind == BossReportKind.Result ? "result" : boss.Kind == BossReportKind.Missed ? "missed" : "strike",
+                        ["visit"] = (long)boss.Visit,
+                        ["damage"] = boss.Damage,
+                        ["hpBefore"] = boss.HpBefore,
+                        ["hpAfter"] = boss.HpAfter,
+                        ["maxHp"] = boss.MaxHp,
+                        ["rounds"] = (long)boss.Rounds,
+                        ["fleet"] = Comp(boss.Fleet),
+                        ["survivors"] = Comp(boss.Survivors),
+                        ["salvage"] = Bag(boss.Salvage),
+                        ["finalBlow"] = boss.FinalBlow,
+                        ["killed"] = boss.Killed,
+                        ["yourDamage"] = boss.YourDamage,
+                        ["totalDamage"] = boss.TotalDamage,
+                        ["rank"] = (long)boss.Rank,
+                        ["of"] = (long)boss.Of,
+                        ["topClan"] = boss.TopClan,
+                        ["reward"] = (long)boss.RewardDM,
+                    };
+                    break;
                 case BattleMailReport battle:
                     d["report"] = EncodeReport(battle.Report);
                     if (battle.Defending) d["defending"] = true; // optional: absent = attacker view
@@ -833,6 +936,33 @@ namespace GalaxyRoyale.Sim.Save
             if (kind == "battle")
             {
                 item = new BattleMailReport { Report = DecodeReport(AsObj(d["report"], "mail.report")) };
+            }
+            else if (kind == "boss")
+            {
+                var b = AsObj(d["boss"], "mail.boss");
+                long L(string key) => b.TryGetValue(key, out var v) && v != null ? ToI64(v) : 0;
+                string bk = b.TryGetValue("kind", out var bkv) && bkv is string bks ? bks : "strike";
+                item = new BossReport
+                {
+                    Kind = bk == "result" ? BossReportKind.Result : bk == "missed" ? BossReportKind.Missed : BossReportKind.Strike,
+                    Visit = (int)L("visit"),
+                    Damage = L("damage"),
+                    HpBefore = L("hpBefore"),
+                    HpAfter = L("hpAfter"),
+                    MaxHp = L("maxHp"),
+                    Rounds = (int)L("rounds"),
+                    Fleet = b.TryGetValue("fleet", out var bf) && bf is Dictionary<string, object?> bfd ? DecComp(bfd) : new(),
+                    Survivors = b.TryGetValue("survivors", out var bs) && bs is Dictionary<string, object?> bsd ? DecComp(bsd) : new(),
+                    Salvage = b.TryGetValue("salvage", out var bv) && bv is Dictionary<string, object?> bvd ? DecBag(bvd) : new(),
+                    FinalBlow = b.TryGetValue("finalBlow", out var bfin) && bfin is bool bfinb && bfinb,
+                    Killed = b.TryGetValue("killed", out var kl) && kl is bool klb && klb,
+                    YourDamage = L("yourDamage"),
+                    TotalDamage = L("totalDamage"),
+                    Rank = (int)L("rank"),
+                    Of = (int)L("of"),
+                    TopClan = b.TryGetValue("topClan", out var tc) ? tc as string : null,
+                    RewardDM = (int)L("reward"),
+                };
             }
             else if (kind == "radar")
             {
@@ -951,6 +1081,10 @@ namespace GalaxyRoyale.Sim.Save
             Opt("clanWarsWon", st.ClanWarsWon);
             Opt("coresSeized", st.CoresSeized);
             Opt("coreHoursHeld", st.CoreHoursHeld);
+            Opt("bossStrikes", st.BossStrikes);
+            Opt("bossDamage", st.BossDamage);
+            Opt("bossFinalBlows", st.BossFinalBlows);
+            Opt("marketTrades", st.MarketTrades);
             return d;
         }
 
@@ -1299,6 +1433,7 @@ namespace GalaxyRoyale.Sim.Save
             MarchMission.Intercept => "intercept",
             MarchMission.Garrison => "garrison",
             MarchMission.Core => "core",
+            MarchMission.Boss => "boss",
             _ => throw new InvalidOperationException($"unknown MarchMission {m}"),
         };
 
@@ -1310,6 +1445,7 @@ namespace GalaxyRoyale.Sim.Save
             "intercept" => MarchMission.Intercept,
             "garrison" => MarchMission.Garrison,
             "core" => MarchMission.Core,
+            "boss" => MarchMission.Boss,
             _ => throw new FormatException($"unknown mission '{s}'"),
         };
 
@@ -1319,6 +1455,7 @@ namespace GalaxyRoyale.Sim.Save
             Bots.BotMarchKind.Escort => "escort",
             Bots.BotMarchKind.Garrison => "garrison",
             Bots.BotMarchKind.CoreAssault => "core",
+            Bots.BotMarchKind.BossStrike => "boss",
             _ => "raid",
         };
 
@@ -1328,6 +1465,7 @@ namespace GalaxyRoyale.Sim.Save
             "escort" => Bots.BotMarchKind.Escort,
             "garrison" => Bots.BotMarchKind.Garrison,
             "core" => Bots.BotMarchKind.CoreAssault,
+            "boss" => Bots.BotMarchKind.BossStrike,
             "raid" => Bots.BotMarchKind.Raid,
             _ => spy ? Bots.BotMarchKind.Spy : Bots.BotMarchKind.Raid, // a newer kind: fly it as what it resembles
         };
