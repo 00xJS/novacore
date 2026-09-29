@@ -95,6 +95,7 @@ namespace GalaxyRoyale.Game
                     case "research": ui.OpenResearch(); break;
                     case "profile": ui.OpenProfile(); break;
                     case "fleet": ui.SwitchView(UI.ViewId.Fleet); break;
+                    case "ship": UI.ShipDetailPanel.Open(ctx, HullId.Cruiser, () => ui.SwitchView(UI.ViewId.Fleet)); break;
                     case "map": ui.SwitchView(UI.ViewId.Map); break;
                     // The galaxy map framed on the Galactic Core and the rivals around it.
                     case "mapcore":

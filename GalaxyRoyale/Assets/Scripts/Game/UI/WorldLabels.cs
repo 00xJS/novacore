@@ -11,6 +11,10 @@
 // as the root's first child), sizes are panel points that scale with the
 // screen, and Place() declutters: a label that would overlap one already
 // placed this frame is skipped — so callers place in priority order.
+//
+// Neon Hologram tags (2026-09-29): each label is a small dark-glass chip edged
+// in its colour, the first line in Orbitron and any further line under it in
+// the body font — like the globe base's chips.
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -22,16 +26,22 @@ namespace GalaxyRoyale.Game.UI
     {
         sealed class Entry
         {
-            public Label Label = null!;
+            public VisualElement Anchor = null!;
+            public VisualElement Chip = null!;
+            public Label Title = null!;
+            public Label Sub = null!;
             public string Text = "";
             public int FontSize;
             public Color Color;
+            public bool Above;
             public bool Shown;
         }
 
-        /// <summary>Label box width in panel points; text centers inside it.</summary>
-        const float BoxW = 170f;
-        static readonly Color Shadow = new(0f, 0f, 0f, 0.95f);
+        /// <summary>The widest a tag gets (panel points); a longer second line wraps.</summary>
+        const float MaxW = 240f;
+        const float PadX = 8f, PadY = 3f;
+        const float TitleTracking = 1.2f;
+        static readonly Color Glass = new(0.02f, 0.01f, 0.06f, 0.8f);
 
         readonly VisualElement _layer;
         readonly List<Entry> _pool = new();
@@ -81,8 +91,8 @@ namespace GalaxyRoyale.Game.UI
                 new Vector2(screenPx.x, Screen.height - screenPx.y));
             int lines = 1;
             foreach (char ch in text) if (ch == '\n') lines++;
-            float h = lines * fontSize * 1.22f + 2f;
-            float w = Mathf.Min(BoxW, EstimateWidth(text, fontSize) + 6f);
+            float h = lines * fontSize * 1.3f + PadY * 2f + 2f;
+            float w = Mathf.Min(MaxW, EstimateWidth(text, fontSize) + PadX * 2f);
             float top = above ? pp.y - h : pp.y;
             var rect = new Rect(pp.x - w * 0.5f, top, w, h);
 
@@ -107,12 +117,40 @@ namespace GalaxyRoyale.Game.UI
             _placed.Add(rect);
 
             var e = Next();
-            if (e.Text != text) { e.Text = text; e.Label.text = text; }
-            if (e.FontSize != fontSize) { e.FontSize = fontSize; e.Label.style.fontSize = fontSize; }
-            if (e.Color != color) { e.Color = color; e.Label.style.color = color; }
+            if (e.Text != text)
+            {
+                e.Text = text;
+                int cut = text.IndexOf('\n');
+                e.Title.text = cut < 0 ? text : text.Substring(0, cut);
+                // Text measurement leaves out letter-spacing, so the title is
+                // padded by its tracking: the chip leaves room for the tracked
+                // line instead of wrapping it ("Commande / r").
+                float track = TitleTracking * e.Title.text.Length * 0.5f;
+                e.Title.style.paddingLeft = track;
+                e.Title.style.paddingRight = track;
+                e.Sub.text = cut < 0 ? "" : text.Substring(cut + 1);
+                e.Sub.style.display = cut < 0 ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+            if (e.FontSize != fontSize)
+            {
+                e.FontSize = fontSize;
+                e.Title.style.fontSize = Widgets.Sized(fontSize * 0.86f);
+                e.Sub.style.fontSize = Widgets.Sized(fontSize - 1);
+            }
+            if (e.Color != color)
+            {
+                e.Color = color;
+                e.Title.style.color = color;
+                Holo.SetStroke(e.Chip, new Color(color.r, color.g, color.b, 0.8f));
+            }
+            if (e.Above != above)
+            {
+                e.Above = above;
+                e.Chip.style.translate = new Translate(Length.Percent(-50), above ? Length.Percent(-100) : 0);
+            }
             // translate = transform only — no layout pass per frame.
-            e.Label.style.translate = new Translate(pp.x - BoxW * 0.5f, top);
-            if (!e.Shown) { e.Shown = true; e.Label.style.display = DisplayStyle.Flex; }
+            e.Anchor.style.translate = new Translate(pp.x, pp.y);
+            if (!e.Shown) { e.Shown = true; e.Anchor.style.display = DisplayStyle.Flex; }
             return true;
         }
 
@@ -124,7 +162,7 @@ namespace GalaxyRoyale.Game.UI
                 var e = _pool[i];
                 if (!e.Shown) continue;
                 e.Shown = false;
-                e.Label.style.display = DisplayStyle.None;
+                e.Anchor.style.display = DisplayStyle.None;
             }
         }
 
@@ -139,32 +177,37 @@ namespace GalaxyRoyale.Game.UI
         {
             if (_used < _pool.Count) return _pool[_used++];
 
-            var label = new Label { pickingMode = PickingMode.Ignore };
-            label.style.position = Position.Absolute;
-            label.style.left = 0;
-            label.style.top = 0;
-            label.style.width = BoxW;
-            label.style.unityTextAlign = TextAnchor.UpperCenter;
-            label.style.unityFontStyleAndWeight = FontStyle.Bold;
-            label.style.whiteSpace = WhiteSpace.Normal;
-            label.style.marginLeft = 0;
-            label.style.marginRight = 0;
-            label.style.marginTop = 0;
-            label.style.marginBottom = 0;
-            label.style.paddingLeft = 0;
-            label.style.paddingRight = 0;
-            label.style.paddingTop = 0;
-            label.style.paddingBottom = 0;
-            // Dark halo so names read over any planet palette.
-            label.style.textShadow = new TextShadow
-            {
-                offset = new Vector2(0.8f, 0.8f),
-                blurRadius = 2.5f,
-                color = Shadow,
-            };
-            _layer.Add(label);
+            var anchor = new VisualElement { pickingMode = PickingMode.Ignore };
+            anchor.style.position = Position.Absolute;
+            anchor.style.left = 0;
+            anchor.style.top = 0;
+            var chip = new VisualElement { pickingMode = PickingMode.Ignore };
+            chip.style.position = Position.Absolute; // sized by its text, not the 0-wide anchor
+            chip.style.left = 0;
+            chip.style.top = 0;
+            chip.style.maxWidth = MaxW;
+            chip.style.alignItems = Align.Stretch; // lines span the chip, centred
+            chip.style.paddingLeft = PadX;
+            chip.style.paddingRight = PadX;
+            chip.style.paddingTop = PadY;
+            chip.style.paddingBottom = PadY;
+            chip.style.translate = new Translate(Length.Percent(-50), Length.Percent(-100));
+            Holo.Frame(chip, Glass, UiTheme.A(UiTheme.Accent, 0.8f), 5f, 1f, FrameShape.BevelAll);
+            var title = Widgets.Heading("", 10, UiTheme.Text, TitleTracking);
+            title.pickingMode = PickingMode.Ignore;
+            title.style.whiteSpace = WhiteSpace.NoWrap;
+            title.style.unityTextAlign = TextAnchor.MiddleCenter;
+            chip.Add(title);
+            var sub = Widgets.Text("", 9, UiTheme.Dim, bold: true);
+            sub.pickingMode = PickingMode.Ignore;
+            sub.style.whiteSpace = WhiteSpace.Normal;
+            sub.style.unityTextAlign = TextAnchor.MiddleCenter;
+            sub.style.marginTop = 1;
+            chip.Add(sub);
+            anchor.Add(chip);
+            _layer.Add(anchor);
 
-            var entry = new Entry { Label = label, Shown = true };
+            var entry = new Entry { Anchor = anchor, Chip = chip, Title = title, Sub = sub, Shown = true, Above = true };
             _pool.Add(entry);
             _used++;
             return entry;
