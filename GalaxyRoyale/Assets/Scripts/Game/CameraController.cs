@@ -2,12 +2,12 @@
 //
 //   Mouse (Editor):
 //     • Left-click short (no drag)   = TAP → raycast + publish OnTapHit / OnTapEmpty
-//     • Left-drag                    = rotate planet (yaw+pitch)
-//     • Scroll wheel                 = zoom camera
+//     • Left-drag                    = spin and tilt the globe (BaseGlobe)
+//     • Scroll wheel                 = zoom between a district and orbit
 //   Touch (Device):
 //     • 1-finger short press         = TAP
-//     • 1-finger drag                = rotate planet
-//     • 2-finger pinch               = zoom
+//     • 1-finger drag                = spin and tilt the globe
+//     • 2-finger pinch               = zoom between a district and orbit
 //
 // Tap vs drag is decided by pixel distance moved and time held — press-and-hold
 // beyond the threshold engages the drag; a quick release under the threshold is
@@ -56,6 +56,7 @@ namespace GalaxyRoyale.Game
         float _pressStartTime;
         bool _dragging;
         bool _wasSpinningBeforeDrag;
+        bool _pinching;
 
         void OnEnable()  => EnhancedTouchSupport.Enable();
         void OnDisable() => EnhancedTouchSupport.Disable();
@@ -108,17 +109,27 @@ namespace GalaxyRoyale.Game
                 if (_dragging)
                 {
                     Vector2 d = mouse.delta.ReadValue();
-                    RotatePlanet(d.x * mouseRotateSpeed, d.y * mouseRotateSpeed);
+                    if (BaseGlobe.Instance != null) BaseGlobe.Instance.Drag(d);
+                    else RotatePlanet(d.x * mouseRotateSpeed, d.y * mouseRotateSpeed);
                 }
             }
 
             float scrollY = mouse.scroll.ReadValue().y;
-            if (Mathf.Abs(scrollY) > 0.001f) Zoom(scrollY * mouseZoomSpeed);
+            if (Mathf.Abs(scrollY) > 0.001f)
+            {
+                if (BaseGlobe.Instance != null) BaseGlobe.Instance.Pinch(scrollY / 600f);
+                else Zoom(scrollY * mouseZoomSpeed);
+            }
         }
 
         void HandleTouch()
         {
             var active = Touch.activeTouches;
+            if (_pinching && active.Count < 2)
+            {
+                _pinching = false;
+                BaseGlobe.Instance?.EndPinch();
+            }
             if (active.Count == 1)
             {
                 var t = active[0];
@@ -131,7 +142,11 @@ namespace GalaxyRoyale.Game
                 else if (t.phase == UnityEngine.InputSystem.TouchPhase.Moved && _pressing)
                 {
                     MaybePromoteToDrag(t.screenPosition);
-                    if (_dragging) RotatePlanet(t.delta.x * touchRotateSpeed, t.delta.y * touchRotateSpeed);
+                    if (_dragging)
+                    {
+                        if (BaseGlobe.Instance != null) BaseGlobe.Instance.Drag(t.delta);
+                        else RotatePlanet(t.delta.x * touchRotateSpeed, t.delta.y * touchRotateSpeed);
+                    }
                 }
                 else if (t.phase == UnityEngine.InputSystem.TouchPhase.Ended && _pressing)
                 {
@@ -154,7 +169,13 @@ namespace GalaxyRoyale.Game
                 Vector2 prev1 = t1.screenPosition - t1.delta;
                 float prevDist = Vector2.Distance(prev0, prev1);
                 float curDist  = Vector2.Distance(t0.screenPosition, t1.screenPosition);
-                Zoom((curDist - prevDist) * pinchZoomSpeed);
+                if (BaseGlobe.Instance != null)
+                {
+                    _pinching = true;
+                    // A pinch across the width of the screen goes all the way to orbit and back.
+                    BaseGlobe.Instance.Pinch((curDist - prevDist) / Mathf.Max(1f, Screen.width) * 1.8f);
+                }
+                else Zoom((curDist - prevDist) * pinchZoomSpeed);
             }
         }
 
@@ -196,6 +217,7 @@ namespace GalaxyRoyale.Game
         void BeginDrag()
         {
             _dragging = true;
+            if (BaseGlobe.Instance != null) return; // the globe rig owns the planet's rotation
             if (_spin != null)
             {
                 _wasSpinningBeforeDrag = _spin.enabled;
@@ -207,6 +229,7 @@ namespace GalaxyRoyale.Game
         {
             if (!_dragging) return;
             _dragging = false;
+            if (BaseGlobe.Instance != null) { BaseGlobe.Instance.Release(); return; }
             if (_spin != null) _spin.enabled = _wasSpinningBeforeDrag;
         }
 

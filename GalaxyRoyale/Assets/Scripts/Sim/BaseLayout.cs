@@ -1,0 +1,216 @@
+// The globe base (2026-09-28): every building has a fixed pad on the home
+// planet, placed by latitude and longitude. Three districts sit around the
+// equator: Command (the nine core buildings), the Mining Belt to the east (a
+// pad for every extra mine the Command Center can unlock: one column per
+// unlock, one row per resource, each row in line with that resource's first
+// mine) and the Frontier to the west (buildings still to come and reserved
+// pads). The far side and the southern half stay empty for future districts.
+//
+// Pure data; BuildingMarkers draws it. A mine's pad follows from the order its
+// type's mines were built, so saves need no new fields.
+using System.Collections.Generic;
+using GalaxyRoyale.Data;
+
+namespace GalaxyRoyale.Sim
+{
+    public enum BaseDistrict { Command, MiningBelt, Frontier }
+
+    public enum PadKind
+    {
+        /// <summary>One of the nine core buildings.</summary>
+        Building,
+        /// <summary>An extra mine's pad in the Mining Belt.</summary>
+        Mine,
+        /// <summary>A building that isn't in the game yet, shown as a hologram.</summary>
+        Planned,
+        /// <summary>Kept free for buildings in later updates.</summary>
+        Reserved,
+    }
+
+    public enum PlannedBuilding { None, ExchangeTerminal, CommandBastion, DroneFactory, SalvageYard }
+
+    public sealed class BasePad
+    {
+        public string Key = "";
+        public PadKind Kind;
+        public BaseDistrict District;
+        /// <summary>Degrees north of the equator.</summary>
+        public double Lat;
+        /// <summary>Degrees east of the Command Center's meridian.</summary>
+        public double Lon;
+        /// <summary>Building pads: which building. Mine pads: the mine's building type.</summary>
+        public BuildingId Building;
+        public MineType Mine;
+        /// <summary>Mine pads: 0..3, the pad for the 2nd..5th mine of its type.</summary>
+        public int Tier;
+        /// <summary>Mine and planned pads: the Command Center level that opens them.</summary>
+        public int UnlockCc;
+        public PlannedBuilding Planned;
+        public string Name = "";
+    }
+
+    public static class BaseLayout
+    {
+        /// <summary>The three rows every district shares; each resource keeps one.</summary>
+        public const double TopRow = 45, MiddleRow = 27, BottomRow = 9;
+        /// <summary>How far the Command district's side columns sit from its middle one.</summary>
+        public const double CoreSpread = 20;
+        /// <summary>The belt's columns, west to east: one per Command Center unlock.</summary>
+        public static readonly double[] BeltLon = { 67.5, 82.5, 97.5, 112.5 };
+
+        public static double DistrictLon(BaseDistrict d) => d switch
+        {
+            BaseDistrict.MiningBelt => 90,
+            BaseDistrict.Frontier => -90,
+            _ => 0,
+        };
+
+        public static string DistrictName(BaseDistrict d) => d switch
+        {
+            BaseDistrict.MiningBelt => "Mining Belt",
+            BaseDistrict.Frontier => "Frontier",
+            _ => "Command District",
+        };
+
+        /// <summary>Gold on the top row, quartz in the middle, helium at the bottom:
+        /// the same rows as the first mine of each in the Command district.</summary>
+        public static double MineRow(MineType type) => type switch
+        {
+            MineType.GoldMine => TopRow,
+            MineType.QuartzExtractor => MiddleRow,
+            _ => BottomRow,
+        };
+
+        public static readonly IReadOnlyList<BasePad> Pads = Build();
+
+        static List<BasePad> Build()
+        {
+            var pads = new List<BasePad>();
+            void Core(BuildingId id, double lat, double lon) => pads.Add(new BasePad
+            {
+                Key = id.ToString(), Kind = PadKind.Building, District = BaseDistrict.Command,
+                Lat = lat, Lon = lon, Building = id, Name = Buildings.Defs[id].Name,
+            });
+            Core(BuildingId.ResearchLab, TopRow, -CoreSpread);
+            Core(BuildingId.RadarStation, TopRow, 0);
+            Core(BuildingId.GoldMine, TopRow, CoreSpread);
+            Core(BuildingId.PowerPlant, MiddleRow, -CoreSpread);
+            Core(BuildingId.CommandCenter, MiddleRow, 0);
+            Core(BuildingId.QuartzExtractor, MiddleRow, CoreSpread);
+            Core(BuildingId.Warehouse, BottomRow, -CoreSpread);
+            Core(BuildingId.Shipyard, BottomRow, 0);
+            Core(BuildingId.HeliumRefinery, BottomRow, CoreSpread);
+
+            for (int tier = 0; tier < BeltLon.Length; tier++)
+                foreach (var type in MineTypes.All)
+                {
+                    var id = MineTypes.ToBuildingId(type);
+                    pads.Add(new BasePad
+                    {
+                        Key = $"{type}#{tier + 2}", Kind = PadKind.Mine, District = BaseDistrict.MiningBelt,
+                        Lat = MineRow(type), Lon = BeltLon[tier], Building = id, Mine = type, Tier = tier,
+                        UnlockCc = Balance.MineSlotUnlocks[tier + 1],
+                        Name = $"{Buildings.Defs[id].Name} #{tier + 2}",
+                    });
+                }
+
+            void Plan(PlannedBuilding b, string name, double lat, double lon, int cc) => pads.Add(new BasePad
+            {
+                Key = b.ToString(), Kind = PadKind.Planned, District = BaseDistrict.Frontier,
+                Lat = lat, Lon = lon, Planned = b, UnlockCc = cc, Name = name,
+            });
+            Plan(PlannedBuilding.ExchangeTerminal, "Exchange Terminal", TopRow, -109, 5);
+            Plan(PlannedBuilding.CommandBastion, "Command Bastion", TopRow, -71, 8);
+            Plan(PlannedBuilding.DroneFactory, "Drone Factory", BottomRow, -106, 12);
+            Plan(PlannedBuilding.SalvageYard, "Salvage Yard", BottomRow, -74, 18);
+            foreach (double lon in new[] { -112.0, -90.0, -68.0 })
+                pads.Add(new BasePad
+                {
+                    Key = $"Reserved{lon}", Kind = PadKind.Reserved, District = BaseDistrict.Frontier,
+                    Lat = MiddleRow, Lon = lon, Name = "Reserved",
+                });
+            return pads;
+        }
+
+        public static BasePad BuildingPad(BuildingId id)
+        {
+            foreach (var p in Pads) if (p.Kind == PadKind.Building && p.Building == id) return p;
+            throw new KeyNotFoundException(id.ToString());
+        }
+
+        public static BasePad MinePad(MineType type, int tier)
+        {
+            foreach (var p in Pads) if (p.Kind == PadKind.Mine && p.Mine == type && p.Tier == tier) return p;
+            throw new KeyNotFoundException($"{type} tier {tier}");
+        }
+
+        /// <summary>The belt pad an extra mine stands on: how many of its type were built before it.</summary>
+        public static int MineTier(GameState state, ExtraMine mine)
+        {
+            int tier = 0;
+            foreach (var m in state.ExtraMines)
+                if (m.Type == mine.Type && m.Id < mine.Id) tier++;
+            return tier;
+        }
+
+        /// <summary>The extra mine on a belt pad, or null while it's empty.</summary>
+        public static ExtraMine? MineOn(GameState state, BasePad pad)
+        {
+            if (pad.Kind != PadKind.Mine) return null;
+            foreach (var m in state.ExtraMines)
+                if (m.Type == pad.Mine && MineTier(state, m) == pad.Tier) return m;
+            return null;
+        }
+
+        public static bool Unlocked(GameState state, BasePad pad) => pad.Kind switch
+        {
+            PadKind.Building => true,
+            PadKind.Reserved => false,
+            _ => state.Buildings[BuildingId.CommandCenter].Level >= pad.UnlockCc,
+        };
+
+        /// <summary>Belt pads that are unlocked and still empty: where the next mines can go.</summary>
+        public static int OpenPads(GameState state, BaseDistrict district)
+        {
+            int open = 0;
+            foreach (var p in Pads)
+                if (p.District == district && p.Kind == PadKind.Mine && Unlocked(state, p) && MineOn(state, p) == null)
+                    open++;
+            return open;
+        }
+
+        /// <summary>Built pads and all the pads a district will ever have (reserved ones aside).</summary>
+        public static (int built, int total) Count(GameState state, BaseDistrict district)
+        {
+            int built = 0, total = 0;
+            foreach (var p in Pads)
+            {
+                if (p.District != district || p.Kind == PadKind.Reserved) continue;
+                total++;
+                bool isBuilt = p.Kind switch
+                {
+                    PadKind.Building => state.Buildings[p.Building].Level > 0,
+                    PadKind.Mine => MineOn(state, p) is { Level: > 0 },
+                    PadKind.Planned => PlannedOnline(state, p.Planned),
+                    _ => false,
+                };
+                if (isBuilt) built++;
+            }
+            return (built, total);
+        }
+
+        /// <summary>The one planned building that already works: the Exchange
+        /// Terminal is the Market's home from Command Center 5.</summary>
+        public static bool PlannedOnline(GameState state, PlannedBuilding b) =>
+            b == PlannedBuilding.ExchangeTerminal
+            && state.Buildings[BuildingId.CommandCenter].Level >= BuildingPadFor(b).UnlockCc;
+
+        static BasePad BuildingPadFor(PlannedBuilding b)
+        {
+            foreach (var p in Pads) if (p.Kind == PadKind.Planned && p.Planned == b) return p;
+            throw new KeyNotFoundException(b.ToString());
+        }
+
+        public static BasePad PlannedPad(PlannedBuilding b) => BuildingPadFor(b);
+    }
+}

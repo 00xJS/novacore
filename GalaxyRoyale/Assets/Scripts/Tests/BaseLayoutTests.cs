@@ -1,0 +1,142 @@
+// The globe base (2026-09-28): every building has a fixed pad, pads never
+// overlap, the Mining Belt has a pad for every extra mine the Command Center
+// can unlock, and mines take their type's pads in the order they were built.
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using NUnit.Framework;
+using GalaxyRoyale.Data;
+
+namespace GalaxyRoyale.Sim.Tests
+{
+    public class BaseLayoutTests
+    {
+        static GameState NewState(int commandCenter)
+        {
+            var state = GameState.CreateNewGame(Spawn.GalaxySeed, testMode: false);
+            state.Buildings[BuildingId.CommandCenter].Level = commandCenter;
+            return state;
+        }
+
+        static ExtraMine AddMine(GameState state, MineType type, int level = 1)
+        {
+            var mine = new ExtraMine { Id = state.NextMineId++, Type = type, Level = level, Plot = 0 };
+            state.ExtraMines.Add(mine);
+            return mine;
+        }
+
+        /// <summary>Great-circle distance in degrees.</summary>
+        static double Apart(BasePad a, BasePad b)
+        {
+            double p1 = a.Lat * Math.PI / 180, p2 = b.Lat * Math.PI / 180, dl = (b.Lon - a.Lon) * Math.PI / 180;
+            double c = Math.Sin(p1) * Math.Sin(p2) + Math.Cos(p1) * Math.Cos(p2) * Math.Cos(dl);
+            return Math.Acos(Math.Max(-1, Math.Min(1, c))) * 180 / Math.PI;
+        }
+
+        [Test]
+        public void EveryBuilding_HasOneFixedPad_InTheCommandDistrict()
+        {
+            Assert.AreEqual(Buildings.All.Count, BaseLayout.Pads.Count(p => p.Kind == PadKind.Building));
+            foreach (var id in Buildings.All)
+                Assert.AreEqual(BaseDistrict.Command, BaseLayout.BuildingPad(id).District, id.ToString());
+            Assert.AreEqual(0, BaseLayout.BuildingPad(BuildingId.CommandCenter).Lon, "the Command Center is the middle of the base");
+        }
+
+        [Test]
+        public void TheBelt_HasAPadForEveryExtraMine_OpeningWithTheCommandCenter()
+        {
+            int extras = Balance.MaxMinesPerType - 1;
+            Assert.AreEqual(extras, BaseLayout.BeltLon.Length);
+            Assert.AreEqual(extras * MineTypes.All.Count, BaseLayout.Pads.Count(p => p.Kind == PadKind.Mine));
+            foreach (var type in MineTypes.All)
+            {
+                // Each resource's row lines up with its first mine in the Command district.
+                Assert.AreEqual(BaseLayout.BuildingPad(MineTypes.ToBuildingId(type)).Lat, BaseLayout.MineRow(type), type.ToString());
+                for (int tier = 0; tier < extras; tier++)
+                {
+                    var pad = BaseLayout.MinePad(type, tier);
+                    Assert.AreEqual(BaseDistrict.MiningBelt, pad.District);
+                    Assert.AreEqual(Balance.MineSlotUnlocks[tier + 1], pad.UnlockCc, $"{type} #{tier + 2}");
+                    Assert.AreEqual(BaseLayout.MineRow(type), pad.Lat);
+                }
+            }
+        }
+
+        [Test]
+        public void Pads_NeverOverlap_AndHaveUniqueKeys()
+        {
+            var pads = BaseLayout.Pads;
+            Assert.AreEqual(pads.Count, pads.Select(p => p.Key).Distinct().Count());
+            for (int i = 0; i < pads.Count; i++)
+                for (int j = i + 1; j < pads.Count; j++)
+                    Assert.Greater(Apart(pads[i], pads[j]), 9.5, $"{pads[i].Key} and {pads[j].Key} are too close"); // the belt's gold row is the tightest
+            foreach (var p in pads)
+                Assert.That(p.Lat, Is.InRange(0.0, 60.0), $"{p.Key}: the base keeps to the northern half");
+        }
+
+        [Test]
+        public void Mines_TakeTheirTypesPads_InTheOrderTheyWereBuilt()
+        {
+            var state = NewState(15);
+            var gold1 = AddMine(state, MineType.GoldMine);
+            var quartz1 = AddMine(state, MineType.QuartzExtractor);
+            var gold2 = AddMine(state, MineType.GoldMine);
+            Assert.AreEqual(0, BaseLayout.MineTier(state, gold1));
+            Assert.AreEqual(1, BaseLayout.MineTier(state, gold2));
+            Assert.AreEqual(0, BaseLayout.MineTier(state, quartz1));
+            Assert.AreSame(gold2, BaseLayout.MineOn(state, BaseLayout.MinePad(MineType.GoldMine, 1)));
+            Assert.IsNull(BaseLayout.MineOn(state, BaseLayout.MinePad(MineType.HeliumRefinery, 0)));
+
+            // A cancelled placement frees its pad, and the next mine of that type moves up.
+            state.ExtraMines.Remove(gold1);
+            Assert.AreEqual(0, BaseLayout.MineTier(state, gold2));
+        }
+
+        [Test]
+        public void AllTwelveExtraMines_GetTheirOwnPad()
+        {
+            // The old base had 9 expansion plots, so the 10th to 12th extra mine had nowhere to go.
+            var state = NewState(15);
+            foreach (var type in MineTypes.All)
+                for (int i = 0; i < Balance.MaxMinesPerType - 1; i++) AddMine(state, type);
+            var pads = new HashSet<string>();
+            foreach (var mine in state.ExtraMines)
+                Assert.IsTrue(pads.Add(BaseLayout.MinePad(mine.Type, BaseLayout.MineTier(state, mine)).Key));
+            Assert.AreEqual(12, pads.Count);
+            Assert.AreEqual(0, BaseLayout.OpenPads(state, BaseDistrict.MiningBelt));
+        }
+
+        [Test]
+        public void OpenPadsAndCounts_FollowTheCommandCenter()
+        {
+            var state = NewState(2);
+            Assert.AreEqual(0, BaseLayout.OpenPads(state, BaseDistrict.MiningBelt));
+            state.Buildings[BuildingId.CommandCenter].Level = 3;
+            Assert.AreEqual(3, BaseLayout.OpenPads(state, BaseDistrict.MiningBelt), "one pad per resource opens at CC 3");
+            AddMine(state, MineType.GoldMine);
+            Assert.AreEqual(2, BaseLayout.OpenPads(state, BaseDistrict.MiningBelt));
+            Assert.AreEqual((1, 12), BaseLayout.Count(state, BaseDistrict.MiningBelt));
+            state.Buildings[BuildingId.CommandCenter].Level = 6;
+            Assert.AreEqual(5, BaseLayout.OpenPads(state, BaseDistrict.MiningBelt));
+
+            var mine = AddMine(state, MineType.QuartzExtractor, level: 0); // placed, still building
+            Assert.AreEqual(4, BaseLayout.OpenPads(state, BaseDistrict.MiningBelt), "a mine under construction takes its pad");
+            Assert.AreEqual((1, 12), BaseLayout.Count(state, BaseDistrict.MiningBelt), "but isn't built yet");
+            Assert.IsNotNull(mine);
+        }
+
+        [Test]
+        public void TheExchangeTerminal_ComesOnlineAtCommandCenter5_TheRestArePlanned()
+        {
+            var state = NewState(4);
+            Assert.IsFalse(BaseLayout.PlannedOnline(state, PlannedBuilding.ExchangeTerminal));
+            Assert.AreEqual((0, 4), BaseLayout.Count(state, BaseDistrict.Frontier));
+            state.Buildings[BuildingId.CommandCenter].Level = 5;
+            Assert.IsTrue(BaseLayout.PlannedOnline(state, PlannedBuilding.ExchangeTerminal));
+            Assert.AreEqual((1, 4), BaseLayout.Count(state, BaseDistrict.Frontier));
+            state.Buildings[BuildingId.CommandCenter].Level = 30;
+            Assert.IsFalse(BaseLayout.PlannedOnline(state, PlannedBuilding.SalvageYard), "not in the game yet");
+            Assert.IsFalse(BaseLayout.Unlocked(state, BaseLayout.Pads.First(p => p.Kind == PadKind.Reserved)));
+        }
+    }
+}

@@ -13,7 +13,8 @@ namespace GalaxyRoyale.Game
     {
         /// <summary>Names GR_OPEN accepts.</summary>
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
-            "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail";
+            "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail, " +
+            "command, mines, frontier, orbit";
 
         public static void Run(GameContext ctx)
         {
@@ -78,6 +79,11 @@ namespace GalaxyRoyale.Game
                     case "profile": ui.OpenProfile(); break;
                     case "fleet": ui.SwitchView(UI.ViewId.Fleet); break;
                     case "map": ui.SwitchView(UI.ViewId.Map); break;
+                    // The globe base's views (any boot-time panel closed first).
+                    case "command": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Command); break;
+                    case "mines": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.MiningBelt); break;
+                    case "frontier": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Frontier); break;
+                    case "orbit": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Command, orbit: true); break;
                     // The NEW GALAXY setup screen (for a look at it — START there really does reset).
                     case "newgame":
                         UI.NewGamePanel.Open((test, difficulty) => LocalBootstrap.Instance?.ResetEmpire(test, difficulty),

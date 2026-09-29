@@ -61,6 +61,11 @@ Portrait-mode mobile 4X, built in **Unity 6** (URP + UI Toolkit, pure-C# UI):
   the Radar Station's early warning is a genuine dodge window; an activatable
   Aegis Shield bubble deflects inbound fleets but drops the moment you raid
   anyone (attack or turtle — not both).
+- **Your colony on a globe.** Every building stands on a fixed pad on your
+  home planet. Spin between the Command district, the Mining Belt (a pad for
+  every extra mine, opening as the Command Center levels up) and the Frontier
+  (buildings still to come), or pinch out to orbit. Tap a building for its
+  quick actions: upgrade, info, boost.
 - **No accounts, no server.** Everything saves to the device — atomic writes
   with a rolling backup file.
 - **Beyond the app.** A home-screen widget shows your next timers, and a Live
