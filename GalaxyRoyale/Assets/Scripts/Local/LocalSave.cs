@@ -1,6 +1,8 @@
 // On-device persistence — the ONLY persistence in Galaxy Royale (the cloud
 // layer retired with the single-player pivot). The v17 envelope (player state
-// + the 99-bot simulated galaxy) lives as a JSON file under persistentDataPath.
+// + the 99-bot simulated galaxy) lives as gzipped JSON under persistentDataPath
+// (galaxy-royale-save.json.gz, 2026-09-29: ~60 KB instead of ~600 KB; builds
+// before that wrote plain galaxy-royale-save.json, which still loads).
 //
 // Durability rules ("save locally and keep it backed up" — user spec):
 //   - Writes are atomic: encode → write to a .tmp file → move over the live
@@ -13,9 +15,9 @@
 //     few minutes the save is also mirrored to the app's own iCloud store
 //     (CloudSave), which a reinstall or a new phone can restore from.
 //   - The 30 s autosave snapshots the state on the main thread, then builds
-//     the JSON text and writes the file on a worker (the text is over half the
-//     encode cost); pause/quit/new-game saves stay synchronous so they're on
-//     disk before iOS suspends the app.
+//     the JSON text, gzips it and writes the file on a worker (the text is over
+//     half the encode cost); pause/quit/new-game saves stay synchronous so
+//     they're on disk before iOS suspends the app.
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -31,9 +33,13 @@ namespace GalaxyRoyale.Local
         // persistentDataPath is main-thread-only in Unity — cached for the writer.
         static string? s_dir;
         static string Dir => s_dir ??= Application.persistentDataPath;
-        static string PathMain => Path.Combine(Dir, "galaxy-royale-save.json");
-        static string PathBackup => Path.Combine(Dir, "galaxy-royale-save.bak.json");
-        static string PathTemp => Path.Combine(Dir, "galaxy-royale-save.tmp.json");
+        static string PathMain => Path.Combine(Dir, "galaxy-royale-save.json.gz");
+        static string PathBackup => Path.Combine(Dir, "galaxy-royale-save.bak.json.gz");
+        static string PathTemp => Path.Combine(Dir, "galaxy-royale-save.tmp.json.gz");
+        // The plain-JSON files of older builds: read when there's no .gz save yet,
+        // deleted once the new pair (save + backup) is on disk.
+        static string LegacyMain => Path.Combine(Dir, "galaxy-royale-save.json");
+        static string LegacyBackup => Path.Combine(Dir, "galaxy-royale-save.bak.json");
 
         // Every snapshot takes the next number (main thread); the writer skips a
         // snapshot older than the newest one already on disk, so a slow worker
@@ -48,9 +54,9 @@ namespace GalaxyRoyale.Local
         {
             try
             {
-                string json = SaveCodec.Encode(SaveManager.Wrap(state, nowMs, bots));
-                if (WriteAtomic(json, ++s_lastSeq) && cloud)
-                    CloudSave.Stage(json, CloudSave.HeaderFor(state, nowMs));
+                byte[] bytes = Pack(SaveCodec.Encode(SaveManager.Wrap(state, nowMs, bots)));
+                if (WriteAtomic(bytes, ++s_lastSeq) && cloud)
+                    CloudSave.Stage(bytes, CloudSave.HeaderFor(state, nowMs));
             }
             catch (Exception e)
             {
@@ -81,20 +87,31 @@ namespace GalaxyRoyale.Local
             {
                 try
                 {
-                    string json = Json.Write(tree);
-                    if (WriteAtomic(json, seq) && header != null) CloudSave.Stage(json, header);
+                    byte[] bytes = Pack(Json.Write(tree));
+                    if (WriteAtomic(bytes, seq) && header != null) CloudSave.Stage(bytes, header);
                 }
                 catch (Exception e) { Debug.LogWarning($"[Save] Background save failed: {e.Message}"); }
             });
         }
 
+        /// <summary>The file's bytes: gzipped, or the plain text if gzip fails.</summary>
+        static byte[] Pack(string json)
+        {
+            try { return SaveCompression.Pack(json); }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[Save] gzip unavailable ({e.Message}) — writing the save uncompressed");
+                return System.Text.Encoding.UTF8.GetBytes(json);
+            }
+        }
+
         /// <summary>False when a newer snapshot already landed (nothing written).</summary>
-        static bool WriteAtomic(string json, long seq)
+        static bool WriteAtomic(byte[] bytes, long seq)
         {
             lock (s_writeLock)
             {
                 if (seq < s_writtenSeq) return false; // a newer snapshot already landed
-                File.WriteAllText(PathTemp, json);
+                File.WriteAllBytes(PathTemp, bytes);
                 // Rotate: current good save becomes the backup, temp becomes current.
                 if (File.Exists(PathMain))
                 {
@@ -103,18 +120,24 @@ namespace GalaxyRoyale.Local
                 }
                 File.Move(PathTemp, PathMain);
                 s_writtenSeq = seq;
+                // Both .gz files stand now, so the old plain-JSON pair has nothing left to cover.
+                if (File.Exists(PathBackup))
+                    foreach (var legacy in new[] { LegacyMain, LegacyBackup })
+                        if (File.Exists(legacy)) File.Delete(legacy);
                 return true;
             }
         }
 
         public static (GameState state, long savedAtMs, BotGalaxy? bots)? Load()
         {
-            var main = TryLoad(PathMain);
-            if (main != null) return main;
-            var backup = TryLoad(PathBackup);
-            if (backup != null)
+            bool packed = File.Exists(PathMain) || File.Exists(PathBackup);
+            string main = packed ? PathMain : LegacyMain, backup = packed ? PathBackup : LegacyBackup;
+            var loaded = TryLoad(main);
+            if (loaded != null) return loaded;
+            loaded = TryLoad(backup);
+            if (loaded != null)
                 Debug.LogWarning("[Save] Main save unreadable — restored from backup.");
-            return backup;
+            return loaded;
         }
 
         static (GameState state, long savedAtMs, BotGalaxy? bots)? TryLoad(string path)
@@ -122,7 +145,7 @@ namespace GalaxyRoyale.Local
             try
             {
                 if (!File.Exists(path)) return null;
-                var file = SaveCodec.Decode(File.ReadAllText(path));
+                var file = SaveCodec.Decode(SaveCompression.Unpack(File.ReadAllBytes(path)));
                 return SaveManager.Unwrap(file);
             }
             catch (Exception e)
@@ -147,14 +170,13 @@ namespace GalaxyRoyale.Local
             lock (s_writeLock)
             {
                 s_writtenSeq = ++s_lastSeq;
-                foreach (var p in new[] { PathMain, PathBackup })
+                foreach (var p in new[] { PathMain, PathBackup, LegacyMain, LegacyBackup })
                 {
                     try
                     {
                         if (!File.Exists(p)) continue;
                         if (TryLoad(p) != null) { File.Delete(p); continue; }
-                        string kept = Path.Combine(Dir,
-                            $"{Path.GetFileNameWithoutExtension(p)}.unreadable-{stamp}.json");
+                        string kept = Path.Combine(Dir, $"{Path.GetFileName(p)}.unreadable-{stamp}");
                         File.Move(p, kept);
                         Debug.LogWarning($"[Save] Unreadable save kept as {Path.GetFileName(kept)}");
                     }

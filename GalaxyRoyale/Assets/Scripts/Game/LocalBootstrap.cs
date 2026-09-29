@@ -45,7 +45,7 @@ namespace GalaxyRoyale.Game
             _ctx.Resumed += debrief => { if (_booted) ReportAway(debrief); };
 
             CloudSave.Sync(); // the iCloud backup's latest values land asynchronously
-            _pendingLoad = LocalSave.Load();
+            using (BootTrace.Step("save")) _pendingLoad = LocalSave.Load();
             if (_pendingLoad is { } peek && peek.bots == null)
                 _pendingLoad = null; // unreadable/pre-pivot leftovers → treat as no save
             // Returning commanders resume STRAIGHT into the base view (user spec

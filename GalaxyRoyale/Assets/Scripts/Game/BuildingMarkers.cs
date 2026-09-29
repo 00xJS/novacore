@@ -113,9 +113,12 @@ namespace GalaxyRoyale.Game
             _radius = meshTransform != null ? meshTransform.localScale.x * 0.5f : 1f;
             _baseCam = GameObject.Find("Main Camera")?.GetComponent<Camera>();
 
-            _overlay = BaseVisuals.BuildOverlay(_planet, _radius);
-            foreach (var pad in BaseLayout.Pads) SpawnPad(pad);
-            RefreshAll(_ctx.State);
+            using (BootTrace.Step("globe"))
+            {
+                _overlay = BaseVisuals.BuildOverlay(_planet, _radius);
+                foreach (var pad in BaseLayout.Pads) SpawnPad(pad);
+                RefreshAll(_ctx.State);
+            }
             _ctx.Events.Subscribe(OnSimEvent);
             EnsureOverlayCamera();
         }

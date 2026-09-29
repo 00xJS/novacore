@@ -78,9 +78,12 @@ namespace GalaxyRoyale.Game
             var mesh = planetGO.transform.Find("Planet Mesh");
             _radius = mesh != null ? mesh.localScale.x * 0.5f : 1f;
             _cam = GameObject.Find("Main Camera")?.GetComponent<Camera>();
-            for (int i = 0; i < WildsLayout.Total; i++) SpawnTile(i);
+            using (BootTrace.Step("wilds"))
+            {
+                for (int i = 0; i < WildsLayout.Total; i++) SpawnTile(i);
+                Refresh(_ctx.State);
+            }
             _ctx.Events?.Subscribe(OnSimEvent);
-            Refresh(_ctx.State);
         }
 
         Texture2D? Art(string name)

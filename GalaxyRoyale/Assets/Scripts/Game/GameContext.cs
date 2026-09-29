@@ -80,7 +80,13 @@ namespace GalaxyRoyale.Game
         void Awake()
         {
             ErrorLog.Install();
-            EnsureInit();
+            using (BootTrace.Step("init")) EnsureInit();
+        }
+
+        System.Collections.IEnumerator Start()
+        {
+            yield return new WaitForEndOfFrame();
+            BootTrace.FirstFrame();
         }
 
         // Idempotent re-init. Unity nulls private non-serialized fields on domain reload
@@ -124,12 +130,16 @@ namespace GalaxyRoyale.Game
             int mailIdBefore = _state.NextReportId;
             int rankBefore = OfflineDebrief.RankOf(_state, _bots);
             var progressBefore = new ProgressMark(_state);
-            var summary = SaveManager.ApplyOfflineProgress(
-                _state, _engine, _events!,
-                savedAtMs, System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-            // Bots catch up to the fast-forwarded player clock in the same
-            // suppressed window (no retroactive raid toasts from hours ago).
-            CatchUpBots();
+            OfflineSummary summary;
+            using (BootTrace.Step("catch-up"))
+            {
+                summary = SaveManager.ApplyOfflineProgress(
+                    _state, _engine, _events!,
+                    savedAtMs, System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                // Bots catch up to the fast-forwarded player clock in the same
+                // suppressed window (no retroactive raid toasts from hours ago).
+                CatchUpBots();
+            }
             LastDebrief = OfflineDebrief.Build(_state, summary, mailIdBefore, rankBefore, _bots, progressBefore);
             // AdvanceToWallClock's clock counts from scene start; the loaded save is
             // already at Tick N, so shift the origin back N seconds to line them up.
