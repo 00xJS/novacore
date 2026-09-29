@@ -1509,7 +1509,7 @@ namespace GalaxyRoyale.Game
         // and piled up. Now they're occluded by the HUD, scale with the screen,
         // and declutter with the home label + strongest commanders placed first.
 
-        static readonly Color HomeLabelColor = new(0.55f, 0.87f, 1f, 0.97f);
+        static readonly Color HomeLabelColor = new(1f, 0.6f, 0.24f, 0.97f); // your colony in the accent orange
         static readonly Color RemoteLabelColor = new(0.84f, 0.66f, 1f, 0.97f);
 
         void PlaceLabels(GameState state)
@@ -1527,8 +1527,7 @@ namespace GalaxyRoyale.Game
                     _homeLabelTick = state.Tick;
                     long might = GalaxyRoyale.Sim.Systems.PowerSystem.ComputePower(state);
                     _homeLabelText =
-                        $"{state.Profile.Name} · CC {state.Buildings[BuildingId.CommandCenter].Level}" +
-                        $" · might {might:N0}";
+                        $"{state.Profile.Name}\nCC {state.Buildings[BuildingId.CommandCenter].Level} · might {might:N0}";
                 }
                 _labels.Place(LabelAnchor(_home.position, _home.localScale.y), _homeLabelText,
                     11, HomeLabelColor, above: true, declutter: false);
@@ -1540,7 +1539,7 @@ namespace GalaxyRoyale.Game
                 if (state.Tick != _coreLabelTick)
                 {
                     _coreLabelTick = state.Tick;
-                    _coreLabelText = $"GALACTIC CORE · held by {GalaxyRoyale.Sim.Systems.CoreSystem.HolderName(state, _ctx.Bots)}";
+                    _coreLabelText = $"GALACTIC CORE\nheld by {GalaxyRoyale.Sim.Systems.CoreSystem.HolderName(state, _ctx.Bots)}";
                 }
                 _labels.Place(LabelAnchor(_novaCore.position, _novaCore.localScale.y * 0.5f), _coreLabelText,
                     12, CoreLabelColor, above: true, declutter: false);
@@ -1552,7 +1551,7 @@ namespace GalaxyRoyale.Game
                 if (state.Tick != _bossLabelTick)
                 {
                     _bossLabelTick = state.Tick;
-                    _bossLabelText = $"PIRATE DREADNOUGHT · {System.Math.Round(GalaxyRoyale.Sim.Systems.BossSystem.HullShare(g.Boss) * 100):0}% hull";
+                    _bossLabelText = $"PIRATE DREADNOUGHT\n{System.Math.Round(GalaxyRoyale.Sim.Systems.BossSystem.HullShare(g.Boss) * 100):0}% hull";
                 }
                 _labels.Place(LabelAnchor(_boss.position, _boss.localScale.y * 0.6f), _bossLabelText,
                     12, BossLabelColor, above: true, declutter: false);

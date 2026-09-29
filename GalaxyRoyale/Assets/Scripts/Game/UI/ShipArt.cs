@@ -90,21 +90,25 @@ namespace GalaxyRoyale.Game.UI
             else card.style.width = Length.Percent(100f);
             card.style.height = height;
             card.style.flexShrink = 0f;
-            card.style.backgroundColor = new Color(0.05f, 0.08f, 0.14f);
-            var role = RoleColor(hull);
-            Widgets.SetBorder(card, new Color(role.r, role.g, role.b, 0.7f), 1f);
-            float r = Mathf.Min(8f, Mathf.Min(width, height) * 0.12f);
-            card.style.borderTopLeftRadius = r;
-            card.style.borderTopRightRadius = r;
-            card.style.borderBottomLeftRadius = r;
-            card.style.borderBottomRightRadius = r;
             card.style.overflow = Overflow.Hidden;
+            var role = RoleColor(hull);
+            // Neon Hologram (2026-09-29): a cut-corner frame edged in the hull's role
+            // colour, a soft pool of that colour behind the ship, the art on top.
+            float side = width > 0f ? Mathf.Min(width, height) : height;
+            Holo.Frame(card, new Color(0.03f, 0.02f, 0.08f, 0.92f), new Color(role.r, role.g, role.b, 0.75f),
+                Mathf.Clamp(side * 0.14f, 4f, 14f), 1f, FrameShape.BevelAll);
+            card.Add(Holo.Glow(new Color(role.r, role.g, role.b, 0.3f), 8f, 10f, 84f, 84f));
 
             var photo = Photo(hull);
             if (photo != null)
             {
-                card.style.backgroundImage = new StyleBackground(photo);
-                card.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Contain);
+                var art = Sprite(hull, 0f);
+                art.style.position = Position.Absolute;
+                art.style.left = Length.Percent(6f);
+                art.style.right = Length.Percent(6f);
+                art.style.top = Length.Percent(6f);
+                art.style.bottom = Length.Percent(6f);
+                card.Add(art);
                 return card;
             }
 
@@ -375,8 +379,9 @@ namespace GalaxyRoyale.Game.UI
             _ => UiTheme.DarkMatter, // Industry
         };
 
-        /// <summary>Round tech emblem: the drop-in art, or a painted badge — the
-        /// effect's glyph (or, for hull-scoped techs, that hull's schematic).</summary>
+        /// <summary>Hex tech emblem (Neon Hologram, 2026-09-29; it was round): the drop-in
+        /// art, or a painted badge — the effect's glyph (or, for hull-scoped techs, that
+        /// hull's art) on a glass hex edged in the category's colour.</summary>
         public static VisualElement Emblem(TechId tech, float size, bool dim = false)
         {
             var def = Techs.Defs[tech];
@@ -384,31 +389,29 @@ namespace GalaxyRoyale.Game.UI
             if (dim) color = Color.Lerp(color, UiTheme.Stroke, 0.65f);
 
             var badge = new VisualElement { pickingMode = PickingMode.Ignore };
-            badge.style.width = size;
+            badge.style.width = size * 1.08f; // a flat-sided hex reads best a little wide
             badge.style.height = size;
             badge.style.flexShrink = 0f;
-            float r = size * 0.5f;
-            badge.style.borderTopLeftRadius = r;
-            badge.style.borderTopRightRadius = r;
-            badge.style.borderBottomLeftRadius = r;
-            badge.style.borderBottomRightRadius = r;
-            badge.style.backgroundColor = new Color(color.r * 0.22f, color.g * 0.22f, color.b * 0.22f, 1f);
-            Widgets.SetBorder(badge, color, Mathf.Max(1f, size * 0.04f));
-            badge.style.overflow = Overflow.Hidden;
             badge.style.justifyContent = Justify.Center;
             badge.style.alignItems = Align.Center;
+            Holo.Frame(badge, new Color(color.r * 0.2f, color.g * 0.2f, color.b * 0.2f, 0.95f), color, 0f,
+                Mathf.Max(1f, size * 0.04f), FrameShape.Hex, glow: !dim);
 
             var photo = Photo(tech);
             if (photo != null)
             {
-                badge.style.backgroundImage = new StyleBackground(photo);
-                badge.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+                var art = new VisualElement { pickingMode = PickingMode.Ignore };
+                art.style.width = size * 0.78f;
+                art.style.height = size * 0.78f;
+                art.style.backgroundImage = new StyleBackground(photo);
+                art.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Contain);
+                badge.Add(art);
                 return badge;
             }
 
             if (def.HullScope is HullId hull)
             {
-                badge.Add(ShipArt.Sprite(hull, size * 0.82f));
+                badge.Add(ShipArt.Sprite(hull, size * 0.74f));
                 return badge;
             }
 

@@ -178,17 +178,13 @@ namespace GalaxyRoyale.Game.UI
                 nameRow.Add(name);
                 if (locked)
                 {
-                    var tag = Widgets.Text("LOCKED", 8, UiTheme.Energy, bold: true);
+                    var tag = Widgets.Heading("LOCKED", 8, UiTheme.Energy, 1f);
                     tag.style.marginLeft = 6;
-                    tag.style.paddingLeft = 4;
-                    tag.style.paddingRight = 4;
+                    tag.style.paddingLeft = 5;
+                    tag.style.paddingRight = 6; // + the tracking measurement misses
                     tag.style.paddingTop = 1;
                     tag.style.paddingBottom = 1;
-                    Widgets.SetBorder(tag, UiTheme.Energy, 1f);
-                    tag.style.borderTopLeftRadius = 3;
-                    tag.style.borderTopRightRadius = 3;
-                    tag.style.borderBottomLeftRadius = 3;
-                    tag.style.borderBottomRightRadius = 3;
+                    Holo.Frame(tag, UiTheme.A(UiTheme.Energy, 0.1f), UiTheme.Energy, 3f, 1f, FrameShape.BevelAll);
                     nameRow.Add(tag);
                 }
                 left.Add(nameRow);

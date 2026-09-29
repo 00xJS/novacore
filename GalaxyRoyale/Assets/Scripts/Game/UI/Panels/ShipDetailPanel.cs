@@ -64,23 +64,28 @@ namespace GalaxyRoyale.Game.UI
                 var name = Widgets.Text(label, 11, UiTheme.Dim);
                 name.style.width = Length.Percent(24f);
                 row.Add(name);
+                // A segmented hologram gauge: tinted track, lit fill, ten cells.
                 var track = new VisualElement();
                 track.style.flexGrow = 1f;
-                track.style.height = 8;
-                track.style.backgroundColor = UiTheme.PanelLight;
-                track.style.borderTopLeftRadius = 4;
-                track.style.borderTopRightRadius = 4;
-                track.style.borderBottomLeftRadius = 4;
-                track.style.borderBottomRightRadius = 4;
+                track.style.height = 9;
+                track.style.backgroundColor = UiTheme.A(color, 0.1f);
+                Widgets.SetBorder(track, UiTheme.A(color, 0.35f), 1f);
                 var fill = new VisualElement();
                 fill.style.height = Length.Percent(100f);
                 fill.style.width = Length.Percent(Mathf.Clamp(100f * value / max, value > 0 ? 3f : 0f, 100f));
-                fill.style.backgroundColor = color;
-                fill.style.borderTopLeftRadius = 4;
-                fill.style.borderTopRightRadius = 4;
-                fill.style.borderBottomLeftRadius = 4;
-                fill.style.borderBottomRightRadius = 4;
+                fill.style.backgroundColor = UiTheme.A(color, 0.85f);
                 track.Add(fill);
+                for (int cell = 1; cell < 10; cell++)
+                {
+                    var gap = new VisualElement { pickingMode = PickingMode.Ignore };
+                    gap.style.position = Position.Absolute;
+                    gap.style.left = Length.Percent(cell * 10f);
+                    gap.style.top = 0;
+                    gap.style.bottom = 0;
+                    gap.style.width = 2;
+                    gap.style.backgroundColor = UiTheme.A(UiTheme.Bg, 0.9f);
+                    track.Add(gap);
+                }
                 row.Add(track);
                 var val = Widgets.Text(shown, 11, UiTheme.Text, bold: true);
                 val.style.width = Length.Percent(20f);
