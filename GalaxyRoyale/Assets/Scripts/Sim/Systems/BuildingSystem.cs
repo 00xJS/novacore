@@ -66,7 +66,9 @@ namespace GalaxyRoyale.Sim.Systems
             var def = Buildings.Defs[id];
             int toLevel = state.Buildings[id].Level + 1;
             if (toLevel > def.MaxLevel) return SimResult.Fail($"{def.Name} is at max level");
-            if (id != BuildingId.CommandCenter && toLevel > state.Buildings[BuildingId.CommandCenter].Level)
+            int cc = state.Buildings[BuildingId.CommandCenter].Level;
+            if (def.UnlockCc > cc) return SimResult.Fail($"Unlocks at Command Center {def.UnlockCc}");
+            if (id != BuildingId.CommandCenter && toLevel > cc)
                 return SimResult.Fail($"Requires Command Center level {toLevel}");
             if (!ResourceSystem.CanAfford(state, GetUpgradeCost(id, toLevel)))
                 return SimResult.Fail("Not enough resources");
@@ -104,12 +106,13 @@ namespace GalaxyRoyale.Sim.Systems
         /// <summary>
         /// Recommended next upgrade when the queue is idle: lowest-level building within
         /// the Command Center cap, preferring affordable ones, tie-broken by cheapest cost.
+        /// The core nine only: the Frontier's buildings are a choice, not a chore.
         /// </summary>
         public static BuildingId NextBestUpgrade(GameState state)
         {
             int cc = state.Buildings[BuildingId.CommandCenter].Level;
             var candidates = new List<BuildingId>();
-            foreach (var id in Buildings.All)
+            foreach (var id in Buildings.Core)
             {
                 var def = Buildings.Defs[id];
                 int lvl = state.Buildings[id].Level;

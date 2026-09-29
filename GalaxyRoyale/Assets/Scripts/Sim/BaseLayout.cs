@@ -3,8 +3,9 @@
 // equator: Command (the nine core buildings), the Mining Belt to the east (a
 // pad for every extra mine the Command Center can unlock: one column per
 // unlock, one row per resource, each row in line with that resource's first
-// mine) and the Frontier to the west (buildings still to come and reserved
-// pads). The far side and the southern half stay empty for future districts.
+// mine) and the Frontier to the west (the buildings that open later — the
+// Command Bastion and the Salvage Yard, with the Exchange Terminal and the
+// Drone Factory still to come — and reserved pads).
 //
 // Pure data; BuildingMarkers draws it. A mine's pad follows from the order its
 // type's mines were built, so saves need no new fields.
@@ -17,7 +18,7 @@ namespace GalaxyRoyale.Sim
 
     public enum PadKind
     {
-        /// <summary>One of the nine core buildings.</summary>
+        /// <summary>A building: the nine core ones, and the Frontier's once they're in the game.</summary>
         Building,
         /// <summary>An extra mine's pad in the Mining Belt.</summary>
         Mine,
@@ -27,7 +28,7 @@ namespace GalaxyRoyale.Sim
         Reserved,
     }
 
-    public enum PlannedBuilding { None, ExchangeTerminal, CommandBastion, DroneFactory, SalvageYard }
+    public enum PlannedBuilding { None, ExchangeTerminal, DroneFactory }
 
     public sealed class BasePad
     {
@@ -43,7 +44,7 @@ namespace GalaxyRoyale.Sim
         public MineType Mine;
         /// <summary>Mine pads: 0..3, the pad for the 2nd..5th mine of its type.</summary>
         public int Tier;
-        /// <summary>Mine and planned pads: the Command Center level that opens them.</summary>
+        /// <summary>The Command Center level that opens the pad (0 = from the start).</summary>
         public int UnlockCc;
         public PlannedBuilding Planned;
         public string Name = "";
@@ -120,9 +121,15 @@ namespace GalaxyRoyale.Sim
                 Lat = lat, Lon = lon, Planned = b, UnlockCc = cc, Name = name,
             });
             Plan(PlannedBuilding.ExchangeTerminal, "Exchange Terminal", TopRow, -109, 5);
-            Plan(PlannedBuilding.CommandBastion, "Command Bastion", TopRow, -71, 8);
-            Plan(PlannedBuilding.DroneFactory, "Drone Factory", BottomRow, -106, 12);
-            Plan(PlannedBuilding.SalvageYard, "Salvage Yard", BottomRow, -74, 18);
+            void Frontier(BuildingId id, double lat, double lon) => pads.Add(new BasePad
+            {
+                Key = id.ToString(), Kind = PadKind.Building, District = BaseDistrict.Frontier,
+                Lat = lat, Lon = lon, Building = id, Name = Buildings.Defs[id].Name,
+                UnlockCc = Buildings.Defs[id].UnlockCc,
+            });
+            Frontier(BuildingId.CommandBastion, TopRow, -71);
+            Plan(PlannedBuilding.DroneFactory, "Drone Factory", BottomRow, -106, 10);
+            Frontier(BuildingId.SalvageYard, BottomRow, -74);
             foreach (double lon in new[] { -112.0, -90.0, -68.0 })
                 pads.Add(new BasePad
                 {
@@ -164,7 +171,6 @@ namespace GalaxyRoyale.Sim
 
         public static bool Unlocked(GameState state, BasePad pad) => pad.Kind switch
         {
-            PadKind.Building => true,
             PadKind.Reserved => false,
             _ => state.Buildings[BuildingId.CommandCenter].Level >= pad.UnlockCc,
         };

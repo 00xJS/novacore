@@ -82,6 +82,12 @@ namespace GalaxyRoyale.Game.UI
                 _detail.text = $"Neither side breaks after {rounds} · {yourLosses} · they lose {f.EnemyLosses} of {f.EnemyShips}";
             }
 
+            // Their planetary guns fire whether or not a fleet is docked.
+            var guns = new List<string>();
+            if (f.Battery > 0) guns.Add($"Orbital Batteries Lv {f.Battery}");
+            if (f.Turret > 0) guns.Add($"Bastion railguns {f.Turret:N0} a round");
+            if (guns.Count > 0) _detail.text += $" · {string.Join(" and ", guns)} fire on you";
+
             _note.text = note ?? "";
             _note.style.display = string.IsNullOrEmpty(note) ? DisplayStyle.None : DisplayStyle.Flex;
         }

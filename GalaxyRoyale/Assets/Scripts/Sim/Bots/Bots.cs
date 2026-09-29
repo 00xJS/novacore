@@ -705,7 +705,7 @@ namespace GalaxyRoyale.Sim.Bots
                 var military = new[]
                 {
                     BuildingId.Shipyard, BuildingId.ResearchLab,
-                    BuildingId.Warehouse, BuildingId.RadarStation,
+                    BuildingId.Warehouse, BuildingId.RadarStation, BuildingId.CommandBastion,
                 };
                 pick = military[(int)(rng() * military.Length) % military.Length];
             }
@@ -969,8 +969,8 @@ namespace GalaxyRoyale.Sim.Bots
             double scale = (ResearchSystem.AtkMult(target) + ResearchSystem.HpMult(target)
                 + ResearchSystem.EffectTotal(target, TechEffectKind.DefAtkMult)
                 + ResearchSystem.EffectTotal(target, TechEffectKind.DefHpMult)) * 0.5;
-            long battery = (long)ResearchSystem.BatteryLevel(target)
-                * Balance.BatteryDamagePerLevel * Balance.BatteryOnlyRounds;
+            long battery = ((long)ResearchSystem.BatteryLevel(target) * Balance.BatteryDamagePerLevel
+                + Balance.BastionDamage(target.Buildings[BuildingId.CommandBastion].Level)) * Balance.BatteryOnlyRounds;
             return (long)(EstimateFleetPower(target.Ships) * scale) + battery;
         }
 
@@ -1629,6 +1629,7 @@ namespace GalaxyRoyale.Sim.Bots
         /// <summary>Mailbox insert with the 50-cap ring (favorites never evict) — MarchSystem's rule.</summary>
         public static void InsertMail(GameState state, MailItem item)
         {
+            SalvageSystem.OnMail(state, item); // the Salvage Yard strips the wrecks
             state.Mailbox.Insert(0, item);
             if (state.Mailbox.Count <= 50) return;
             for (int i = state.Mailbox.Count - 1; i >= 0 && state.Mailbox.Count > 50; i--)

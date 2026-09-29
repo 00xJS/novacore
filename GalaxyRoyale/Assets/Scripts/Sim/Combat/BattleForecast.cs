@@ -18,10 +18,12 @@ namespace GalaxyRoyale.Sim.Combat
         /// <summary>Your ships lost, per hull (absent = none lost).</summary>
         public Dictionary<HullId, int> YourLossesByHull = new();
 
-        /// <summary>Nothing docked to fight and no batteries — the raid lands unopposed.</summary>
-        public bool Unopposed => EnemyShips == 0 && Battery == 0;
+        /// <summary>Nothing docked to fight and no planetary guns — the raid lands unopposed.</summary>
+        public bool Unopposed => EnemyShips == 0 && Battery == 0 && Turret == 0;
         /// <summary>The defender's Orbital Batteries level (0 = none).</summary>
         public int Battery;
+        /// <summary>The defender's Command Bastion railgun damage a round (0 = none).</summary>
+        public int Turret;
         /// <summary>Your whole fleet is destroyed.</summary>
         public bool Wiped => YourShips > 0 && YourLosses >= YourShips;
 
@@ -42,6 +44,7 @@ namespace GalaxyRoyale.Sim.Combat
                 YourShips = CombatResolver.FleetCount(report.Attacker),
                 EnemyShips = CombatResolver.FleetCount(report.Defender),
                 Battery = report.DefenderBattery,
+                Turret = report.DefenderTurret,
             };
             foreach (var hull in Ships.All)
             {

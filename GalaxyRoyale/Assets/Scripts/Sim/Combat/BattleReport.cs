@@ -30,6 +30,8 @@ namespace GalaxyRoyale.Sim.Combat
         /// <summary>Defender's Orbital Batteries level (0 = none) — the planetary
         /// guns that fired on the attackers every round.</summary>
         public int DefenderBattery;
+        /// <summary>The defender's Command Bastion railgun damage a round (0 = none).</summary>
+        public int DefenderTurret;
     }
 
     /// <summary>One side's research bonuses in a battle — ResearchSystem.CombatMods
@@ -49,12 +51,15 @@ namespace GalaxyRoyale.Sim.Combat
         public readonly float ShieldMult;
         /// <summary>Orbital Batteries level — defenders only (0 = none).</summary>
         public readonly int BatteryLevel;
+        /// <summary>Command Bastion railguns: damage a round at the heaviest hull — defenders only.</summary>
+        public readonly int TurretDamage;
 
         public FleetMods(float atkMult = 1f, float hpMult = 1f,
             IReadOnlyDictionary<HullId, float>? atkByHull = null,
             IReadOnlyDictionary<HullId, float>? hpByHull = null,
-            float shieldMult = 1f, int batteryLevel = 0)
+            float shieldMult = 1f, int batteryLevel = 0, int turretDamage = 0)
         {
+            TurretDamage = turretDamage;
             AtkMult = atkMult;
             HpMult = hpMult;
             AtkByHull = atkByHull;

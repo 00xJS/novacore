@@ -191,7 +191,8 @@ namespace GalaxyRoyale.Game
                 {
                     case PadKind.Building:
                         level = state.Buildings[pad.Building].Level;
-                        look = level > 0 ? BaseVisuals.PadLook.Built : BaseVisuals.PadLook.Open;
+                        look = level > 0 ? BaseVisuals.PadLook.Built
+                            : BaseLayout.Unlocked(state, pad) ? BaseVisuals.PadLook.Open : BaseVisuals.PadLook.Locked;
                         art = pad.Building.ToString();
                         holo = level == 0;
                         break;
@@ -473,6 +474,12 @@ namespace GalaxyRoyale.Game
 
                 switch (pad.Kind)
                 {
+                    case PadKind.Building when view.Level == 0 && !BaseLayout.Unlocked(state, pad):
+                        _chips.Place(pad.Key, BaseChipLayer.Kind.Planned, below, null, pad.Name, $"CC {pad.UnlockCc}", alpha: fade);
+                        break;
+                    case PadKind.Building when view.Level == 0 && Buildings.IsFrontier(pad.Building):
+                        _chips.Place(pad.Key, BaseChipLayer.Kind.Online, below, null, pad.Name, "BUILD", alpha: fade);
+                        break;
                     case PadKind.Building:
                     case PadKind.Mine when view.MineId != null:
                         _chips.Place(pad.Key, BaseChipLayer.Kind.Name, below, null, ChipName(pad),
@@ -499,10 +506,15 @@ namespace GalaxyRoyale.Game
                         break;
                 }
 
-                // Clan supplies wait at the Warehouse: one tap collects them.
+                // Ready to collect: clan supplies at the Warehouse, salvage at the Salvage Yard.
                 if (pad.Kind == PadKind.Building && pad.Building == BuildingId.Warehouse
                     && state.ClanSupplyRuns > 0 && top is { } wt)
-                    _chips.Bubble(new Vector2(wt.x, wt.y - 2f), $"+{UiTheme.FmtAmount(state.ClanSupplyPending.Total)}", CollectSupplies);
+                    _chips.Bubble("supplies", new Vector2(wt.x, wt.y - 2f), Icon.Pact,
+                        $"+{UiTheme.FmtAmount(state.ClanSupplyPending.Total)}", CollectSupplies);
+                if (pad.Kind == PadKind.Building && pad.Building == BuildingId.SalvageYard && view.Level > 0
+                    && state.SalvageStored.Total >= 1000 && top is { } st)
+                    _chips.Bubble("salvage", new Vector2(st.x, st.y - 2f), Icon.Crate,
+                        $"+{UiTheme.FmtAmount(state.SalvageStored.Total)}", CollectSalvage);
             }
             _chips.End();
             if (!ringShown) _chips.HideRing();
@@ -652,6 +664,17 @@ namespace GalaxyRoyale.Game
             return i >= 0 ? state.BuildQueue[i] : null;
         }
 
+        void CollectSalvage()
+        {
+            var state = _ctx?.State;
+            if (state == null) return;
+            if (SalvageSystem.Collect(state, out var got).Ok)
+            {
+                GameAudio.Feedback(Sfx.Coins, Haptic.Success);
+                UIController.Instance?.Toast($"Salvage collected: +{UiTheme.FmtAmount(got.Total)}", Icon.Crate, UiTheme.Good);
+            }
+        }
+
         void CollectSupplies()
         {
             var state = _ctx?.State;
@@ -680,6 +703,9 @@ namespace GalaxyRoyale.Game
             var state = _ctx.State;
             switch (pad.Kind)
             {
+                case PadKind.Building when state.Buildings[pad.Building].Level == 0 && !BaseLayout.Unlocked(state, pad):
+                    ui?.Toast($"{pad.Name} unlocks at Command Center {pad.UnlockCc}", Icon.Lock, UiTheme.Dim);
+                    break;
                 case PadKind.Building:
                     SelectBuilding(pad.Building);
                     break;

@@ -35,8 +35,8 @@ namespace GalaxyRoyale.Game.UI
         readonly VisualElement _layer;
         readonly Dictionary<string, Chip> _chips = new();
         readonly IReadOnlyList<VisualElement>? _blockers;
-        Chip? _bubble;
-        Action? _bubbleTap;
+        readonly Dictionary<string, Chip> _bubbles = new();
+        readonly Dictionary<string, Action> _bubbleTaps = new();
 
         public BaseChipLayer(VisualElement root, IReadOnlyList<VisualElement>? blockers)
         {
@@ -63,14 +63,15 @@ namespace GalaxyRoyale.Game.UI
         public void Begin()
         {
             foreach (var c in _chips.Values) c.Used = false;
-            if (_bubble != null) _bubble.Used = false;
+            foreach (var b in _bubbles.Values) b.Used = false;
         }
 
         public void End()
         {
             foreach (var c in _chips.Values)
                 if (!c.Used && c.Shown) { c.Shown = false; c.Anchor.style.display = DisplayStyle.None; }
-            if (_bubble is { Used: false, Shown: true }) { _bubble.Shown = false; _bubble.Anchor.style.display = DisplayStyle.None; }
+            foreach (var b in _bubbles.Values)
+                if (!b.Used && b.Shown) { b.Shown = false; b.Anchor.style.display = DisplayStyle.None; }
         }
 
         public void Clear()
@@ -126,14 +127,14 @@ namespace GalaxyRoyale.Game.UI
             return true;
         }
 
-        /// <summary>A tappable bubble over a building (clan supplies waiting).</summary>
-        public void Bubble(Vector2 bottomCentre, string text, Action onTap)
+        /// <summary>Tappable "ready to collect" bubbles over buildings (clan supplies at
+        /// the Warehouse, salvage at the Salvage Yard), keyed by building.</summary>
+        public void Bubble(string key, Vector2 bottomCentre, Icon icon, string text, Action onTap)
         {
-            if (_bubble == null)
+            if (!_bubbles.TryGetValue(key, out var b))
             {
-                _bubble = new Chip { Kind = Kind.Name };
+                b = new Chip { Kind = Kind.Name };
                 var anchor = Anchor();
-                anchor.pickingMode = PickingMode.Ignore;
                 var body = new VisualElement { pickingMode = PickingMode.Position };
                 body.style.position = Position.Absolute; // sized by its content, not the 0-wide anchor
                 body.style.left = 0;
@@ -146,23 +147,27 @@ namespace GalaxyRoyale.Game.UI
                 body.style.paddingTop = 4;
                 body.style.paddingBottom = 4;
                 Holo.Frame(body, UiTheme.Energy, UiTheme.Energy, 6f, 1f, FrameShape.BevelAll, glow: true);
-                body.Add(Icons.Make(Icon.Pact, 13, UiTheme.Ink));
+                var glyph = Icons.Make(icon, 13, UiTheme.Ink);
+                glyph.name = "bubble-icon";
+                body.Add(glyph);
                 var label = Widgets.Heading("", 11, UiTheme.Ink, 0.6f);
                 label.style.marginLeft = 4;
                 label.pickingMode = PickingMode.Ignore;
                 body.Add(label);
-                body.RegisterCallback<ClickEvent>(_ => _bubbleTap?.Invoke());
+                body.RegisterCallback<ClickEvent>(_ => { if (_bubbleTaps.TryGetValue(key, out var tap)) tap(); });
                 anchor.Add(body);
-                _bubble.Anchor = anchor;
-                _bubble.Body = body;
-                _bubble.Main = label;
+                b.Anchor = anchor;
+                b.Body = body;
+                b.Main = label;
                 _layer.Add(anchor);
+                _bubbles[key] = b;
             }
-            _bubbleTap = onTap;
-            _bubble.Used = true;
-            if (!_bubble.Shown) { _bubble.Shown = true; _bubble.Anchor.style.display = DisplayStyle.Flex; }
-            if (_bubble.Text != text) { _bubble.Text = text; _bubble.Main!.text = text; }
-            _bubble.Anchor.style.translate = new Translate(bottomCentre.x, bottomCentre.y);
+            _bubbleTaps[key] = onTap;
+            b.Used = true;
+            if (!b.Shown) { b.Shown = true; b.Anchor.style.display = DisplayStyle.Flex; }
+            if (b.Text != text) { b.Text = text; b.Main!.text = text; }
+            b.Body.Q<IconElement>("bubble-icon").Icon = icon;
+            b.Anchor.style.translate = new Translate(bottomCentre.x, bottomCentre.y);
         }
 
         // ---------- quick actions (approved state: a tap shows a small ring) ----------

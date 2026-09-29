@@ -393,6 +393,8 @@ namespace GalaxyRoyale.Sim
         public int ClanSupplyRuns;
         /// <summary>No new clan garrison request before this tick (StrikeSystem.RequestGarrison).</summary>
         public int ClanGarrisonReadyTick;
+        /// <summary>Salvage Yard: resources recovered from wrecks, waiting to be collected (milli).</summary>
+        public ResourceBag SalvageStored = new();
         public Profile Profile = new();
         /// <summary>Milli-units.</summary>
         public ResourceBag Resources = new();

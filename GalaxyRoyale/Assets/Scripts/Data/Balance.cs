@@ -79,6 +79,20 @@ namespace GalaxyRoyale.Data
         /// many rounds of fire before the raiders land.</summary>
         public const int BatteryOnlyRounds = 3;
 
+        // Command Bastion (Frontier, 2026-09-28): railguns that fire every round of
+        // a home defense at the heaviest hull present, straight through shields
+        // (planetary guns like the Orbital Batteries), and armoured docks for the
+        // defenders at home.
+        public static int BastionDamage(int level) =>
+            level < 1 ? 0 : (int)Math.Floor(180.0 * level * Math.Pow(1.06, level - 1));
+        public const float BastionDockArmourPerLevel = 0.01f;
+
+        // Salvage Yard (Frontier, 2026-09-28): the share of lost ships' cost that
+        // comes back, and how much the yard holds before it has to be collected.
+        public static float SalvageRate(int level) => level < 1 ? 0f : 0.08f + 0.012f * level;
+        public static long SalvageCapacity(int level) =>
+            level < 1 ? 0 : (long)Math.Floor(20000.0 * Math.Pow(1.4, level - 1));
+
         // Prototype/testing conveniences. Testing economy per user request
         // (2026-07-07): 500K of each resource + 1M Dark Matter + a stack of
         // every speed-up token so nothing gates a playtest. Since 2026-09-27 it's

@@ -34,11 +34,16 @@ namespace GalaxyRoyale.Sim.Tests
         }
 
         [Test]
-        public void EveryBuilding_HasOneFixedPad_InTheCommandDistrict()
+        public void EveryBuilding_HasOneFixedPad_CoreInCommand_FrontierInTheFrontier()
         {
             Assert.AreEqual(Buildings.All.Count, BaseLayout.Pads.Count(p => p.Kind == PadKind.Building));
             foreach (var id in Buildings.All)
-                Assert.AreEqual(BaseDistrict.Command, BaseLayout.BuildingPad(id).District, id.ToString());
+            {
+                var pad = BaseLayout.BuildingPad(id);
+                Assert.AreEqual(Buildings.IsFrontier(id) ? BaseDistrict.Frontier : BaseDistrict.Command, pad.District, id.ToString());
+                Assert.AreEqual(Buildings.Defs[id].UnlockCc, pad.UnlockCc, id.ToString());
+            }
+            Assert.AreEqual(9, BaseLayout.Pads.Count(p => p.District == BaseDistrict.Command));
             Assert.AreEqual(0, BaseLayout.BuildingPad(BuildingId.CommandCenter).Lon, "the Command Center is the middle of the base");
         }
 
@@ -126,7 +131,7 @@ namespace GalaxyRoyale.Sim.Tests
         }
 
         [Test]
-        public void TheExchangeTerminal_ComesOnlineAtCommandCenter5_TheRestArePlanned()
+        public void TheFrontier_FillsInAsTheCommandCenterRises()
         {
             var state = NewState(4);
             Assert.IsFalse(BaseLayout.PlannedOnline(state, PlannedBuilding.ExchangeTerminal));
@@ -134,8 +139,16 @@ namespace GalaxyRoyale.Sim.Tests
             state.Buildings[BuildingId.CommandCenter].Level = 5;
             Assert.IsTrue(BaseLayout.PlannedOnline(state, PlannedBuilding.ExchangeTerminal));
             Assert.AreEqual((1, 4), BaseLayout.Count(state, BaseDistrict.Frontier));
+
+            var bastion = BaseLayout.BuildingPad(BuildingId.CommandBastion);
+            Assert.IsFalse(BaseLayout.Unlocked(state, bastion), "the Bastion opens at CC 6");
+            state.Buildings[BuildingId.CommandCenter].Level = 6;
+            Assert.IsTrue(BaseLayout.Unlocked(state, bastion));
+            state.Buildings[BuildingId.CommandBastion].Level = 1;
+            Assert.AreEqual((2, 4), BaseLayout.Count(state, BaseDistrict.Frontier));
+
             state.Buildings[BuildingId.CommandCenter].Level = 30;
-            Assert.IsFalse(BaseLayout.PlannedOnline(state, PlannedBuilding.SalvageYard), "not in the game yet");
+            Assert.IsFalse(BaseLayout.PlannedOnline(state, PlannedBuilding.DroneFactory), "not in the game yet");
             Assert.IsFalse(BaseLayout.Unlocked(state, BaseLayout.Pads.First(p => p.Kind == PadKind.Reserved)));
         }
     }
