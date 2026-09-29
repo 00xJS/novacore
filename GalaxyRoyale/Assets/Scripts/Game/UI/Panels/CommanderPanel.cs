@@ -238,8 +238,7 @@ namespace GalaxyRoyale.Game.UI
             p.style.borderTopRightRadius = 4;
             p.style.borderBottomLeftRadius = 4;
             p.style.borderBottomRightRadius = 4;
-            p.style.backgroundColor = on ? UiTheme.Energy : UiTheme.PanelLight;
-            Widgets.SetBorder(p, on ? UiTheme.Energy : UiTheme.Stroke, 1f);
+            Holo.Frame(p, on ? UiTheme.Energy : UiTheme.PanelLight, on ? UiTheme.Energy : UiTheme.Stroke, 9f, 1f);
             return p;
         }
 

@@ -54,6 +54,7 @@ namespace GalaxyRoyale.Game.UI
         // Nav + FAB
         readonly Dictionary<ViewId, Button> _navButtons = new();
         Button _mailButton = null!;
+        VisualElement _mailDot = null!;
         bool _mailBadge;
         Button _queuesFab = null!;
         VisualElement _queuesBadge = null!;
@@ -147,6 +148,7 @@ namespace GalaxyRoyale.Game.UI
             _root.style.top = 0;
             _root.style.bottom = 0;
             _root.pickingMode = PickingMode.Ignore;
+            UiFonts.ApplyBody(_root); // Exo 2 everywhere; display text switches to Orbitron
 
             BuildHeader();
             BuildBottomNav();
@@ -243,7 +245,9 @@ namespace GalaxyRoyale.Game.UI
             header.style.left = 0;
             header.style.right = 0;
             header.style.top = 0;
-            header.style.backgroundColor = UiTheme.Panel;
+            header.style.backgroundColor = UiTheme.A(UiTheme.Bg, 0.86f);
+            header.style.borderBottomWidth = 1;
+            header.style.borderBottomColor = UiTheme.Accent;
 
             // Row 1 — island row: commander pill LEFT, might RIGHT.
             _islandRow = Widgets.HBox(Justify.SpaceBetween);
@@ -252,12 +256,7 @@ namespace GalaxyRoyale.Game.UI
             _islandRow.style.paddingRight = 14;
 
             var profilePill = Widgets.HBox();
-            profilePill.style.backgroundColor = new Color(UiTheme.PanelLight.r, UiTheme.PanelLight.g, UiTheme.PanelLight.b, 0.6f);
-            Widgets.SetBorder(profilePill, UiTheme.Stroke, 1f);
-            profilePill.style.borderTopLeftRadius = 15;
-            profilePill.style.borderTopRightRadius = 15;
-            profilePill.style.borderBottomLeftRadius = 15;
-            profilePill.style.borderBottomRightRadius = 15;
+            Holo.Frame(profilePill, UiTheme.A(UiTheme.Accent, 0.08f), UiTheme.Accent, 9f);
             profilePill.style.paddingLeft = 4;
             profilePill.style.paddingRight = 8;
             profilePill.style.height = 30;
@@ -280,7 +279,7 @@ namespace GalaxyRoyale.Game.UI
             levelBadge.style.height = 12;
             levelBadge.style.paddingLeft = 2;
             levelBadge.style.paddingRight = 2;
-            levelBadge.style.backgroundColor = UiTheme.Panel;
+            levelBadge.style.backgroundColor = UiTheme.Ink;
             Widgets.SetBorder(levelBadge, UiTheme.Energy, 1f);
             levelBadge.style.borderTopLeftRadius = 6;
             levelBadge.style.borderTopRightRadius = 6;
@@ -302,21 +301,23 @@ namespace GalaxyRoyale.Game.UI
             _skillDot.style.borderTopRightRadius = 4;
             _skillDot.style.borderBottomLeftRadius = 4;
             _skillDot.style.borderBottomRightRadius = 4;
-            _skillDot.style.backgroundColor = UiTheme.Energy;
+            _skillDot.style.backgroundColor = UiTheme.Magenta;
             _skillDot.style.display = DisplayStyle.None;
             avatarBox.Add(_skillDot);
             profilePill.Add(avatarBox);
 
-            _nameLabel = Widgets.Text(profile.Name, 13, UiTheme.Text);
+            _nameLabel = Widgets.Text(profile.Name, 13, UiTheme.Text, bold: true);
             _nameLabel.style.marginLeft = 9; // clears the level badge
             profilePill.Add(_nameLabel);
-            profilePill.Add(Widgets.Text("›", 16, UiTheme.Accent, bold: true));
+            var chevron = Icons.Make(Icon.ChevronRight, 13, UiTheme.Magenta);
+            chevron.style.marginLeft = 4;
+            profilePill.Add(chevron);
             _islandRow.Add(profilePill);
 
             var mightBox = new VisualElement();
             mightBox.style.alignItems = Align.FlexEnd;
-            mightBox.Add(Widgets.Text("MIGHT", 8, UiTheme.Dim));
-            _mightLabel = Widgets.Text("", 13, UiTheme.Energy, bold: true);
+            mightBox.Add(Widgets.Heading("MIGHT", 9, UiTheme.Dim, 1.8f));
+            _mightLabel = Widgets.Heading("", 17, UiTheme.Energy, 0.6f);
             mightBox.Add(_mightLabel);
             _islandRow.Add(mightBox);
             header.Add(_islandRow);
@@ -325,9 +326,9 @@ namespace GalaxyRoyale.Game.UI
             // them while a bubble is up (user spec: the shield needs a visible timer).
             var hqRow = Widgets.HBox(Justify.Center);
             hqRow.style.height = 20;
-            _coordsLabel = Widgets.Text("", 11, UiTheme.Accent);
+            _coordsLabel = Widgets.Heading("", 11, UiTheme.Accent, 1.6f);
             hqRow.Add(_coordsLabel);
-            _shieldLabel = Widgets.Text("", 11, new Color(0.45f, 0.75f, 1f), bold: true);
+            _shieldLabel = Widgets.Heading("", 11, UiTheme.Quartz, 1.2f);
             _shieldLabel.style.marginLeft = 10;
             _shieldLabel.style.display = DisplayStyle.None;
             hqRow.Add(_shieldLabel);
@@ -338,14 +339,16 @@ namespace GalaxyRoyale.Game.UI
             resRow.style.height = 50;
             resRow.style.borderTopWidth = 1;
             resRow.style.borderTopColor = UiTheme.Stroke;
+            resRow.style.marginLeft = 10;
+            resRow.style.marginRight = 10;
 
             VisualElement Slot(string caption, Color captionColor, out Label amount)
             {
                 var slot = new VisualElement();
                 slot.style.alignItems = Align.Center;
                 slot.style.width = Length.Percent(20f);
-                slot.Add(Widgets.Text(caption, 9, captionColor, bold: true));
-                amount = Widgets.Text("", 13, UiTheme.Text);
+                slot.Add(Widgets.Heading(caption, 10, captionColor, 1.2f));
+                amount = Widgets.Text("", 14, UiTheme.Text, bold: true);
                 amount.style.marginTop = 2;
                 slot.Add(amount);
                 return slot;
@@ -371,22 +374,56 @@ namespace GalaxyRoyale.Game.UI
             nav.style.right = 0;
             nav.style.bottom = 0;
             nav.style.height = UiTheme.NavH;
-            nav.style.backgroundColor = UiTheme.Panel;
+            nav.style.backgroundColor = UiTheme.A(UiTheme.Bg, 0.95f);
+            nav.style.borderTopWidth = 1;
+            nav.style.borderTopColor = UiTheme.Accent;
 
-            Button NavButton(string label, Action onTap)
+            // Icon-over-label tabs; the active one lights up orange (HighlightNav).
+            Button NavButton(Icon icon, string label, Action onTap)
             {
-                var b = Widgets.TextButton(label, onTap, 12);
-                b.style.width = Length.Percent(18f);
-                b.style.height = UiTheme.NavH - 16;
+                var b = new Button(onTap) { text = "" };
+                b.clicked += GameAudio.Tap;
+                b.style.width = Length.Percent(20f);
+                b.style.height = UiTheme.NavH;
+                b.style.marginLeft = 0;
+                b.style.marginRight = 0;
+                b.style.marginTop = 0;
+                b.style.marginBottom = 0;
+                b.style.paddingLeft = 0;
+                b.style.paddingRight = 0;
+                b.style.flexDirection = FlexDirection.Column;
+                b.style.justifyContent = Justify.Center;
+                b.style.alignItems = Align.Center;
+                Holo.Frame(b, Color.clear, Color.clear, 0f, 0f, FrameShape.Plain);
+                var glyph = Icons.Make(icon, 22, NavIdle);
+                b.Add(glyph);
+                var caption = Widgets.Heading(label, 10, NavIdle, 1.6f);
+                caption.name = "caption";
+                caption.pickingMode = PickingMode.Ignore;
+                caption.style.marginTop = 4;
+                b.Add(caption);
                 nav.Add(b);
                 return b;
             }
 
-            _navButtons[ViewId.Map] = NavButton("MAP", () => SwitchView(ViewId.Map));
-            _navButtons[ViewId.Fleet] = NavButton("FLEET", () => SwitchView(ViewId.Fleet));
-            _navButtons[ViewId.Base] = NavButton("BASE", () => SwitchView(ViewId.Base));
-            NavButton("ITEMS", OpenShop);
-            _mailButton = NavButton("MAIL", OpenMailbox);
+            _navButtons[ViewId.Map] = NavButton(Icon.Compass, "MAP", () => SwitchView(ViewId.Map));
+            _navButtons[ViewId.Fleet] = NavButton(Icon.Ship, "FLEET", () => SwitchView(ViewId.Fleet));
+            _navButtons[ViewId.Base] = NavButton(Icon.Planet, "BASE", () => SwitchView(ViewId.Base));
+            NavButton(Icon.Crate, "ITEMS", OpenShop);
+            _mailButton = NavButton(Icon.Mail, "MAIL", OpenMailbox);
+            _mailDot = new VisualElement { pickingMode = PickingMode.Ignore };
+            _mailDot.style.position = Position.Absolute;
+            _mailDot.style.top = 14;
+            _mailDot.style.right = 24;
+            _mailDot.style.width = 7;
+            _mailDot.style.height = 7;
+            _mailDot.style.borderTopLeftRadius = 4;
+            _mailDot.style.borderTopRightRadius = 4;
+            _mailDot.style.borderBottomLeftRadius = 4;
+            _mailDot.style.borderBottomRightRadius = 4;
+            _mailDot.style.backgroundColor = UiTheme.Magenta;
+            _mailDot.style.display = DisplayStyle.None;
+            _mailButton.Add(_mailDot);
 
             _root.Add(nav);
             HighlightNav();
@@ -402,9 +439,9 @@ namespace GalaxyRoyale.Game.UI
             _ticker.style.right = 0;
             _ticker.style.bottom = UiTheme.NavH;
             _ticker.style.height = TickerH;
-            _ticker.style.backgroundColor = new Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.92f);
+            _ticker.style.backgroundColor = UiTheme.A(UiTheme.Bg, 0.88f);
             _ticker.style.borderTopWidth = 1;
-            _ticker.style.borderTopColor = UiTheme.Stroke;
+            _ticker.style.borderTopColor = UiTheme.A(UiTheme.Magenta, 0.5f);
             _ticker.style.flexDirection = FlexDirection.Row;
             _ticker.style.alignItems = Align.Center;
             _ticker.style.paddingLeft = 10;
@@ -412,8 +449,8 @@ namespace GalaxyRoyale.Game.UI
             _ticker.RegisterCallback<PointerUpEvent>(_ => OpenNews());
 
             // Painted swords: the "⚔" glyph rendered as "□" on device (user report).
-            var icon = Icons.Make(Icon.Swords, 12, UiTheme.Accent);
-            icon.style.marginRight = 6;
+            var icon = Icons.Make(Icon.Swords, 13, UiTheme.Magenta);
+            icon.style.marginRight = 7;
             _ticker.Add(icon);
             _tickerLabel = Widgets.Text("Galaxy news — tap for the battle wire", 11, UiTheme.Dim);
             _tickerLabel.style.overflow = Overflow.Hidden;
@@ -514,15 +551,11 @@ namespace GalaxyRoyale.Game.UI
 
             _queuesBadge = new VisualElement { pickingMode = PickingMode.Ignore };
             _queuesBadge.style.position = Position.Absolute;
-            _queuesBadge.style.right = -4;
-            _queuesBadge.style.top = -4;
-            _queuesBadge.style.width = 18;
-            _queuesBadge.style.height = 18;
-            _queuesBadge.style.borderTopLeftRadius = 9;
-            _queuesBadge.style.borderTopRightRadius = 9;
-            _queuesBadge.style.borderBottomLeftRadius = 9;
-            _queuesBadge.style.borderBottomRightRadius = 9;
-            _queuesBadge.style.backgroundColor = UiTheme.Bad;
+            _queuesBadge.style.right = 4;
+            _queuesBadge.style.top = 2;
+            _queuesBadge.style.width = 16;
+            _queuesBadge.style.height = 16;
+            _queuesBadge.style.backgroundColor = UiTheme.Magenta;
             _queuesBadge.style.justifyContent = Justify.Center;
             _queuesBadge.style.alignItems = Align.Center;
             _queuesBadge.style.display = DisplayStyle.None;
@@ -586,10 +619,20 @@ namespace GalaxyRoyale.Game.UI
             }
         }
 
+        static readonly Color NavIdle = new(0.435f, 0.498f, 0.659f); // #6F7FA8
+
         void HighlightNav()
         {
-            foreach (var kv in _navButtons)
-                Widgets.SetButtonHighlight(kv.Value, kv.Key == View);
+            foreach (var kv in _navButtons) PaintTab(kv.Value, kv.Key == View);
+        }
+
+        static void PaintTab(Button tab, bool on)
+        {
+            var color = on ? UiTheme.Accent : NavIdle;
+            Holo.Set(tab, on ? UiTheme.A(UiTheme.Accent, 0.1f) : Color.clear, Color.clear);
+            tab.Query<IconElement>().ForEach(i => i.Color = color);
+            var caption = tab.Q<Label>("caption");
+            if (caption != null) caption.style.color = color;
         }
 
         // ---------- modal host ----------
@@ -704,8 +747,7 @@ namespace GalaxyRoyale.Game.UI
                 _toastLayer.Remove(oldest);
             }
             var toast = new VisualElement { pickingMode = PickingMode.Ignore };
-            toast.style.backgroundColor = new Color(UiTheme.PanelLight.r, UiTheme.PanelLight.g, UiTheme.PanelLight.b, 0.95f);
-            Widgets.SetBorder(toast, UiTheme.Stroke, 1f);
+            Holo.Frame(toast, UiTheme.A(new Color(0.06f, 0.035f, 0.16f), 0.96f), UiTheme.Accent, 10f, 1f, glow: true);
             toast.style.paddingLeft = 14;
             toast.style.paddingRight = 14;
             toast.style.paddingTop = 8;
@@ -1070,19 +1112,15 @@ namespace GalaxyRoyale.Game.UI
             t.style.paddingRight = 10;
             t.style.paddingTop = 7;
             t.style.paddingBottom = 7;
-            t.style.backgroundColor = new Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.92f);
-            Widgets.SetBorder(t, UiTheme.Energy, 1.5f);
-            t.style.borderTopLeftRadius = 12;
-            t.style.borderTopRightRadius = 12;
-            t.style.borderBottomLeftRadius = 12;
-            t.style.borderBottomRightRadius = 12;
-            var star = Icons.Make(Icon.Star, 16f, UiTheme.Energy);
+            t.style.paddingRight = 16; // clears the cut corner
+            Holo.Frame(t, UiTheme.A(new Color(0.1f, 0.024f, 0.133f), 0.94f), UiTheme.Magenta, 11f, 1.2f);
+            var star = Icons.Make(Icon.StarOutline, 16f, UiTheme.Magenta);
             star.style.marginRight = 8;
             t.Add(star);
             var col = new VisualElement { pickingMode = PickingMode.Ignore };
             col.style.flexShrink = 1f;
             col.style.overflow = Overflow.Hidden;
-            _questTitle = Widgets.Text("", 11, UiTheme.Text, bold: true);
+            _questTitle = Widgets.Heading("", 11, UiTheme.Text, 0.8f);
             _questTitle.pickingMode = PickingMode.Ignore;
             // Long titles end in "…" rather than running under the CLAIM pill.
             _questTitle.style.whiteSpace = WhiteSpace.NoWrap;
@@ -1093,7 +1131,7 @@ namespace GalaxyRoyale.Game.UI
             col.Add(_questTitle);
             col.Add(_questGoal);
             t.Add(col);
-            _questClaimPill = Widgets.Text("CLAIM", 10, UiTheme.Bg, bold: true);
+            _questClaimPill = Widgets.Heading("CLAIM", 10, UiTheme.Ink, 1.2f);
             _questClaimPill.pickingMode = PickingMode.Ignore;
             _questClaimPill.style.marginLeft = 8;
             _questClaimPill.style.flexShrink = 0f;
@@ -1102,10 +1140,6 @@ namespace GalaxyRoyale.Game.UI
             _questClaimPill.style.paddingTop = 3;
             _questClaimPill.style.paddingBottom = 3;
             _questClaimPill.style.backgroundColor = UiTheme.Good;
-            _questClaimPill.style.borderTopLeftRadius = 8;
-            _questClaimPill.style.borderTopRightRadius = 8;
-            _questClaimPill.style.borderBottomLeftRadius = 8;
-            _questClaimPill.style.borderBottomRightRadius = 8;
             _questClaimPill.style.display = DisplayStyle.None;
             t.Add(_questClaimPill);
             t.RegisterCallback<ClickEvent>(_ => QuestPanel.Open(_ctx));
@@ -1126,25 +1160,21 @@ namespace GalaxyRoyale.Game.UI
             c.style.paddingRight = 10;
             c.style.paddingTop = 5;
             c.style.paddingBottom = 5;
-            c.style.backgroundColor = new Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.92f);
-            Widgets.SetBorder(c, UiTheme.Stroke, 1.5f);
-            c.style.borderTopLeftRadius = 12;
-            c.style.borderTopRightRadius = 12;
-            c.style.borderBottomLeftRadius = 12;
-            c.style.borderBottomRightRadius = 12;
+            c.style.paddingRight = 14;
+            Holo.Frame(c, UiTheme.A(UiTheme.Bg, 0.9f), UiTheme.Stroke, 9f, 1.2f);
             var bolt = Icons.Make(Icon.Bolt, 14f, UiTheme.Energy);
             bolt.style.marginRight = 7;
             c.Add(bolt);
             var col = new VisualElement { pickingMode = PickingMode.Ignore };
             col.style.flexShrink = 1f;
-            _eventChipTitle = Widgets.Text("", 10, UiTheme.Energy, bold: true);
+            _eventChipTitle = Widgets.Heading("", 10, UiTheme.Energy, 0.8f);
             _eventChipTitle.pickingMode = PickingMode.Ignore;
             _eventChipInfo = Widgets.Text("", 9, UiTheme.Dim);
             _eventChipInfo.pickingMode = PickingMode.Ignore;
             col.Add(_eventChipTitle);
             col.Add(_eventChipInfo);
             c.Add(col);
-            _eventClaimPill = Widgets.Text("CLAIM", 9, UiTheme.Bg, bold: true);
+            _eventClaimPill = Widgets.Heading("CLAIM", 9, UiTheme.Ink, 1.2f);
             _eventClaimPill.pickingMode = PickingMode.Ignore;
             _eventClaimPill.style.marginLeft = 8;
             _eventClaimPill.style.paddingLeft = 6;
@@ -1152,10 +1182,6 @@ namespace GalaxyRoyale.Game.UI
             _eventClaimPill.style.paddingTop = 2;
             _eventClaimPill.style.paddingBottom = 2;
             _eventClaimPill.style.backgroundColor = UiTheme.Good;
-            _eventClaimPill.style.borderTopLeftRadius = 7;
-            _eventClaimPill.style.borderTopRightRadius = 7;
-            _eventClaimPill.style.borderBottomLeftRadius = 7;
-            _eventClaimPill.style.borderBottomRightRadius = 7;
             _eventClaimPill.style.display = DisplayStyle.None;
             c.Add(_eventClaimPill);
             c.RegisterCallback<ClickEvent>(_ => OpenEvents());
@@ -1188,7 +1214,7 @@ namespace GalaxyRoyale.Game.UI
             }
             _eventChipInfo.style.color = claimable ? UiTheme.Good : UiTheme.Dim;
             _eventClaimPill.style.display = claimable ? DisplayStyle.Flex : DisplayStyle.None;
-            Widgets.SetBorder(_eventChip, claimable ? UiTheme.Good : UiTheme.Stroke, 1.5f);
+            Widgets.SetBorder(_eventChip, claimable ? UiTheme.Good : UiTheme.Stroke, 1.2f);
 
             // A new event going live mid-session gets announced once.
             if (!firstLook && _eventSeenInstance != live.Instance && !EventSystem.IsQuiet(live))
@@ -1219,7 +1245,7 @@ namespace GalaxyRoyale.Game.UI
             _questGoal.text = complete ? "Complete — tap to claim" : QuestPanel.GoalText(quest, have, need);
             _questGoal.style.color = complete ? UiTheme.Good : UiTheme.Dim;
             _questClaimPill.style.display = complete ? DisplayStyle.Flex : DisplayStyle.None;
-            Widgets.SetBorder(_questTracker, complete ? UiTheme.Good : UiTheme.Energy, 1.5f);
+            Widgets.SetBorder(_questTracker, complete ? UiTheme.Good : UiTheme.Magenta, 1.2f);
             // One nudge per step when it completes during play (not on the
             // first look after loading — the tracker already says so).
             if (complete && !firstLook && _questNudgedStep != state.QuestStep)
@@ -1255,18 +1281,14 @@ namespace GalaxyRoyale.Game.UI
             c.style.paddingRight = 10;
             c.style.paddingTop = 5;
             c.style.paddingBottom = 5;
-            c.style.backgroundColor = new Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.92f);
-            Widgets.SetBorder(c, UiTheme.Good, 1.5f);
-            c.style.borderTopLeftRadius = 12;
-            c.style.borderTopRightRadius = 12;
-            c.style.borderBottomLeftRadius = 12;
-            c.style.borderBottomRightRadius = 12;
+            c.style.paddingRight = 14;
+            Holo.Frame(c, UiTheme.A(UiTheme.Bg, 0.9f), UiTheme.Good, 9f, 1.2f);
             var icon = Icons.Make(Icon.Target, 14f, UiTheme.Energy);
             icon.style.marginRight = 7;
             c.Add(icon);
             var col = new VisualElement { pickingMode = PickingMode.Ignore };
             col.style.flexShrink = 1f;
-            _coreChipTitle = Widgets.Text("", 10, UiTheme.Energy, bold: true);
+            _coreChipTitle = Widgets.Heading("", 10, UiTheme.Energy, 0.8f);
             _coreChipTitle.pickingMode = PickingMode.Ignore;
             _coreChipInfo = Widgets.Text("", 9, UiTheme.Dim);
             _coreChipInfo.pickingMode = PickingMode.Ignore;
@@ -1301,7 +1323,7 @@ namespace GalaxyRoyale.Game.UI
                 ? $"Assault inbound — lands in {UiTheme.FmtDuration(Math.Max(0, assault - state.Tick))}"
                 : $"Next tribute in {UiTheme.FmtDuration(tribute)}";
             _coreChipInfo.style.color = underAttack ? UiTheme.Bad : UiTheme.Dim;
-            Widgets.SetBorder(_coreChip, underAttack ? UiTheme.Bad : UiTheme.Good, 1.5f);
+            Widgets.SetBorder(_coreChip, underAttack ? UiTheme.Bad : UiTheme.Good, 1.2f);
         }
 
         // ---------- Pirate Dreadnought chip (base view) ----------
@@ -1322,18 +1344,14 @@ namespace GalaxyRoyale.Game.UI
             c.style.paddingRight = 10;
             c.style.paddingTop = 5;
             c.style.paddingBottom = 5;
-            c.style.backgroundColor = new Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.92f);
-            Widgets.SetBorder(c, UiTheme.Bad, 1.5f);
-            c.style.borderTopLeftRadius = 12;
-            c.style.borderTopRightRadius = 12;
-            c.style.borderBottomLeftRadius = 12;
-            c.style.borderBottomRightRadius = 12;
+            c.style.paddingRight = 14;
+            Holo.Frame(c, UiTheme.A(UiTheme.Bg, 0.9f), UiTheme.Bad, 9f, 1.2f);
             var icon = Icons.Make(Icon.Warning, 14f, UiTheme.Bad);
             icon.style.marginRight = 7;
             c.Add(icon);
             var col = new VisualElement { pickingMode = PickingMode.Ignore };
             col.style.flexShrink = 1f;
-            var title = Widgets.Text("PIRATE DREADNOUGHT", 10, UiTheme.Bad, bold: true);
+            var title = Widgets.Heading("PIRATE DREADNOUGHT", 10, UiTheme.Bad, 0.8f);
             title.pickingMode = PickingMode.Ignore;
             _bossChipInfo = Widgets.Text("", 9, UiTheme.Dim);
             _bossChipInfo.pickingMode = PickingMode.Ignore;
@@ -1435,8 +1453,7 @@ namespace GalaxyRoyale.Game.UI
             if (unread != _mailBadge)
             {
                 _mailBadge = unread;
-                _mailButton.text = unread ? "MAIL ●" : "MAIL";
-                _mailButton.style.color = unread ? UiTheme.Accent : UiTheme.Text;
+                _mailDot.style.display = unread ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             int idleCount = QueuesPanel.IdleQueueCount(state);

@@ -316,7 +316,7 @@ namespace GalaxyRoyale.Game.UI
                     anyFleetThreat = true;
                     long etaSec = Math.Max(0, threat.ArrivesAtTick - state.Tick);
                     var card = Widgets.Row();
-                    card.style.backgroundColor = UiTheme.Wash(UiTheme.Bad, 0.9f);
+                    Holo.SetFill(card, UiTheme.Wash(UiTheme.Bad, 0.9f));
                     card.Add(Widgets.IconText(Icon.Warning, "INCOMING HOSTILE FLEET", 13, UiTheme.Bad, bold: true));
                     string who = string.IsNullOrEmpty(threat.AttackerName) ? "unknown commander" : threat.AttackerName;
                     string size = threat.FleetCount > 0 ? $"{threat.FleetCount} ships · " : "";

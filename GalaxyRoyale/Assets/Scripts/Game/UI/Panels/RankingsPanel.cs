@@ -76,9 +76,8 @@ namespace GalaxyRoyale.Game.UI
                 // for yourself — plus how far you've moved since you last looked.
                 int myRank = rows.FindIndex(r => r.botId == 0) + 1;
                 var pin = Widgets.Row();
-                pin.style.backgroundColor = new UnityEngine.Color(
-                    UiTheme.Accent.r * 0.18f, UiTheme.Accent.g * 0.18f, UiTheme.Accent.b * 0.18f, 1f);
-                Widgets.SetBorder(pin, UiTheme.Accent, 1.5f);
+                Holo.Frame(pin, new UnityEngine.Color(
+                    UiTheme.Accent.r * 0.18f, UiTheme.Accent.g * 0.18f, UiTheme.Accent.b * 0.18f, 1f), UiTheme.Accent, 9f, 1.5f);
                 pin.style.marginBottom = 12;
                 var pinBox = Widgets.HBox();
                 var pinRank = Widgets.Text($"#{myRank}", 18, UiTheme.Accent, bold: true);
@@ -243,9 +242,8 @@ namespace GalaxyRoyale.Game.UI
             int number = Math.Max(1, state.Season);
 
             var pin = Widgets.Row();
-            pin.style.backgroundColor = new UnityEngine.Color(
-                UiTheme.Energy.r * 0.16f, UiTheme.Energy.g * 0.16f, UiTheme.Energy.b * 0.16f, 1f);
-            Widgets.SetBorder(pin, UiTheme.Energy, 1.5f);
+            Holo.Frame(pin, new UnityEngine.Color(
+                UiTheme.Energy.r * 0.16f, UiTheme.Energy.g * 0.16f, UiTheme.Energy.b * 0.16f, 1f), UiTheme.Energy, 9f, 1.5f);
             pin.style.marginBottom = 12;
             var pinBox = Widgets.HBox();
             var pinRank = Widgets.Text($"#{myRank}", 18, UiTheme.Energy, bold: true);

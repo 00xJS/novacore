@@ -198,6 +198,7 @@ namespace GalaxyRoyale.Game.UI
                 ui.Toast("Intercept launched" + (flying > 0 ? $" · {flying} clanmate{(flying == 1 ? "" : "s")} flying with you" : ""));
                 ui.CloseModal();
             }, 14);
+            Widgets.Primary(launchBtn);
             launchBtn.style.height = 42;
             footer.Add(launchBtn);
 

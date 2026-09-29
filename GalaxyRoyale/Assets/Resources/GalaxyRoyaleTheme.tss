@@ -1,1 +1,26 @@
 @import url("unity-theme://default");
+
+/* Neon Hologram, orange accent (2026-09-28): Unity's own sliders and text
+   fields in the game's colours. Everything else is styled in C# (UiTheme). */
+.unity-base-slider--horizontal .unity-base-slider__tracker {
+    background-color: rgba(255, 154, 61, 0.2);
+    border-color: rgba(255, 154, 61, 0.55);
+    border-radius: 0;
+}
+
+.unity-base-slider--horizontal .unity-base-slider__dragger,
+.unity-base-slider--horizontal .unity-base-slider__dragger:hover,
+.unity-base-slider--horizontal .unity-base-slider__dragger:active {
+    background-color: rgb(255, 154, 61);
+    border-color: rgb(255, 154, 61);
+    border-radius: 0;
+}
+
+.unity-base-text-field__input,
+.unity-base-text-field__input:hover,
+.unity-base-text-field__input:focus {
+    background-color: rgba(10, 6, 30, 0.95);
+    border-color: rgba(255, 154, 61, 0.6);
+    border-radius: 0;
+    color: rgb(232, 247, 255);
+}

@@ -154,8 +154,7 @@ namespace GalaxyRoyale.Game.UI
             forecast.style.paddingRight = 10;
             forecast.style.paddingTop = 6;
             forecast.style.paddingBottom = 6;
-            forecast.style.backgroundColor = UiTheme.PanelLight;
-            Widgets.SetBorder(forecast, UiTheme.Stroke, 1f);
+            Holo.Frame(forecast, UiTheme.PanelLight, UiTheme.Stroke, 9f, 1f);
             var fcHead = Widgets.IconText(Icon.Swords, "FORECAST", 12, UiTheme.Energy, bold: true);
             var fcLine = Note("", 2);
             fcLine.style.color = UiTheme.Text;

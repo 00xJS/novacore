@@ -29,8 +29,7 @@ namespace GalaxyRoyale.Game.UI
             bool isDerelict = node.Kind == NodeKind.Derelict;
 
             var panel = new VisualElement();
-            panel.style.backgroundColor = new UnityEngine.Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.96f);
-            Widgets.SetBorder(panel, UiTheme.Stroke, 1f);
+            Holo.Frame(panel, new UnityEngine.Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.96f), UiTheme.Stroke, 9f, 1f);
             panel.style.paddingLeft = 14;
             panel.style.paddingRight = 14;
             panel.style.paddingTop = 10;

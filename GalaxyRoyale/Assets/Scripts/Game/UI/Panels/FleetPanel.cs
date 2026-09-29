@@ -89,8 +89,7 @@ namespace GalaxyRoyale.Game.UI
                 thumb.style.paddingTop = 0;
                 thumb.style.paddingBottom = 0;
                 thumb.style.marginRight = 10;
-                thumb.style.backgroundColor = UnityEngine.Color.clear;
-                Widgets.SetBorder(thumb, UnityEngine.Color.clear, 0f);
+                Holo.Frame(thumb, UnityEngine.Color.clear, UnityEngine.Color.clear, 9f, 0f);
                 thumb.Add(ShipArt.Card(h, 62f, 62f));
                 top.Add(thumb);
 
@@ -147,6 +146,7 @@ namespace GalaxyRoyale.Game.UI
                         GameAudio.Feedback(Sfx.Confirm, Haptic.Light);
                     }
                 }, 12);
+                Widgets.Primary(buildBtn);
                 buildBtn.style.marginLeft = 8;
                 buildBtn.style.minWidth = 70;
                 controls.Add(buildBtn);

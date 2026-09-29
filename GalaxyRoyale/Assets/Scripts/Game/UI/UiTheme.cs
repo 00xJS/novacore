@@ -11,21 +11,27 @@ namespace GalaxyRoyale.Game.UI
         public const int H = 844;
         public const int NavH = 72; // was 64 — user wants a slightly taller nav
 
-        public static readonly Color Bg          = Rgb(0x070b14);
-        public static readonly Color Panel       = Rgb(0x111a2c);
-        public static readonly Color PanelLight  = Rgb(0x1a2740);
-        public static readonly Color Stroke      = Rgb(0x2a3b5c);
-        public static readonly Color Btn         = Rgb(0x1f3a5c);
-        public static readonly Color BtnActive   = Rgb(0x2a4a72);
-        public static readonly Color BtnDisabled = Rgb(0x141d2c);
+        // Neon Hologram with an orange accent — the player's pick (2026-09-28).
+        // Dark violet glass, orange strokes and titles, magenta as the second colour.
+        public static readonly Color Bg          = Rgb(0x05030e);
+        public static readonly Color Panel       = Rgba(0x0b0621, 0.985f); // panels overlap the header: keep it from ghosting through
+        public static readonly Color PanelLight  = Rgba(0x1e1046, 0.62f);
+        public static readonly Color Stroke      = Rgba(0xff9a3d, 0.35f);
+        public static readonly Color Btn         = Rgba(0xff9a3d, 0.09f);
+        public static readonly Color BtnActive   = Rgba(0xff9a3d, 0.26f);
+        public static readonly Color BtnDisabled = Rgba(0x9fb3d9, 0.05f);
 
-        public static readonly Color Text   = Rgb(0xdbe4f0);
-        public static readonly Color Dim    = Rgb(0x8892a6);
-        public static readonly Color Accent = Rgb(0x7fd4ff);
+        public static readonly Color Text   = Rgb(0xe8f7ff);
+        public static readonly Color Dim    = Rgb(0x9fb3d9);
+        public static readonly Color Accent = Rgb(0xff9a3d);
+        /// <summary>The style's second colour: quests, badges, unread dots, close buttons.</summary>
+        public static readonly Color Magenta = Rgb(0xff3dd8);
+        /// <summary>Dark text on accent-filled buttons and badges.</summary>
+        public static readonly Color Ink = Rgb(0x05030e);
         // Good / bad news: green / red, or blue / orange with colour-blind colours on
         // (Settings.ColorBlind — screens pick it up as they're built).
-        public static Color Good = Rgb(0x7fe08a);
-        public static Color Bad  = Rgb(0xff7a7a);
+        public static Color Good = Rgb(0x3dffa0);
+        public static Color Bad  = Rgb(0xff4d6d);
 
         static UiTheme()
         {
@@ -34,18 +40,21 @@ namespace GalaxyRoyale.Game.UI
 
         public static void ApplyPalette(bool colorBlind)
         {
-            Good = colorBlind ? Rgb(0x5eb8ff) : Rgb(0x7fe08a);
-            Bad = colorBlind ? Rgb(0xffa347) : Rgb(0xff7a7a);
+            Good = colorBlind ? Rgb(0x5eb8ff) : Rgb(0x3dffa0);
+            Bad = colorBlind ? Rgb(0xffa347) : Rgb(0xff4d6d);
         }
 
         /// <summary>A dark wash of a colour for a card's background (won / lost rows).</summary>
         public static Color Wash(Color c, float alpha) => new(c.r * 0.17f, c.g * 0.17f, c.b * 0.17f, alpha);
 
-        public static readonly Color Gold   = Rgb(0xaab4c0);
-        public static readonly Color Quartz = Rgb(0x6fd3e8);
-        public static readonly Color Helium     = Rgb(0x86e08a);
-        public static readonly Color Energy  = Rgb(0xffd166);
-        public static readonly Color DarkMatter = Rgb(0xc9a1e8);
+        public static readonly Color Gold   = Rgb(0xd6e0ec);
+        public static readonly Color Quartz = Rgb(0x3df5ff);
+        public static readonly Color Helium     = Rgb(0x3dffa0);
+        public static readonly Color Energy  = Rgb(0xffe14d);
+        public static readonly Color DarkMatter = Rgb(0xd58cff);
+
+        /// <summary>A colour at a new opacity.</summary>
+        public static Color A(Color c, float alpha) => new(c.r, c.g, c.b, alpha);
 
         /// <summary>Avatar/faction palette, indexed by profile.AvatarSeed.</summary>
         /// <summary>Premade commander portraits in Resources/Avatars (avatar-0..9):
@@ -70,6 +79,8 @@ namespace GalaxyRoyale.Game.UI
             ((hex >> 16) & 0xff) / 255f,
             ((hex >> 8) & 0xff) / 255f,
             (hex & 0xff) / 255f);
+
+        static Color Rgba(int hex, float alpha) => A(Rgb(hex), alpha);
 
         // ---------- format.ts ----------
 
