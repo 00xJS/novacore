@@ -91,6 +91,43 @@ namespace GalaxyRoyale.Game.UI
                 content.Add(Toggle(Settings.NotifyLabel(k), () => Settings.NotifyOn(k), on => Settings.SetNotify(k, on)));
             }
 
+            // ---- AI writers ----
+            content.Add(Header("AI WRITERS", 14));
+            content.Add(Note("Optional. Point this at your own Galaxy Royale AI proxy (server/ai-proxy in the game's " +
+                "repository) and Claude writes the Galactic Gazette, battle recaps and commanders' replies. Without it, " +
+                "the game writes them itself. Only game facts are sent: names, battle numbers and news.", 0));
+            var url = new TextField { value = AiWriter.ProxyUrl, maxLength = 200 };
+            url.style.marginTop = 6;
+            url.textEdition.placeholder = "https://galaxy-royale-ai.your-name.workers.dev";
+            url.textEdition.hidePlaceholderOnFocus = true;
+            content.Add(url);
+            var aiRow = Widgets.HBox(Justify.SpaceBetween);
+            aiRow.style.marginTop = 6;
+            var aiStatus = Note(AiWriter.Configured ? "Set — the AI writes when it's reachable." : "Not set — the game writes its own.", 0);
+            var saveUrl = Widgets.TextButton("SAVE", () =>
+            {
+                AiWriter.ProxyUrl = url.value;
+                aiStatus.text = AiWriter.Configured ? "Saved — the AI writes when it's reachable."
+                    : string.IsNullOrWhiteSpace(url.value) ? "Cleared — the game writes its own." : "That isn't a web address (https://…)";
+            }, 11);
+            saveUrl.style.width = Length.Percent(48f);
+            var test = Widgets.TextButton("TEST", () =>
+            {
+                AiWriter.ProxyUrl = url.value;
+                aiStatus.text = "Checking...";
+                AiWriter.Check(ctx, (ok, message) =>
+                {
+                    aiStatus.text = message;
+                    aiStatus.style.color = ok ? UiTheme.Good : UiTheme.Bad;
+                });
+            }, 11);
+            test.style.width = Length.Percent(48f);
+            aiRow.Add(saveUrl);
+            aiRow.Add(test);
+            content.Add(aiRow);
+            aiStatus.style.marginTop = 4;
+            content.Add(aiStatus);
+
             // ---- Game Center ----
             content.Add(Header("GAME CENTER", 14));
             content.Add(Toggle("Game Center", () => GameCenter.Enabled, on =>
