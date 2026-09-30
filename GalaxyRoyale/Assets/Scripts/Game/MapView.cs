@@ -474,7 +474,8 @@ namespace GalaxyRoyale.Game
         // ---------- map events (2026-09-30): the Ion Storm and the doomed sector ----------
 
         GameObject? _zoneRoot;
-        SpriteRenderer? _zoneFill;
+        SpriteRenderer? _zoneFill, _zoneArt;
+        Vector3 _zoneArtScale;
         string _zoneKey = "";
 
         void SyncEventZone(GameState state, float t)
@@ -487,6 +488,7 @@ namespace GalaxyRoyale.Game
                 if (_zoneRoot != null) Destroy(_zoneRoot);
                 _zoneRoot = null;
                 _zoneFill = null;
+                _zoneArt = null;
                 if (zone is { } live)
                 {
                     bool storm = live.Kind == GalaxyEventKind.IonStorm;
@@ -497,11 +499,15 @@ namespace GalaxyRoyale.Game
                     float d = live.Radius * 2f;
                     _zoneFill = MapVisuals.Spawn(_zoneRoot.transform, "Fill", MapVisuals.Glow, Vector3.zero, d * 1.15f, d * 1.15f,
                         new Color(tint.r, tint.g, tint.b, 0.22f), 4);
-                    var ring = MapVisuals.OverrideSprite("core-zone");
-                    if (ring != null)
+                    // Dedicated art (2026-09-30): the storm's spiral cloud and lightning,
+                    // the swollen star in its shock rings; drawn on the Core zone's scale.
+                    var art = MapVisuals.OverrideSprite(storm ? "zone-storm" : "zone-nova")
+                              ?? MapVisuals.OverrideSprite("core-zone");
+                    if (art != null)
                     {
                         float size = 1024f * live.Radius / 500f;
-                        MapVisuals.Spawn(_zoneRoot.transform, "Edge", ring, Vector3.zero, size, size, tint, 4);
+                        _zoneArt = MapVisuals.Spawn(_zoneRoot.transform, "Art", art, Vector3.zero, size, size, Color.white, 4);
+                        _zoneArtScale = _zoneArt.transform.localScale;
                     }
                 }
             }
@@ -513,6 +519,17 @@ namespace GalaxyRoyale.Game
                 var c = _zoneFill.color;
                 c.a = 0.16f + 0.08f * Mathf.Sin(t * speed);
                 _zoneFill.color = c;
+                if (_zoneArt != null)
+                {
+                    // The storm turns slowly; the star's sector throbs faster as it nears the end.
+                    if (z2.Kind == GalaxyEventKind.IonStorm)
+                        _zoneArt.transform.localRotation = Quaternion.Euler(0f, 0f, -t * 2.5f);
+                    else
+                    {
+                        float pulse = 1f + 0.012f * Mathf.Sin(t * speed * 2f);
+                        _zoneArt.transform.localScale = _zoneArtScale * pulse;
+                    }
+                }
             }
         }
 

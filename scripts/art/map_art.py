@@ -14,6 +14,10 @@ small world, the Galactic Core is a sun with a clear zone around it.
   map-badge-*    64 x 64 type badges shown beside a world when zoomed in.
   core-sun       1024 x 1024: the sun, its corona and the station ring.
   core-zone      1024 x 1024: the Core Zone's dashed boundary.
+  zone-storm     1024 x 1024: the Ion Storm: blue-violet cloud bands wound in a
+                 slow spiral, forked lightning, a ragged edge (2026-09-30).
+  zone-nova      1024 x 1024: the Supernova's doomed sector: a swollen, unstable
+                 star in shock rings, inside a red hazard boundary.
 
 render_map.sh runs this and renders them to GalaxyRoyale/Assets/Resources/Map.
 
@@ -274,6 +278,130 @@ write("core-zone", 1024,
       f'<stop offset="1" stop-color="#FF9A3D" stop-opacity="0.07"/></radialGradient></defs>'
       f'<circle cx="{C}" cy="{C}" r="500" fill="url(#z)"/>'
       f'<g fill="none" stroke="#FF9A3D" stroke-opacity="0.7" stroke-width="7" stroke-linecap="round">{"".join(dashes)}</g>')
+
+# ---------------------------------------------------------------- event zones
+
+def bolt(rnd, x, y, a, length, width):
+    """A jagged lightning path from (x, y) heading at angle a, with one fork."""
+    pts, forks = [(x, y)], []
+    steps = 7
+    for k in range(steps):
+        a += rnd.uniform(-0.55, 0.55)
+        x += math.cos(a) * length / steps
+        y += math.sin(a) * length / steps
+        pts.append((x, y))
+        if k == 3:
+            fa = a + rnd.choice((-1, 1)) * rnd.uniform(0.5, 0.9)
+            forks.append([(x, y), (x + math.cos(fa) * length * 0.25, y + math.sin(fa) * length * 0.25)])
+    path = lambda ps: "M" + " L".join(f"{f(px)},{f(py)}" for px, py in ps)
+    out = (f'<path d="{path(pts)}" stroke="#9FB8FF" stroke-width="{f(width * 3)}" stroke-opacity="0.35" filter="url(#sg)"/>'
+           f'<path d="{path(pts)}" stroke="#F2F6FF" stroke-width="{f(width)}"/>')
+    for fp in forks:
+        out += f'<path d="{path(fp)}" stroke="#DDE6FF" stroke-width="{f(width * 0.6)}"/>'
+    return out
+
+
+rnd = random.Random(19)
+storm = ('<defs><radialGradient id="sf"><stop offset="0" stop-color="#6C7CFF" stop-opacity="0.05"/>'
+         '<stop offset="0.7" stop-color="#5A6BFF" stop-opacity="0.16"/><stop offset="0.95" stop-color="#8A5BFF" stop-opacity="0.26"/>'
+         '<stop offset="1" stop-color="#8A5BFF" stop-opacity="0"/></radialGradient>'
+         '<filter id="sb" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="14"/></filter>'
+         '<filter id="sg" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter></defs>'
+         f'<circle cx="{C}" cy="{C}" r="500" fill="url(#sf)"/>')
+# Cloud bands: arcs on a slow logarithmic spiral, blurred into soft streaks.
+bands = []
+for k in range(26):
+    r = 120 + k * 14 + rnd.uniform(-8, 8)
+    a0 = rnd.uniform(0, math.tau)
+    span = rnd.uniform(0.9, 2.2)
+    x0, y0 = C + math.cos(a0) * r, C + math.sin(a0) * r
+    r1 = r * 1.12
+    x1, y1 = C + math.cos(a0 + span) * r1, C + math.sin(a0 + span) * r1
+    col = rnd.choice(("#7F8CFF", "#9C7BFF", "#6FB6FF", "#B7C2FF"))
+    bands.append(f'<path d="M{f(x0)},{f(y0)} A{f(r)},{f(r)} 0 0 1 {f(x1)},{f(y1)}" stroke="{col}" '
+                 f'stroke-opacity="{f(rnd.uniform(0.18, 0.4))}" stroke-width="{f(rnd.uniform(14, 34))}" stroke-linecap="round"/>')
+storm += f'<g fill="none" filter="url(#sb)">{"".join(bands)}</g>'
+# Crisp inner streaks over the soft bands.
+streaks = []
+for k in range(18):
+    r = rnd.uniform(160, 470)
+    a0 = rnd.uniform(0, math.tau)
+    span = rnd.uniform(0.25, 0.7)
+    streaks.append(f'<path d="M{f(C + math.cos(a0) * r)},{f(C + math.sin(a0) * r)} A{f(r)},{f(r)} 0 0 1 '
+                   f'{f(C + math.cos(a0 + span) * r)},{f(C + math.sin(a0 + span) * r)}" stroke="#DCE3FF" '
+                   f'stroke-opacity="{f(rnd.uniform(0.2, 0.45))}" stroke-width="{f(rnd.uniform(2, 4))}" stroke-linecap="round"/>')
+storm += f'<g fill="none">{"".join(streaks)}</g>'
+bolts = []
+for k in range(5):
+    a = k / 5 * math.tau + rnd.uniform(-0.3, 0.3)
+    r = rnd.uniform(190, 330)
+    bolts.append(bolt(rnd, C + math.cos(a) * r, C + math.sin(a) * r, a + rnd.uniform(1.2, 1.9), rnd.uniform(140, 210), 4.5))
+storm += f'<g fill="none" stroke-linecap="round" stroke-linejoin="round">{"".join(bolts)}</g>'
+# A ragged edge: short dashes whose radius wanders.
+edge = []
+for k in range(96):
+    a0 = k / 96 * math.tau
+    a1 = a0 + math.tau / 96 * 0.6
+    r = 488 + rnd.uniform(-10, 8)
+    edge.append(f'<path d="M{f(C + math.cos(a0) * r)},{f(C + math.sin(a0) * r)} A{f(r)},{f(r)} 0 0 1 '
+                f'{f(C + math.cos(a1) * r)},{f(C + math.sin(a1) * r)}"/>')
+storm += (f'<g fill="none" stroke="#9FB0FF" stroke-opacity="0.75" stroke-width="6" stroke-linecap="round">'
+          f'{"".join(edge)}</g>')
+write("zone-storm", 1024, storm)
+
+rnd = random.Random(29)
+nova = ('<defs><radialGradient id="nf"><stop offset="0" stop-color="#FF7A2E" stop-opacity="0.22"/>'
+        '<stop offset="0.5" stop-color="#FF4D2E" stop-opacity="0.08"/><stop offset="0.93" stop-color="#FF2E4D" stop-opacity="0.16"/>'
+        '<stop offset="1" stop-color="#FF2E4D" stop-opacity="0"/></radialGradient>'
+        '<radialGradient id="ns" cx="0.45" cy="0.42" r="0.7"><stop offset="0" stop-color="#FFFFFF"/>'
+        '<stop offset="0.25" stop-color="#FFF1B8"/><stop offset="0.6" stop-color="#FF9A3D"/><stop offset="1" stop-color="#D9261C"/></radialGradient>'
+        '<radialGradient id="nc"><stop offset="0.25" stop-color="#FFB15A" stop-opacity="0.8"/>'
+        '<stop offset="0.6" stop-color="#FF4D2E" stop-opacity="0.25"/><stop offset="1" stop-color="#FF2E4D" stop-opacity="0"/></radialGradient>'
+        '<filter id="nb" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter></defs>'
+        f'<circle cx="{C}" cy="{C}" r="500" fill="url(#nf)"/>')
+# Shock rings, fainter as they spread.
+for k, r in enumerate((150, 235, 320, 405)):
+    nova += (f'<circle cx="{C}" cy="{C}" r="{r}" fill="none" stroke="#FFB15A" '
+             f'stroke-opacity="{f(0.55 - k * 0.11)}" stroke-width="{f(9 - k * 1.5)}"/>')
+# The swollen star: a corona of uneven flares, then the disc and its hot spots.
+flares = []
+for k in range(30):
+    a = k / 30 * math.tau + rnd.uniform(-0.06, 0.06)
+    r1, r2 = 92, 92 + rnd.uniform(25, 85)
+    flares.append(f'<path d="M{f(C + math.cos(a) * r1)},{f(C + math.sin(a) * r1)} L{f(C + math.cos(a) * r2)},'
+                  f'{f(C + math.sin(a) * r2)}" stroke="#FFC46B" stroke-opacity="{f(rnd.uniform(0.3, 0.7))}" '
+                  f'stroke-width="{f(rnd.uniform(6, 14))}" stroke-linecap="round"/>')
+nova += f'<circle cx="{C}" cy="{C}" r="190" fill="url(#nc)"/><g filter="url(#nb)">{"".join(flares)}</g>'
+nova += f'<circle cx="{C}" cy="{C}" r="96" fill="url(#ns)"/>'
+for _ in range(16):
+    a = rnd.uniform(0, math.tau)
+    d = math.sqrt(rnd.uniform(0, 1)) * 80
+    nova += (f'<circle cx="{f(C + math.cos(a) * d)}" cy="{f(C + math.sin(a) * d)}" r="{f(rnd.uniform(5, 13))}" '
+             f'fill="#FFFFFF" fill-opacity="{f(rnd.uniform(0.15, 0.4))}"/>')
+# Ejecta: specks flung outward.
+for _ in range(60):
+    a = rnd.uniform(0, math.tau)
+    d = rnd.uniform(120, 460)
+    nova += (f'<circle cx="{f(C + math.cos(a) * d)}" cy="{f(C + math.sin(a) * d)}" r="{f(rnd.uniform(1.5, 4))}" '
+             f'fill="#FFD9A0" fill-opacity="{f(rnd.uniform(0.3, 0.8))}"/>')
+# The hazard boundary: long red dashes broken by warning chevrons.
+haz = []
+for k in range(8):
+    a0 = k / 8 * math.tau + 0.12
+    a1 = a0 + math.tau / 8 - 0.24
+    haz.append(f'<path d="M{f(C + math.cos(a0) * 492)},{f(C + math.sin(a0) * 492)} A492,492 0 0 1 '
+               f'{f(C + math.cos(a1) * 492)},{f(C + math.sin(a1) * 492)}"/>')
+chev = []
+for k in range(8):
+    a = k / 8 * math.tau
+    x, y = C + math.cos(a) * 492, C + math.sin(a) * 492
+    deg = math.degrees(a) + 90
+    chev.append(f'<g transform="translate({f(x)} {f(y)}) rotate({f(deg)})">'
+                f'<path d="M-22,14 L0,-16 L22,14 Z" fill="#FF2E4D" stroke="#0D0820" stroke-width="3"/>'
+                f'<rect x="-2.5" y="-6" width="5" height="11" fill="#0D0820"/><rect x="-2.5" y="7" width="5" height="4" fill="#0D0820"/></g>')
+nova += (f'<g fill="none" stroke="#FF2E4D" stroke-opacity="0.85" stroke-width="8" stroke-linecap="round" '
+         f'stroke-dasharray="26 14">{"".join(haz)}</g>{"".join(chev)}')
+write("zone-nova", 1024, nova)
 
 with open(os.path.join(OUT, "sizes.txt"), "w") as fh:
     fh.write("\n".join(sizes) + "\n")

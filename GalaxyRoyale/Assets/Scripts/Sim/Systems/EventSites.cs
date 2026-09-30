@@ -45,7 +45,7 @@ namespace GalaxyRoyale.Sim.Systems
 
         /// <summary>A spot between <paramref name="minD"/> and <paramref name="maxD"/> tiles
         /// from home, inside the galaxy, outside the Core Zone, preferring a free tile.</summary>
-        static TileXY PlaceNear(GameState s, int instance, int salt, int minD, int maxD, bool needFree)
+        static TileXY PlaceNear(GameState s, int instance, int salt, int minD, int maxD, bool needFree, int margin = 0)
         {
             for (int attempt = 0; attempt < 12; attempt++)
             {
@@ -53,14 +53,16 @@ namespace GalaxyRoyale.Sim.Systems
                 double d = minD + Hash(s, instance, salt + attempt * 17 + 1) * (maxD - minD);
                 var t = new TileXY((int)Math.Round(s.HomeTile.X + Math.Cos(a) * d),
                                    (int)Math.Round(s.HomeTile.Y + Math.Sin(a) * d));
-                if (!Balance.InGalaxy(t) || Balance.InCoreZone(t)) continue;
+                if (!Balance.InGalaxy(t, margin) || Balance.InCoreZone(t)) continue;
                 if (!needFree) return t;
                 if (MapLookup.NodeAt(s, t) == null) return t;
                 if (MapLookup.NearbyFreeTile(s, t) is { } free) return free;
             }
-            return s.HomeTile.X < Balance.SectorSize / 2
-                ? new TileXY(s.HomeTile.X + minD, s.HomeTile.Y)
-                : new TileXY(s.HomeTile.X - minD, s.HomeTile.Y);
+            // Nothing fit: straight in toward the galaxy's centre (and so away from its rim).
+            double cx = Balance.SectorSize / 2 - s.HomeTile.X, cy = Balance.SectorSize / 2 - s.HomeTile.Y;
+            double len = Math.Max(1, Math.Sqrt(cx * cx + cy * cy));
+            return new TileXY((int)Math.Round(s.HomeTile.X + cx / len * minD),
+                              (int)Math.Round(s.HomeTile.Y + cy / len * minD));
         }
 
         /// <summary>The storm or doomed sector live at <paramref name="tick"/>, if any.</summary>
@@ -84,7 +86,9 @@ namespace GalaxyRoyale.Sim.Systems
 
         static Zone NovaZone(GameState s, int instance, int endTick) =>
             new(GalaxyEventKind.Supernova,
-                PlaceNear(s, instance, 2, GalaxyEvents.NovaMinDist, GalaxyEvents.NovaMaxDist, needFree: false),
+                // The whole doomed sector inside the rim, where the map camera can frame it.
+                PlaceNear(s, instance, 2, GalaxyEvents.NovaMinDist, GalaxyEvents.NovaMaxDist, needFree: false,
+                    margin: GalaxyEvents.NovaRadius + 60),
                 GalaxyEvents.NovaRadius, endTick);
 
         public static bool InStorm(GameState s, TileXY t, int tick) =>
