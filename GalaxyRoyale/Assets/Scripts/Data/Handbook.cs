@@ -22,7 +22,8 @@ namespace GalaxyRoyale.Data
                 Paragraphs = new[]
                 {
                     "Your colony makes resources every hour. Spend them on buildings, research and ships, and the colony makes more.",
-                    "The Commander's Path, top left of the base, always shows your next goal and pays a reward when it's done. Following it is the quickest way to grow.",
+                    "The Commander's Path, top left of the base, always shows your next goal and pays a reward when it's done. Its first act covers the basics; its second carries you through the first week. Following it is the quickest way to grow.",
+                    "Fleet command drops a supply crate every 4 hours. Up to 3 wait at the Command Center; tap SUPPLY there to open them.",
                     "Out in the galaxy, 249 rival commanders build, raid and form clans on their own schedule, whether or not you're playing. Grow fast enough to hold your own.",
                 },
             },
@@ -31,7 +32,7 @@ namespace GalaxyRoyale.Data
                 Title = "Resources and energy", Summary = "Gold, quartz, helium, energy, Dark Matter",
                 Paragraphs = new[]
                 {
-                    "Gold, quartz and helium pay for everything. The Gold Mine, Quartz Extractor and Helium Refinery make them every hour; upgrade them to make more.",
+                    "Gold, quartz and helium pay for everything. The Gold Mine, Quartz Extractor and Helium Refinery make them every hour; upgrade them to make more. Mines ramp up fast through their first six levels.",
                     "Helium is also fuel: every fleet burns it to fly.",
                     "Energy comes from the Power Plant. When your mines need more energy than you make, the percentage in the header drops below 100% and every mine slows down. Upgrade the Power Plant to fix it.",
                     "Dark Matter is rare. It comes from quests, events, achievements, dark-matter fields and holding the Galactic Core, and buys speed-ups and items in the ITEMS shop.",
@@ -78,6 +79,7 @@ namespace GalaxyRoyale.Data
                     "Build ships in FLEET. Each hull's card shows its cost, its attack, shields and hull, its speed and how much it carries.",
                     "Fighters are fast and cheap, Bombers hit hard, and Cruisers take a beating. Probes scout, and Haulers carry cargo home. Heavier hulls unlock as the Shipyard levels up.",
                     "A fleet flies at the speed of its slowest ship, and bigger fleets burn more helium.",
+                    "Home Guard: warships docked at home raise your production, up to +15% once their might reaches 25 × your Command Center level squared. Ships out flying don't count. FLEET shows where you stand.",
                 },
             },
             new HandbookTopic
@@ -108,6 +110,7 @@ namespace GalaxyRoyale.Data
                     "Tap a pirate camp or a rival colony and SPY to send a Probe. Its report, in MAIL, shows the garrison and, for a colony, what you could plunder.",
                     "Tap ATTACK to pick your fleet. Once you've scanned the target, the forecast shows your odds before you launch.",
                     "Every battle files a report in MAIL with your losses and the plunder, and a replay you can watch round by round.",
+                    "Pirate camps hold a stockpile that grows with your Command Center. Send Haulers with the attack: on a raid they carry 50% more. The first win at each camp level pays a bonus, sent straight home, plus Dark Matter.",
                 },
             },
             new HandbookTopic
@@ -115,6 +118,7 @@ namespace GalaxyRoyale.Data
                 Title = "Defending your colony", Summary = "Raids, radar, shields and vaults",
                 Paragraphs = new[]
                 {
+                    "A new colony starts under beginner protection: no rival can raid or scan it for 48 hours, or until the Command Center reaches level 5, or until you raid another commander. Pirate camps don't count.",
                     "Rival commanders will raid you. Ships at home fight back, and the Command Bastion's railguns join in.",
                     "The Warehouse keeps part of your stockpile out of raiders' reach; the rest can be plundered.",
                     "The Radar Station warns you before raiders land, and higher levels warn earlier and tell you more. With warning, you can send your fleet away or raise a shield.",
@@ -128,6 +132,7 @@ namespace GalaxyRoyale.Data
                 {
                     "Build a Research Lab, tap it and OPEN RESEARCH. Technologies give permanent bonuses: more production, faster builds, stronger ships and defenders, cheaper flights.",
                     "The ECONOMY, COMBAT and DEFENSE pages group them. Higher Research Lab levels unlock more of them and higher levels of each.",
+                    "From Research Lab 10 a third tier opens: Deep-Space Mining, Subspace Navigation, Adaptive Shielding and Command Doctrine (more commander XP).",
                 },
             },
             new HandbookTopic
@@ -135,7 +140,7 @@ namespace GalaxyRoyale.Data
                 Title = "Your commander", Summary = "Levels, skills and titles",
                 Paragraphs = new[]
                 {
-                    "Everything you do earns your commander experience. Every level past the first earns a skill point; spend them in your profile on ranks in three branches of skills.",
+                    "Everything you do earns your commander experience: building, research, battles, gathering, surveying the Wilds, events, dailies and more. Every level past the first earns a skill point; spend them in your profile on ranks in three branches of skills.",
                     "Achievements pay Dark Matter, and many unlock a title you can wear on your profile and in the rankings.",
                 },
             },

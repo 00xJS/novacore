@@ -55,6 +55,7 @@ namespace GalaxyRoyale.Game.UI
                 TechEffectKind.DefHpMult => "home defenders' durability",
                 TechEffectKind.DefShieldMult => "home defenders' shields",
                 TechEffectKind.OrbitalBattery => "battery fire per round",
+                TechEffectKind.XpMult => "commander XP",
                 _ => "",
             };
         }

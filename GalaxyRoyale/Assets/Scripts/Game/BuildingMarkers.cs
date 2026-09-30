@@ -535,6 +535,11 @@ namespace GalaxyRoyale.Game
                     && state.SalvageStored.Total >= 1000 && top is { } st)
                     _chips.Bubble("salvage", new Vector2(st.x, st.y - 2f), Icon.Crate,
                         $"+{UiTheme.FmtAmount(state.SalvageStored.Total)}", CollectSalvage);
+                // Supply drops wait at the Command Center (balance pass 2026-09-30).
+                if (pad.Kind == PadKind.Building && pad.Building == BuildingId.CommandCenter
+                    && state.SupplyCrates > 0 && top is { } ct)
+                    _chips.Bubble("supplydrop", new Vector2(ct.x, ct.y - 2f), Icon.Crate,
+                        state.SupplyCrates > 1 ? $"SUPPLY ×{state.SupplyCrates}" : "SUPPLY", CollectSupplyDrop);
                 // Waiting for you: damaged hulls at the Repair Dock, a charged Jump Gate.
                 if (pad.Kind == PadKind.Building && pad.Building == BuildingId.RepairDock && view.Level > 0
                     && state.Repair == null && state.DamagedHulls.Count > 0 && top is { } rt)
@@ -726,6 +731,20 @@ namespace GalaxyRoyale.Game
             {
                 GameAudio.Feedback(Sfx.Coins, Haptic.Success);
                 UIController.Instance?.Toast($"Salvage collected: +{UiTheme.FmtAmount(got.Total)}", Icon.Crate, UiTheme.Good);
+            }
+        }
+
+        void CollectSupplyDrop()
+        {
+            var state = _ctx?.State;
+            if (state == null) return;
+            int crates = state.SupplyCrates;
+            if (SupplySystem.Collect(state) is { } got)
+            {
+                GameAudio.Feedback(Sfx.Coins, Haptic.Success);
+                UIController.Instance?.Toast(
+                    $"{(crates > 1 ? $"{crates} supply drops" : "Supply drop")} opened: +{UiTheme.FmtAmount(got.Total)}",
+                    Icon.Crate, UiTheme.Good);
             }
         }
 

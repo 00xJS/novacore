@@ -30,6 +30,8 @@ namespace GalaxyRoyale.Game
             new() { Id = "gather",  Label = "Gather 100K resources",        Target = 100_000, RewardDM = 150 },
             new() { Id = "battle",  Label = "Win a battle",                 Target = 1,       RewardDM = 200 },
             new() { Id = "spy",     Label = "Send a spy probe",             Target = 1,       RewardDM = 100 },
+            // Fleet goal (balance pass 2026-09-30): ship spending fell to nothing.
+            new() { Id = "ships",   Label = "Build 10 ships",               Target = 10,      RewardDM = 120 },
         };
 
         const string PrefsKey = "galaxyroyale.daily";
@@ -41,7 +43,7 @@ namespace GalaxyRoyale.Game
         string _day = "";
         int _builds, _spies;
         long _gatherWhole;
-        int _marchesBase = -1, _battlesBase = -1;
+        int _marchesBase = -1, _battlesBase = -1, _shipsBase = -1;
         readonly HashSet<string> _claimed = new();
 
         void Awake()
@@ -88,6 +90,7 @@ namespace GalaxyRoyale.Game
             var state = _ctx.State;
             _marchesBase = state?.Stats.MarchesSent ?? 0;
             _battlesBase = state?.Stats.BattlesWon ?? 0;
+            _shipsBase = state?.Stats.ShipsBuilt ?? 0;
             SavePrefs();
         }
 
@@ -98,6 +101,8 @@ namespace GalaxyRoyale.Game
             var inst = s_instance;
             if (inst == null) return 0;
             inst.EnsureToday();
+            // Progress saved before the ships goal existed has no baseline: start it now.
+            if (inst._shipsBase < 0) { inst._shipsBase = state.Stats.ShipsBuilt; inst.SavePrefs(); }
             long p = def.Id switch
             {
                 "builds"  => inst._builds,
@@ -105,6 +110,7 @@ namespace GalaxyRoyale.Game
                 "gather"  => inst._gatherWhole,
                 "battle"  => Math.Max(0, state.Stats.BattlesWon - inst._battlesBase),
                 "spy"     => inst._spies,
+                "ships"   => Math.Max(0, state.Stats.ShipsBuilt - inst._shipsBase),
                 _ => 0,
             };
             return (int)Math.Min(def.Target, p);
@@ -121,6 +127,7 @@ namespace GalaxyRoyale.Game
             if (inst._claimed.Contains(def.Id)) return false;
             if (Progress(state, def) < def.Target) return false;
             state.Premium.DarkMatter += def.RewardDM;
+            state.Stats.DailiesClaimed++; // commander XP
             inst._claimed.Add(def.Id);
             inst.SavePrefs();
             return true;
@@ -152,6 +159,7 @@ namespace GalaxyRoyale.Game
             d._gatherWhole = 0;
             d._marchesBase = -1;
             d._battlesBase = -1;
+            d._shipsBase = -1;
             d._claimed.Clear();
         }
 
@@ -170,6 +178,7 @@ namespace GalaxyRoyale.Game
                 _gatherWhole = d.TryGetValue("gather", out var g) && g is long gl ? gl : 0;
                 _marchesBase = I(d, "marchesBase");
                 _battlesBase = I(d, "battlesBase");
+                _shipsBase = d.TryGetValue("shipsBase", out var sb) && sb is long sbl ? (int)sbl : -1;
                 if (d.TryGetValue("claimed", out var c) && c is List<object?> claimed)
                     foreach (var id in claimed)
                         if (id is string s) _claimed.Add(s);
@@ -191,6 +200,7 @@ namespace GalaxyRoyale.Game
                 ["gather"] = _gatherWhole,
                 ["marchesBase"] = (long)_marchesBase,
                 ["battlesBase"] = (long)_battlesBase,
+                ["shipsBase"] = (long)_shipsBase,
                 ["claimed"] = claimed,
             }));
             PlayerPrefs.Save();

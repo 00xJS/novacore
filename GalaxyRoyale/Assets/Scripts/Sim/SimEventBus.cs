@@ -60,6 +60,12 @@ namespace GalaxyRoyale.Sim
     public sealed record CommanderLevelUp(int Level, int Gained, int DarkMatter, IReadOnlyList<string> Items) : SimEvent;
     /// <summary>A survey of the Wilds landed: what it found in the sector.</summary>
     public sealed record WildsSurveyed(int Sector, WildsFind Find) : SimEvent;
+    /// <summary>The first win over a camp of this level paid its bonus (balance pass 2026-09-30).</summary>
+    public sealed record CampFirstClear(int CampLevel, ResourceBag BonusMilli, int DarkMatter) : SimEvent;
+    /// <summary>Beginner protection ended: Reason is "time", "cc" or "raid".</summary>
+    public sealed record ProtectionEnded(string Reason) : SimEvent;
+    /// <summary>A supply drop landed at the Command Center (Waiting = crates now waiting).</summary>
+    public sealed record SupplyDropLanded(int Waiting) : SimEvent;
 
     public sealed class SimEventBus
     {

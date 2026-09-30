@@ -280,6 +280,10 @@ namespace GalaxyRoyale.Sim
         /// <summary>Aegis Shield: while active nobody can target this planet with a
         /// raid, and inbound fleets deflect at arrival. Launching a raid drops it.</summary>
         public int ShieldUntilTick;
+        /// <summary>Beginner protection (balance pass 2026-09-30): untargetable like the
+        /// Aegis until this tick, ended early at Command Center 5 or by raiding a
+        /// commander. 0 = none (older saves never had it).</summary>
+        public int ProtectionUntilTick;
         /// <summary>Holds the Galactic Core right now (Galactic Command: faster marches).
         /// Kept in step by CoreSystem; not saved — the next Core tick restores it.</summary>
         public bool CoreHolder;
@@ -320,6 +324,15 @@ namespace GalaxyRoyale.Sim
         public int BossFinalBlows;
         /// <summary>Trades on the galactic market.</summary>
         public int MarketTrades;
+        // Balance pass 2026-09-30: more of the record earns commander XP.
+        /// <summary>Resources hauled home from gathering, milli-units.</summary>
+        public long GatheredMilli;
+        /// <summary>Daily objectives claimed.</summary>
+        public int DailiesClaimed;
+        /// <summary>Supply drops collected.</summary>
+        public int SupplyDropsCollected;
+        /// <summary>Items used from the inventory.</summary>
+        public int ItemsUsed;
     }
 
     /// <summary>Your mark on the galactic market (MarketSystem): how far your own
@@ -396,6 +409,13 @@ namespace GalaxyRoyale.Sim
         /// <summary>App Store transactions already credited (PurchaseSystem), so a
         /// transaction handed over twice pays once.</summary>
         public HashSet<string> CreditedTransactions = new();
+        /// <summary>Camp levels the player has beaten at least once (the first win at
+        /// each level pays a bonus; balance pass 2026-09-30).</summary>
+        public HashSet<int> CampFirstClears = new();
+        /// <summary>Supply drops (balance pass 2026-09-30): crates waiting at the
+        /// Command Center, and when the next one lands (0 = schedule on the next tick).</summary>
+        public int SupplyCrates;
+        public int NextSupplyDropTick;
         /// <summary>Equipped commander title — an unlocked achievement's id (null = none).</summary>
         public string? Title;
         /// <summary>Galaxy event being tracked (EventSystem): its instance number,
@@ -511,6 +531,9 @@ namespace GalaxyRoyale.Sim
                 Buildings = buildings,
                 BuildingLayout = DefaultLayout(),
                 Ships = ships,
+                // Balance pass 2026-09-30: new colonies start under beginner protection.
+                Buffs = new Buffs { ProtectionUntilTick = Balance.BeginnerProtectionSec },
+                NextSupplyDropTick = Balance.SupplyDropEverySec,
             };
 
             if (test)

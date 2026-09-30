@@ -1,6 +1,7 @@
 // Map node definitions — resource tiles, helium clouds, derelict hulks, pirate camps.
 // Ported from `src/data/nodes.ts`. Tier weights control which node kinds appear
 // at each risk tier (0 outer rim → 4 core).
+using System;
 using System.Collections.Generic;
 
 namespace GalaxyRoyale.Data
@@ -31,6 +32,27 @@ namespace GalaxyRoyale.Data
         /// 2026-09-28 balance pass: a rim camp paid ~100 resources (half a
         /// minute of gathering) — less than the fighters it cost to take.</summary>
         public const float CampLootFactor = 2f;
+
+        /// <summary>A camp's stockpile on top of its garrison's worth (whole units,
+        /// by camp level; balance pass 2026-09-30): raids earned 800-2,400 a day in
+        /// the pacing run, not worth the fleet. A Lv 1 camp now holds about two
+        /// hours of an early colony's mines, and each level ~3× the last; the
+        /// pirates grow fatter as the colonies around them do (× the raider's
+        /// CampStockpileGrowth). Split 45% gold, 35% quartz, 20% helium.</summary>
+        public static long CampStockpile(int campLevel, int raiderCc) =>
+            (long)(CampStockpile(campLevel) * CampStockpileGrowth(raiderCc));
+
+        /// <summary>+40% per Command Center level past the first.</summary>
+        public static double CampStockpileGrowth(int raiderCc) => 1.0 + 0.4 * Math.Max(0, raiderCc - 1);
+
+        public static long CampStockpile(int campLevel) => campLevel switch
+        {
+            <= 1 => 2500,
+            2 => 8000,
+            3 => 24000,
+            4 => 70000,
+            _ => 180000,
+        };
 
         public static readonly IReadOnlyList<NodeKind> All = new[]
         {

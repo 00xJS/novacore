@@ -74,7 +74,20 @@ namespace GalaxyRoyale.Sim.Systems
             xp += st.EventsCompleted * 100L + st.ClanWarsWon * 150L;
             xp += st.CoresSeized * 300L + st.CoreHoursHeld * 10L;
             xp += st.BossDamage / 2_000 + st.BossFinalBlows * 200L; // damage, not strikes: nothing to farm
+            // Balance pass 2026-09-30: levels stalled at 14 by day 5. Events count
+            // more, and gathering, dailies, the Wilds and supply drops now count.
+            xp += st.EventsCompleted * 150L;               // 250 an event in all
+            xp += st.GatheredMilli / 2_000_000;           // 1 per 2,000 gathered
+            xp += st.DailiesClaimed * 40L + st.SupplyDropsCollected * 10L;
+            xp += WildsSurveys(s) * 15L;
             return xp;
+        }
+
+        static int WildsSurveys(GameState s)
+        {
+            int n = 0;
+            foreach (var sector in s.Wilds.Sectors.Values) n += sector.Surveys;
+            return n;
         }
 
         /// <summary>A rival's level, read straight off their record (rivals have no skills).</summary>
@@ -93,8 +106,11 @@ namespace GalaxyRoyale.Sim.Systems
             if (score > c.ScoreSeen)
             {
                 // ×1.5 on Brutal, in halves so nothing is lost to rounding.
+                // Command Doctrine research adds its % on top (balance pass 2026-09-30).
                 int halves = (int)Math.Round(Difficulties.XpMult(s.Difficulty) * 2);
-                long scaled = (score - c.ScoreSeen) * halves + c.XpCarry;
+                long gained = (score - c.ScoreSeen)
+                    * (100 + (int)Math.Round(ResearchSystem.EffectTotal(s, TechEffectKind.XpMult) * 100)) / 100;
+                long scaled = gained * halves + c.XpCarry;
                 c.Xp += scaled / 2;
                 c.XpCarry = (int)(scaled % 2);
                 c.ScoreSeen = score;

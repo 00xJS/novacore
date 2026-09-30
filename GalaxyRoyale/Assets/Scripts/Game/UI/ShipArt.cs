@@ -437,6 +437,7 @@ namespace GalaxyRoyale.Game.UI
             TechEffectKind.DefHpMult => Icon.Shield,
             TechEffectKind.DefShieldMult => Icon.Ring,
             TechEffectKind.OrbitalBattery => Icon.Target,
+            TechEffectKind.XpMult => Icon.Star,
             _ => Icon.Info,
         };
     }

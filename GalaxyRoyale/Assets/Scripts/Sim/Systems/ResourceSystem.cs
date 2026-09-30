@@ -65,7 +65,8 @@ namespace GalaxyRoyale.Sim.Systems
             var bal = GetEnergyBalance(state);
             float boost = state.Buffs.ProdBoostUntilTick > state.Tick ? Balance.ProdBoostFactor : 1f;
             // Gold Rush (galaxy event) lifts every empire's production.
-            float research = ResearchSystem.ProdMultiplier(state) * EventSystem.ProductionMult(state);
+            float research = ResearchSystem.ProdMultiplier(state) * EventSystem.ProductionMult(state)
+                * (1f + HomeGuardBonus(state));
             var rates = new ResourceBag();
 
             void AddProd(BuildingId type, int level)
@@ -84,6 +85,29 @@ namespace GalaxyRoyale.Sim.Systems
             foreach (var mine in state.ExtraMines) AddProd(MineTypes.ToBuildingId(mine.Type), mine.Level);
             return rates;
         }
+
+        /// <summary>Home Guard (balance pass 2026-09-30): warships docked at home lift
+        /// production, up to Balance.HomeGuardMaxBonus once their might reaches
+        /// Balance.HomeGuardFullMight(CC). Fleets out flying don't count, which makes
+        /// every raid a small trade-off.</summary>
+        public static float HomeGuardBonus(GameState state)
+        {
+            long full = Balance.HomeGuardFullMight(state.Buildings[BuildingId.CommandCenter].Level);
+            return Balance.HomeGuardMaxBonus * Math.Min(1f, HomeGuardMight(state) / (float)full);
+        }
+
+        /// <summary>Might of the warships docked at home (whole units / 10, like PowerSystem).</summary>
+        public static long HomeGuardMight(GameState state)
+        {
+            long invested = 0;
+            foreach (var kv in state.Ships)
+                if (kv.Value > 0 && IsWarship(kv.Key)) invested += (long)kv.Value * Ships.Defs[kv.Key].Cost.Total;
+            return invested / 10;
+        }
+
+        /// <summary>Everything but the cargo and recon hulls.</summary>
+        public static bool IsWarship(HullId hull) =>
+            hull != HullId.Hauler && hull != HullId.Atlas && hull != HullId.Scavenger && hull != HullId.Probe;
 
         /// <summary>Milli-units per resource shielded from raid plunder (Warehouse-scaled).</summary>
         public static ResourceBag GetProtected(GameState state)

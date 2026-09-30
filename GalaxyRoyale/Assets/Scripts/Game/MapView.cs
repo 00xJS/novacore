@@ -1110,7 +1110,7 @@ namespace GalaxyRoyale.Game
                 // Battle scar + Aegis bubble on your own planet.
                 UpdateAftermathFx(_homeBurn, _homeShield,
                     burning: state.BurningUntilTick > state.Tick,
-                    shielded: state.Buffs.ShieldUntilTick > state.Tick,
+                    shielded: ProtectionSystem.Untargetable(state, state.Tick),
                     seed: 0f);
             }
 

@@ -65,7 +65,21 @@ namespace GalaxyRoyale.Sim.Systems
 
         /// <summary>Cargo space a march still has (milli) — capacity minus what it already carries.</summary>
         public static long FreeCargo(GameState state, March march) =>
-            Math.Max(0, EffCargoCap(state, march.Ships) - march.Cargo.Total - march.CargoDm);
+            Math.Max(0, EffCargoCap(state, march.Ships) + RaidCargoBonus(state, march)
+                - march.Cargo.Total - march.CargoDm);
+
+        /// <summary>Haulers flying with an attack pack their holds tighter (balance
+        /// pass 2026-09-30): +50% of their cargo for the plunder.</summary>
+        public static long RaidCargoBonus(GameState state, March march)
+        {
+            if (march.Mission != MarchMission.Attack) return 0;
+            var haulers = new Dictionary<HullId, int>();
+            foreach (var kv in march.Ships)
+                if (kv.Value > 0 && (kv.Key == HullId.Hauler || kv.Key == HullId.Atlas))
+                    haulers[kv.Key] = kv.Value;
+            return haulers.Count == 0 ? 0
+                : (long)(EffCargoCap(state, haulers) * (double)Balance.RaidHaulerCargoBonus);
+        }
 
         /// <summary>
         /// Load resources from the stockpile onto a march at launch (the fleet-deploy
@@ -117,7 +131,7 @@ namespace GalaxyRoyale.Sim.Systems
         }
 
         /// <summary>Camp loot: garrison build cost × loot factor, same resource mix.</summary>
-        public static ResourceBag CampLoot(MapNode node)
+        public static ResourceBag CampLoot(GameState state, MapNode node)
         {
             var garrison = CampGarrison(node);
             var loot = new ResourceBag();
@@ -130,6 +144,10 @@ namespace GalaxyRoyale.Sim.Systems
                 loot.Quartz += (int)Math.Round(cost.Quartz * count * Nodes.CampLootFactor) * 1000;
                 loot.Helium     += (int)Math.Round(cost.Helium     * count * Nodes.CampLootFactor) * 1000;
             }
+            long stock = Nodes.CampStockpile(node.CampLevel, state.Buildings[BuildingId.CommandCenter].Level);
+            loot.Gold += stock * 45 / 100 * 1000;
+            loot.Quartz += stock * 35 / 100 * 1000;
+            loot.Helium += stock * 20 / 100 * 1000;
             return loot;
         }
 
@@ -478,6 +496,7 @@ namespace GalaxyRoyale.Sim.Systems
                     if (back > 0) state.Ships[hull] += back;
                 }
                 ResourceSystem.Add(state, march.Cargo);
+                if (march.Mission == MarchMission.Gather) state.Stats.GatheredMilli += march.Cargo.Total;
                 if (march.CargoDm > 0)
                     state.Premium.DarkMatter += (int)(march.CargoDm / 1000); // milli → whole DM
                 state.Marches.RemoveAll(m => m.Id == march.Id);
@@ -637,7 +656,7 @@ namespace GalaxyRoyale.Sim.Systems
                     state.Stats.BattlesWon++;
                     state.Stats.CampsCleared++;
                     UpsertOverride(state, node.Id, o => o.Cleared = true);
-                    var loot = CampLoot(node);
+                    var loot = CampLoot(state, node);
                     // Pirate Armada (galaxy event): camps carry double loot.
                     float armada = EventSystem.CampLootMult(state);
                     if (armada != 1f)
@@ -655,6 +674,17 @@ namespace GalaxyRoyale.Sim.Systems
                     march.Cargo.Helium     += taken.Helium;
                     report.Loot = taken;
                     state.Stats.LootMilli += taken.Total;
+                    // The first win at each camp level pays its stockpile again,
+                    // delivered home, and some Dark Matter (balance pass 2026-09-30).
+                    if (state.CampFirstClears.Add(node.CampLevel))
+                    {
+                        long stock = Nodes.CampStockpile(node.CampLevel, state.Buildings[BuildingId.CommandCenter].Level) * 1000;
+                        var bonus = new ResourceBag(stock * 45 / 100, stock * 35 / 100, stock * 20 / 100);
+                        int dm = Balance.CampFirstClearDarkMatter(node.CampLevel);
+                        ResourceSystem.Add(state, bonus);
+                        state.Premium.DarkMatter += dm;
+                        events.Emit(new CampFirstClear(node.CampLevel, bonus, dm));
+                    }
                 }
                 else
                 {
