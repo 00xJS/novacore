@@ -822,12 +822,16 @@ namespace GalaxyRoyale.Game
         // ---------- targeting modes ----------
 
         /// <summary>Precision Warp: next map tap proposes a new home tile.</summary>
-        public void BeginRelocation()
+        public void BeginRelocation(bool viaJumpGate = false)
         {
             _relocating = true;
+            _relocateViaGate = viaJumpGate;
             _redirectMarchId = null;
             Notify("Tap an empty tile to warp your planet");
         }
+
+        /// <summary>The pending warp is the Jump Gate's free jump, not a Precision Warp item.</summary>
+        bool _relocateViaGate;
 
         /// <summary>Spy-probe redirect: next map tap proposes the probe's new destination.</summary>
         public void BeginProbeRedirect(int marchId)
@@ -876,12 +880,18 @@ namespace GalaxyRoyale.Game
             }
             UI.ConfirmPanel.Open($"Warp your planet to {tile.X},{tile.Y}?", "WARP", () =>
             {
-                if (ShopSystem.ConsumeItem(state, "relocate-target").Ok)
+                if (_relocateViaGate)
+                {
+                    var jump = JumpGateSystem.JumpTo(state, tile);
+                    Notify(jump.Ok ? "Jump complete — the gate recharges in 24 hours" : jump.Reason ?? "The jump failed");
+                }
+                else if (ShopSystem.ConsumeItem(state, "relocate-target").Ok)
                 {
                     MarchSystem.RelocateHome(state, tile);
                     Notify("Planet relocated!");
                 }
                 else Notify("No Precision Warp in inventory");
+                _relocateViaGate = false;
                 CancelTargeting();
                 ClearSelection();
                 FocusTile(state.HomeTile);

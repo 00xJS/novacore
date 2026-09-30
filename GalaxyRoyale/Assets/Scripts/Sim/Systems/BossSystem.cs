@@ -230,6 +230,8 @@ namespace GalaxyRoyale.Sim.Systems
 
         /// <summary>Somewhere in the middle rings, clear of the core — the same spot for
         /// a visit however the galaxy got there.</summary>
+        public static TileXY DropPointFor(int seed, int visit) => DropPoint(seed, visit);
+
         static TileXY DropPoint(int seed, int visit)
         {
             var rng = Rng.Mulberry32(unchecked((uint)seed * 0x85EBCA6Bu ^ (uint)visit * 0xC2B2AE35u ^ 0xB055u));

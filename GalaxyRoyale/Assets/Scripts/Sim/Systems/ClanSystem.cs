@@ -201,7 +201,7 @@ namespace GalaxyRoyale.Sim.Systems
         {
             player.ClanId = clan.Id;
             player.ClanInviteId = 0;
-            player.ClanSupplyNextTick = player.Tick + SupplyIntervalSec;
+            player.ClanSupplyNextTick = player.Tick + EmbassySystem.SupplyIntervalSec(player);
             player.ClanSupplyPending = new ResourceBag();
             player.ClanSupplyRuns = 0;
             TrackClanSize(player, galaxy);
@@ -319,7 +319,7 @@ namespace GalaxyRoyale.Sim.Systems
             int delivered = 0, guard = 0;
             while (player.Tick >= player.ClanSupplyNextTick && guard++ < 64)
             {
-                player.ClanSupplyNextTick += SupplyIntervalSec;
+                player.ClanSupplyNextTick += EmbassySystem.SupplyIntervalSec(player);
                 if (player.ClanSupplyRuns >= MaxStoredRuns) continue; // waiting on you
                 var run = new ResourceBag();
                 foreach (var bot in BotMembers(galaxy, player.ClanId))
@@ -334,7 +334,7 @@ namespace GalaxyRoyale.Sim.Systems
                 player.ClanSupplyRuns++;
                 delivered++;
             }
-            if (player.Tick >= player.ClanSupplyNextTick) player.ClanSupplyNextTick = player.Tick + SupplyIntervalSec;
+            if (player.Tick >= player.ClanSupplyNextTick) player.ClanSupplyNextTick = player.Tick + EmbassySystem.SupplyIntervalSec(player);
             return delivered;
         }
 

@@ -76,7 +76,8 @@ namespace GalaxyRoyale.Sim.Systems
                 list.Add(new Wing { Bot = bot, Ships = ships, TravelSec = travel, LaunchTick = launch });
             }
             SortStrongestFirst(list);
-            if (list.Count > MaxStrikeWings) list.RemoveRange(MaxStrikeWings, list.Count - MaxStrikeWings);
+            int cap = EmbassySystem.StrikeWings(player); // the Clan Embassy adds wings
+            if (list.Count > cap) list.RemoveRange(cap, list.Count - cap);
             return list;
         }
 

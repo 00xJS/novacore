@@ -136,17 +136,17 @@ namespace GalaxyRoyale.Sim.Tests
         {
             var state = NewState(4);
             Assert.IsFalse(BaseLayout.PlannedOnline(state, PlannedBuilding.ExchangeTerminal));
-            Assert.AreEqual((0, 4), BaseLayout.Count(state, BaseDistrict.Frontier));
+            Assert.AreEqual((0, 8), BaseLayout.Count(state, BaseDistrict.Frontier));
             state.Buildings[BuildingId.CommandCenter].Level = 5;
             Assert.IsTrue(BaseLayout.PlannedOnline(state, PlannedBuilding.ExchangeTerminal));
-            Assert.AreEqual((1, 4), BaseLayout.Count(state, BaseDistrict.Frontier));
+            Assert.AreEqual((1, 8), BaseLayout.Count(state, BaseDistrict.Frontier));
 
             var bastion = BaseLayout.BuildingPad(BuildingId.CommandBastion);
             Assert.IsFalse(BaseLayout.Unlocked(state, bastion), "the Bastion opens at CC 6");
             state.Buildings[BuildingId.CommandCenter].Level = 6;
             Assert.IsTrue(BaseLayout.Unlocked(state, bastion));
             state.Buildings[BuildingId.CommandBastion].Level = 1;
-            Assert.AreEqual((2, 4), BaseLayout.Count(state, BaseDistrict.Frontier));
+            Assert.AreEqual((2, 8), BaseLayout.Count(state, BaseDistrict.Frontier));
 
             var drones = BaseLayout.BuildingPad(BuildingId.DroneFactory);
             Assert.AreEqual(BaseDistrict.Frontier, drones.District);
@@ -154,10 +154,19 @@ namespace GalaxyRoyale.Sim.Tests
             state.Buildings[BuildingId.CommandCenter].Level = 10;
             Assert.IsTrue(BaseLayout.Unlocked(state, drones));
             state.Buildings[BuildingId.DroneFactory].Level = 1;
-            Assert.AreEqual((3, 4), BaseLayout.Count(state, BaseDistrict.Frontier));
+            Assert.AreEqual((3, 8), BaseLayout.Count(state, BaseDistrict.Frontier));
 
+            // The Frontier completed (2026-09-29): no reserved or "coming soon" pads left.
+            Assert.IsFalse(BaseLayout.Pads.Any(p => p.Kind == PadKind.Reserved));
             state.Buildings[BuildingId.CommandCenter].Level = 30;
-            Assert.IsFalse(BaseLayout.Unlocked(state, BaseLayout.Pads.First(p => p.Kind == PadKind.Reserved)));
+            foreach (var id in new[] { BuildingId.RepairDock, BuildingId.JumpGate, BuildingId.ClanEmbassy, BuildingId.Observatory })
+            {
+                var pad = BaseLayout.BuildingPad(id);
+                Assert.AreEqual(BaseDistrict.Frontier, pad.District, id.ToString());
+                Assert.IsTrue(BaseLayout.Unlocked(state, pad), id.ToString());
+                state.Buildings[id].Level = 1;
+            }
+            Assert.AreEqual((7, 8), BaseLayout.Count(state, BaseDistrict.Frontier));
         }
     
         [Test]

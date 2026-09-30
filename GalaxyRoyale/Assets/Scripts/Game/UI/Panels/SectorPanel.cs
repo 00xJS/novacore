@@ -143,7 +143,7 @@ namespace GalaxyRoyale.Game.UI
             costHead.style.marginTop = 12;
             body.Add(costHead);
             body.Add(Amounts(cost));
-            Line(body, $"Takes {UiTheme.FmtDuration(WildsSystem.SurveySeconds(index))}", 11, UiTheme.Dim, 4);
+            Line(body, $"Takes {UiTheme.FmtDuration(WildsSystem.SurveySeconds(ctx.State!, index))}", 11, UiTheme.Dim, 4);
             var check = WildsSystem.CheckSurvey(state, index);
             if (!check.Ok) Line(body, check.Reason ?? "", 11, UiTheme.Bad, 6);
             var go = FooterButton(footer, Widgets.Primary(Widgets.IconButton(Icon.Compass, "SURVEY", () =>
@@ -152,7 +152,7 @@ namespace GalaxyRoyale.Game.UI
                 if (res.Ok)
                 {
                     GameAudio.Feedback(Sfx.Confirm, Haptic.Light);
-                    ui.Toast($"Surveying {WildsLayout.Name(index)} · {UiTheme.FmtDuration(WildsSystem.SurveySeconds(index))}",
+                    ui.Toast($"Surveying {WildsLayout.Name(index)} · {UiTheme.FmtDuration(WildsSystem.SurveySeconds(ctx.State!, index))}",
                         Icon.Compass, UiTheme.Magenta);
                 }
                 else
@@ -167,7 +167,7 @@ namespace GalaxyRoyale.Game.UI
         static void ShowSurvey(GameContext ctx, int index, VisualElement body, VisualElement footer, int left)
         {
             var ui = UIController.Instance!;
-            int total = Math.Max(1, WildsSystem.SurveySeconds(index));
+            int total = Math.Max(1, WildsSystem.SurveySeconds(ctx.State!, index));
             var (bar, fill, label) = Widgets.ProgressBar(18f);
             bar.style.marginTop = 12;
             fill.style.width = Length.Percent(100f * (1f - left / (float)total));

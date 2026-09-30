@@ -186,7 +186,7 @@ namespace GalaxyRoyale.Game.UI
             if (holds) BuildGarrison(ctx, action, footer);
             else if (clanHolds)
             {
-                var mine = Widgets.IconText(Icon.Pact, $"Your clan holds the core — you collect {Pct(CoreSystem.ClanTributeShare)} " +
+                var mine = Widgets.IconText(Icon.Pact, $"Your clan holds the core — you collect {Pct(EmbassySystem.ClanTributeShare(state))} " +
                     "of your production every hour it stays that way.", 12, UiTheme.Good, bold: true);
                 mine.Q<Label>("text").style.whiteSpace = WhiteSpace.Normal;
                 action.Add(mine);
@@ -232,7 +232,9 @@ namespace GalaxyRoyale.Game.UI
             Buff(Icon.Shield, UiTheme.Quartz, "Core Battery",
                 $"The station's guns (Lv {CoreSystem.CoreBattery}) fight for your garrison", holds);
             Buff(Icon.Pact, UiTheme.Helium, "Clan Tribute",
-                $"Clanmates earn {Pct(CoreSystem.ClanTributeShare)} of their hourly production while the core is your clan's", holds || clanHolds);
+                $"Clanmates earn {Pct(CoreSystem.ClanTributeShare)} of their hourly production while the core is your clan's" +
+                (EmbassySystem.Level(ctx.State!) > 0 ? $" (you: {Pct(EmbassySystem.ClanTributeShare(ctx.State!))} with your Clan Embassy)" : ""),
+                holds || clanHolds);
             Buff(Icon.Bolt, UiTheme.Magenta, "Galactic Command",
                 $"+{Pct(CoreSystem.CommandSpeedMult - 1)} march speed for every fleet you send", holds, isNew: true);
             Buff(Icon.Eye, UiTheme.Magenta, "Core Beacon",
@@ -506,7 +508,7 @@ namespace GalaxyRoyale.Game.UI
         }
 
         /// <summary>"12%" — the P0 format adds a culture-dependent space ("12 %").</summary>
-        static string Pct(double share) => $"{Math.Round(share * 100):0}%";
+        static string Pct(double share) => $"{Math.Round(share * 1000) / 10:0.#}%";
 
         static Label Note(string text, float marginTop)
         {

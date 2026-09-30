@@ -19,6 +19,12 @@ namespace GalaxyRoyale.Data
         CommandBastion,
         SalvageYard,
         DroneFactory,
+        // The Frontier completed (2026-09-29): the three reserved pads and the top
+        // row's gap got buildings — appended so saved enum values stay put.
+        RepairDock,
+        JumpGate,
+        ClanEmbassy,
+        Observatory,
     }
 
     public enum BuildingKind
@@ -33,6 +39,10 @@ namespace GalaxyRoyale.Data
         Defense,    // command bastion (railguns + armoured docks at home)
         Salvage,    // salvage yard (resources back from wrecks)
         Drones,     // drone factory (harvester drones for the Wilds' deposits)
+        Repair,     // repair dock (hulls lost defending home come back damaged)
+        Gate,       // jump gate (faster, cheaper flights; a free jump every 24 h)
+        Embassy,    // clan embassy (more wings, supply runs, clan tribute)
+        Observatory, // deep space observatory (surveys, radar lead, dreadnought forecast)
     }
 
     public sealed class BuildingDef
@@ -80,6 +90,10 @@ namespace GalaxyRoyale.Data
             BuildingId.CommandBastion,
             BuildingId.SalvageYard,
             BuildingId.DroneFactory,
+            BuildingId.RepairDock,
+            BuildingId.JumpGate,
+            BuildingId.ClanEmbassy,
+            BuildingId.Observatory,
         };
 
         /// <summary>The nine buildings every colony starts with room for (the Command district).</summary>
@@ -228,6 +242,58 @@ namespace GalaxyRoyale.Data
                 BaseTimeSec = 420,
                 MaxLevel = 30,
                 UnlockCc = 10,
+                BotsBuild = false,
+            },
+            [BuildingId.RepairDock] = new BuildingDef
+            {
+                Name = "Repair Dock",
+                Desc = "Tugs tow home the ships raiders shoot down over your colony. A share of them come back " +
+                       "as damaged hulls you can repair for a fraction of their cost, instead of building anew.",
+                Kind = BuildingKind.Repair,
+                BaseEnergyUse = 20,
+                BaseCost = new ResourceBag(700, 500, 150),
+                BaseTimeSec = 300,
+                MaxLevel = 30,
+                UnlockCc = 9,
+                BotsBuild = false,
+            },
+            [BuildingId.JumpGate] = new BuildingDef
+            {
+                Name = "Jump Gate",
+                Desc = "Folds space for your fleets: faster flights that burn less helium, and a free jump " +
+                       "that moves your colony every 24 hours — anywhere you choose from level 10.",
+                Kind = BuildingKind.Gate,
+                BaseEnergyUse = 30,
+                BaseCost = new ResourceBag(900, 700, 400),
+                BaseTimeSec = 360,
+                MaxLevel = 30,
+                UnlockCc = 7,
+                BotsBuild = false,
+            },
+            [BuildingId.ClanEmbassy] = new BuildingDef
+            {
+                Name = "Clan Embassy",
+                Desc = "Your clan's hall on the colony: more clanmates fly with your strikes, supply runs " +
+                       "come more often, and your share of the core's clan tribute grows.",
+                Kind = BuildingKind.Embassy,
+                BaseEnergyUse = 15,
+                BaseCost = new ResourceBag(600, 600, 200),
+                BaseTimeSec = 300,
+                MaxLevel = 30,
+                UnlockCc = 7,
+                BotsBuild = false,
+            },
+            [BuildingId.Observatory] = new BuildingDef
+            {
+                Name = "Deep Space Observatory",
+                Desc = "Long-range telescopes: Wilds surveys finish sooner, your radar hears raiders earlier, " +
+                       "and from level 10 it predicts where and when the next Pirate Dreadnought drops.",
+                Kind = BuildingKind.Observatory,
+                BaseEnergyUse = 20,
+                BaseCost = new ResourceBag(800, 900, 250),
+                BaseTimeSec = 360,
+                MaxLevel = 30,
+                UnlockCc = 11,
                 BotsBuild = false,
             },
         };

@@ -522,6 +522,20 @@ namespace GalaxyRoyale.Game
                     && state.SalvageStored.Total >= 1000 && top is { } st)
                     _chips.Bubble("salvage", new Vector2(st.x, st.y - 2f), Icon.Crate,
                         $"+{UiTheme.FmtAmount(state.SalvageStored.Total)}", CollectSalvage);
+                // Waiting for you: damaged hulls at the Repair Dock, a charged Jump Gate.
+                if (pad.Kind == PadKind.Building && pad.Building == BuildingId.RepairDock && view.Level > 0
+                    && state.Repair == null && state.DamagedHulls.Count > 0 && top is { } rt)
+                {
+                    int hulls = 0;
+                    foreach (var kv in RepairSystem.Waiting(state)) hulls += kv.Value;
+                    if (hulls > 0)
+                        _chips.Bubble("repair", new Vector2(rt.x, rt.y - 2f), Icon.Shield, $"REPAIR {hulls:N0}",
+                            () => OpenPanel(BuildingId.RepairDock));
+                }
+                if (pad.Kind == PadKind.Building && pad.Building == BuildingId.JumpGate && view.Level > 0
+                    && JumpGateSystem.Ready(state) && top is { } jt)
+                    _chips.Bubble("jump", new Vector2(jt.x, jt.y - 2f), Icon.Orbit, "JUMP READY",
+                        () => OpenPanel(BuildingId.JumpGate));
             }
             _chips.End();
             if (!ringShown) _chips.HideRing();
@@ -683,6 +697,12 @@ namespace GalaxyRoyale.Game
             if (pad.Kind == PadKind.Mine && mineId == null) return null;
             int i = BuildingSystem.FindOrderIndex(state, pad.Building, pad.Kind == PadKind.Mine ? mineId : null);
             return i >= 0 ? state.BuildQueue[i] : null;
+        }
+
+        void OpenPanel(BuildingId id)
+        {
+            if (_ctx == null) return;
+            BuildingPanel.Open(_ctx, id);
         }
 
         void CollectSalvage()

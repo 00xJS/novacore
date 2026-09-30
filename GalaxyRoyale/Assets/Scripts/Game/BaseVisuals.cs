@@ -193,9 +193,7 @@ namespace GalaxyRoyale.Game
             // The road west to the Frontier, and the Frontier's own spokes.
             Line(conduits, "Frontier Road", Parallel(BaseLayout.MiddleRow, -BaseLayout.CoreSpread, -66, r * 1.001f), UiTheme.A(accent, 0.3f),
                 thin * 1.6f, dashed: true);
-            var hub = BaseLayout.Pads[0];
-            foreach (var p in BaseLayout.Pads)
-                if (p.Kind == PadKind.Reserved && p.Lon == -90) hub = p;
+            var hub = BaseLayout.BuildingPad(BuildingId.Observatory); // the Frontier's centre pad
             foreach (var p in BaseLayout.Pads)
                 if (p.District == BaseDistrict.Frontier && p != hub)
                     Line(conduits, $"To {p.Key}", Arc(hub.Lat, hub.Lon, p.Lat, p.Lon, r * 1.001f), UiTheme.A(accent, 0.25f),

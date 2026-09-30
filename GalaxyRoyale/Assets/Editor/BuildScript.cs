@@ -61,8 +61,12 @@ public static class BuildScript
             PlayerSettings.companyName = "Galaxy Royale";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleId);
             PlayerSettings.bundleVersion = Env("GR_VERSION") ?? "1.2";
-            // Must rise with every upload; device/simulator builds keep a fixed one.
-            PlayerSettings.iOS.buildNumber = Env("GR_BUILD_NUMBER") ?? "3";
+            // Rises with every build (UTC yymmddHHMM, as scripts/testflight.sh stamps them): TestFlight needs a new one per
+            // upload, and iOS keys its cached icons (the notification banner's among them)
+            // by it — a fixed "3" kept the old icon on notifications after the new one
+            // shipped (user report 2026-09-29).
+            PlayerSettings.iOS.buildNumber = Env("GR_BUILD_NUMBER")
+                ?? System.DateTime.UtcNow.ToString("yyMMddHHmm", System.Globalization.CultureInfo.InvariantCulture);
             PlayerSettings.iOS.appleDeveloperTeamID = TeamId;
             PlayerSettings.iOS.appleEnableAutomaticSigning = true;
             PlayerSettings.iOS.targetOSVersionString = "13.0"; // the editor clamps to its own floor

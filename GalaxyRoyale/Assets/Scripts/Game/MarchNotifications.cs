@@ -119,7 +119,7 @@ namespace GalaxyRoyale.Game
             // during the offline catch-up can't be forecast, so they aren't.)
             var galaxy = _ctx.Bots;
             int radarLevel = RadarSystem.Level(state);
-            int lead = RadarSystem.WarnLeadSeconds(radarLevel);
+            int lead = RadarSystem.WarnLeadSeconds(state);
             if (raids && galaxy != null && lead > 0)
             {
                 int tier = RadarSystem.DetailTier(radarLevel);

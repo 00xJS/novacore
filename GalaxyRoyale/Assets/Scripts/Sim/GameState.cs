@@ -103,6 +103,8 @@ namespace GalaxyRoyale.Sim
         /// <summary>What the Salvage Yard recovered from this fight (milli), set as
         /// the report is filed; null when it recovered nothing.</summary>
         public ResourceBag? Salvaged;
+        /// <summary>Hulls the Repair Dock towed home from this fight, set as it's filed.</summary>
+        public Dictionary<HullId, int>? Towed;
     }
 
     public sealed class SpyIntel
@@ -222,6 +224,18 @@ namespace GalaxyRoyale.Sim
     {
         public TechId TechId;
         public int ToLevel;
+        public int EndsAtTick;
+    }
+
+    public sealed class DamagedBatch
+    {
+        public Dictionary<HullId, int> Ships = new();
+        public int ExpiresAtTick;
+    }
+
+    public sealed class RepairJob
+    {
+        public Dictionary<HullId, int> Ships = new();
         public int EndsAtTick;
     }
 
@@ -403,6 +417,12 @@ namespace GalaxyRoyale.Sim
         public int ClanGarrisonReadyTick;
         /// <summary>Salvage Yard: resources recovered from wrecks, waiting to be collected (milli).</summary>
         public ResourceBag SalvageStored = new();
+        /// <summary>Repair Dock: damaged hulls waiting for repair, each batch until it's scrapped.</summary>
+        public List<DamagedBatch> DamagedHulls = new();
+        /// <summary>Repair Dock: the repair under way (null = the dock is free).</summary>
+        public RepairJob? Repair;
+        /// <summary>Jump Gate: when its free jump is next charged (0 = ready now).</summary>
+        public int JumpGateReadyTick;
         /// <summary>The Wilds: surveyed sectors, the survey under way, the drones' haul (WildsSystem).</summary>
         public WildsState Wilds = new();
         public Profile Profile = new();

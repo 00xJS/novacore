@@ -274,6 +274,8 @@ namespace GalaxyRoyale.Game.UI
                     body.Add(go);
                 }
 
+                if (mineId == null) FrontierSection(ctx, s, id, level, body);
+
                 int idx = OrderIdx(s);
                 if (idx >= 0)
                 {
@@ -473,6 +475,12 @@ namespace GalaxyRoyale.Game.UI
                     }
                     else if (id == BuildingId.SalvageYard)
                         extras = $"{s.SalvageStored.Gold}:{s.SalvageStored.Quartz}:{s.SalvageStored.Helium}";
+                    else if (id == BuildingId.RepairDock)
+                        extras = $"{s.DamagedHulls.Count}:{(s.Repair != null ? s.Repair.EndsAtTick - s.Tick : -1)}:{RepairSystem.NextScrapTick(s) / 60}";
+                    else if (id == BuildingId.JumpGate)
+                        extras = $"{JumpGateSystem.ReloadLeft(s)}:{s.Marches.Count}";
+                    else if (id == BuildingId.Observatory && ctx.Bots != null)
+                        extras = $"{(ctx.Bots.Boss.NextVisitTick - s.Tick) / 60}:{ctx.Bots.Boss.Active}";
                     key = $"{level}|{idx}|{running}|{check.Ok}|{check.Reason}|" +
                           $"{s.Resources.Gold >= cost.Gold}{s.Resources.Quartz >= cost.Quartz}{s.Resources.Helium >= cost.Helium}|{extras}";
                 }
@@ -491,6 +499,150 @@ namespace GalaxyRoyale.Game.UI
             }
 
             ui.OpenModal(blocker, Refresh);
+        }
+
+        static string Pct(double share) => $"{Math.Round(share * 1000) / 10:0.#}%";
+
+        /// <summary>The Frontier's four late buildings (2026-09-29): what they're doing now.</summary>
+        static void FrontierSection(GameContext ctx, GameState s, BuildingId id, int level, VisualElement body)
+        {
+            if (level < 1) return;
+            var ui = UIController.Instance!;
+            void Head(string text)
+            {
+                var h = Widgets.Heading(text, 10, UiTheme.Dim, 1.4f);
+                h.style.marginTop = 12;
+                body.Add(h);
+            }
+            void Stat(string caption, string value, UnityEngine.Color? tint = null)
+            {
+                var line = Widgets.HBox(Justify.SpaceBetween);
+                line.style.marginTop = 3;
+                line.Add(Widgets.Text(caption, 12, UiTheme.Dim));
+                var v = Widgets.Text(value, 12, tint ?? UiTheme.Text, bold: true);
+                v.style.whiteSpace = WhiteSpace.Normal;
+                v.style.flexShrink = 1;
+                v.style.unityTextAlign = UnityEngine.TextAnchor.MiddleRight;
+                line.Add(v);
+                body.Add(line);
+            }
+            Button Action(Button b)
+            {
+                b.style.marginTop = 8;
+                b.style.height = 38;
+                body.Add(b);
+                return b;
+            }
+            string Hulls(Dictionary<HullId, int> ships)
+            {
+                var parts = new List<string>();
+                foreach (var hull in Ships.All)
+                    if (ships.TryGetValue(hull, out var n) && n > 0) parts.Add($"{Ships.Defs[hull].Name} ×{n:N0}");
+                return parts.Count > 0 ? string.Join(" · ", parts) : "none";
+            }
+
+            switch (id)
+            {
+                case BuildingId.RepairDock:
+                {
+                    Head("IN THE DOCK");
+                    Stat("Tows home", $"{Math.Round(RepairSystem.TowShare(level) * 100)}% of ships lost defending home");
+                    if (s.Repair is { } job)
+                    {
+                        Stat("Repairing", Hulls(job.Ships), UiTheme.Quartz);
+                        Stat("Back in service in", UiTheme.FmtDuration(Math.Max(0, job.EndsAtTick - s.Tick)));
+                        return;
+                    }
+                    var waiting = RepairSystem.Waiting(s);
+                    if (waiting.Count == 0)
+                    {
+                        Stat("Damaged hulls", "none — ships lost defending your colony will appear here");
+                        return;
+                    }
+                    Stat("Damaged hulls", Hulls(waiting), UiTheme.Energy);
+                    Stat("Scrapped in", UiTheme.FmtDuration(Math.Max(0, RepairSystem.NextScrapTick(s) - s.Tick)), UiTheme.Bad);
+                    var cost = RepairSystem.Cost(waiting);
+                    Stat("Repair costs", $"{UiTheme.FmtAmount(cost.Gold)} gold · {UiTheme.FmtAmount(cost.Quartz)} quartz · " +
+                        $"{UiTheme.FmtAmount(cost.Helium)} helium · {UiTheme.FmtDuration(RepairSystem.Seconds(waiting))}");
+                    var repair = Action(Widgets.Primary(Widgets.TextButton("REPAIR ALL", () =>
+                    {
+                        var res = RepairSystem.StartRepair(ctx.State!);
+                        if (res.Ok)
+                        {
+                            GameAudio.Feedback(Sfx.Confirm, Haptic.Success);
+                            ui.Toast("Repairs under way", Icon.Shield, UiTheme.Good);
+                            LocalBootstrap.RequestSync();
+                        }
+                        else ui.Toast(res.Reason ?? "Can't repair right now", Icon.Warning, UiTheme.Bad);
+                    }, 12)));
+                    Widgets.SetButtonEnabled(repair, ResourceSystem.CanAfford(s, cost));
+                    return;
+                }
+                case BuildingId.JumpGate:
+                {
+                    Head("THE GATE");
+                    Stat("Fleets fly", $"+{Math.Min(level, 30)}% faster, on {Math.Min(level, 30)}% less helium");
+                    bool precise = JumpGateSystem.Precise(s);
+                    Stat("Free jump", precise ? "a Precision Warp — anywhere you pick"
+                        : $"a Blind Jump — anywhere you pick from level {JumpGateSystem.PrecisionLevel}");
+                    int left = JumpGateSystem.ReloadLeft(s);
+                    Stat("Charge", left > 0 ? $"reloading · {UiTheme.FmtDuration(left)}" : "READY", left > 0 ? UiTheme.Dim : UiTheme.Good);
+                    if (left > 0) return;
+                    if (s.Marches.Count > 0)
+                    {
+                        Stat("", "Recall all fleets before jumping", UiTheme.Bad);
+                        return;
+                    }
+                    Action(Widgets.Primary(Widgets.IconButton(Icon.Orbit, precise ? "JUMP — PICK A SPOT" : "BLIND JUMP", () =>
+                    {
+                        if (precise)
+                        {
+                            ui.CloseModal();
+                            ui.SwitchView(ViewId.Map);
+                            ctx.GetComponent<MapView>()?.BeginRelocation(viaJumpGate: true);
+                            return;
+                        }
+                        ConfirmPanel.Open("Jump your colony to a random empty spot in the galaxy?\nThe gate recharges in 24 hours.",
+                            "JUMP", () =>
+                            {
+                                var res = JumpGateSystem.JumpRandom(ctx.State!);
+                                if (res.Ok)
+                                {
+                                    GameAudio.Feedback(Sfx.Launch, Haptic.Heavy);
+                                    ui.Toast($"Jumped to {ctx.State!.HomeTile.X}, {ctx.State.HomeTile.Y}", Icon.Orbit, UiTheme.Good);
+                                    LocalBootstrap.RequestSync();
+                                }
+                                else ui.Toast(res.Reason ?? "The jump failed", Icon.Warning, UiTheme.Bad);
+                                ui.CloseModal();
+                            }, () => ui.CloseModal());
+                    }, 12)));
+                    return;
+                }
+                case BuildingId.ClanEmbassy:
+                {
+                    Head("YOUR CLAN");
+                    Stat("Wings in your joint strikes", $"up to {EmbassySystem.StrikeWings(s)}");
+                    Stat("Supply runs", $"{EmbassySystem.SupplyRunsPerDay(s)} a day");
+                    Stat("Clan tribute from the core", Pct(EmbassySystem.ClanTributeShare(s)) + " of your hourly production");
+                    if (s.ClanId == 0) Stat("", "Join a clan to put these to work", UiTheme.Energy);
+                    return;
+                }
+                case BuildingId.Observatory:
+                {
+                    Head("THE TELESCOPES");
+                    Stat("Wilds surveys", $"{Math.Round((1 - ObservatorySystem.SurveyMult(s)) * 100)}% faster");
+                    Stat("Radar warnings", $"{Math.Round((ObservatorySystem.RadarLeadMult(s) - 1) * 100)}% earlier");
+                    var galaxy = ctx.Bots;
+                    if (galaxy == null) return;
+                    if (level < ObservatorySystem.ForecastLevel)
+                        Stat("Dreadnought forecast", $"from level {ObservatorySystem.ForecastLevel}");
+                    else if (galaxy.Boss.Active)
+                        Stat("Pirate Dreadnought", $"here now, at {galaxy.Boss.Tile.X}, {galaxy.Boss.Tile.Y}", UiTheme.Bad);
+                    else if (ObservatorySystem.Forecast(s, galaxy) is { } f)
+                        Stat("Next Pirate Dreadnought", $"{f.tile.X}, {f.tile.Y} in {UiTheme.FmtDuration(Math.Max(0, f.atTick - s.Tick))}", UiTheme.Energy);
+                    return;
+                }
+            }
         }
 
         /// <summary>Display names for the internal resource ids (save format keeps gold/quartz/helium).</summary>
@@ -538,6 +690,20 @@ namespace GalaxyRoyale.Game.UI
                 case BuildingKind.Drones:
                     return $"harvester drones: {Balance.WildsDrones(level)} → {Balance.WildsDrones(next)} · " +
                            $"each carries {Balance.DroneCarry(level):N0} → {Balance.DroneCarry(next):N0} a trip";
+                case BuildingKind.Repair:
+                    return $"tows home {Math.Round(RepairSystem.TowShare(level) * 100)}% → {Math.Round(RepairSystem.TowShare(next) * 100)}% " +
+                           "of the ships you lose defending your colony";
+                case BuildingKind.Gate:
+                    return $"march speed +{Math.Min(level, 30)}% → +{Math.Min(next, 30)}% · helium −{Math.Min(level, 30)}% → −{Math.Min(next, 30)}%" +
+                           (next == JumpGateSystem.PrecisionLevel ? " · free jumps go anywhere you pick" : "");
+                case BuildingKind.Embassy:
+                    return $"strike wings {3 + Math.Min(level, 30) / 10} → {3 + Math.Min(next, 30) / 10} · " +
+                           $"supply runs {1 + Math.Min(level, 30) / 10} → {1 + Math.Min(next, 30) / 10} a day · " +
+                           $"clan tribute {Pct(0.04 + 0.05 * Math.Min(level, 30) / 30.0)} → {Pct(0.04 + 0.05 * Math.Min(next, 30) / 30.0)}";
+                case BuildingKind.Observatory:
+                    return $"surveys −{Math.Round(1.5 * Math.Min(level, 30))}% → −{Math.Round(1.5 * Math.Min(next, 30))}% time · " +
+                           $"radar warning +{3 * Math.Min(level, 30)}% → +{3 * Math.Min(next, 30)}%" +
+                           (next == ObservatorySystem.ForecastLevel ? " · forecasts the Pirate Dreadnought" : "");
                 case BuildingKind.Radar:
                 {
                     string lead(int l) => l < 1 ? "no warning"

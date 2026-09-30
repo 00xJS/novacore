@@ -166,7 +166,7 @@ namespace GalaxyRoyale.Game.UI
             }
             GameAudio.Feedback(Sfx.Confirm, Haptic.Light);
             globe?.FlyToSouth(WildsLayout.Place(next).Lon);
-            ui.Toast($"Surveying {WildsLayout.Name(next)} · {UiTheme.FmtDuration(WildsSystem.SurveySeconds(next))}",
+            ui.Toast($"Surveying {WildsLayout.Name(next)} · {UiTheme.FmtDuration(WildsSystem.SurveySeconds(state, next))}",
                 Icon.Compass, UiTheme.Magenta);
         }
 
@@ -230,7 +230,7 @@ namespace GalaxyRoyale.Game.UI
             if (state.Wilds.Surveying >= 0)
                 Widgets.SetCaption(_survey, $"SURVEYING {WildsLayout.Name(state.Wilds.Surveying)} · {UiTheme.FmtDuration(left)}");
             else if (next >= 0)
-                Widgets.SetCaption(_survey, $"SURVEY NEXT SECTOR · {UiTheme.FmtDuration(WildsSystem.SurveySeconds(next)).ToUpperInvariant()}");
+                Widgets.SetCaption(_survey, $"SURVEY NEXT SECTOR · {UiTheme.FmtDuration(WildsSystem.SurveySeconds(state, next)).ToUpperInvariant()}");
             else Widgets.SetCaption(_survey, "ALL REACHABLE SECTORS CHARTED");
         }
 
