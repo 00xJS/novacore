@@ -17,7 +17,12 @@
 //     app's asset catalog at @3x. Unity's launch storyboard (Player settings:
 //     image and background, relative) points at loose 1x images in the bundle,
 //     which iOS treats as 1024 points wide and its launch snapshot drew as a
-//     grey box; from the asset catalog the logo shows.
+//     grey box; from the asset catalog the logo shows;
+//   * Apple's privacy manifests (2026-09-30): iOSPrivacy/PrivacyInfo.xcprivacy
+//     in the app's resources and iOSWidget/PrivacyInfo.xcprivacy in the widget's
+//     — no tracking, nothing collected, and the reasons for the UserDefaults
+//     reads (PlayerPrefs; the app group the widget shares). Unity's frameworks
+//     carry their own manifests.
 #if UNITY_IOS
 using System;
 using System.IO;
@@ -68,6 +73,7 @@ public static class IosPostProcess
         project.SetBuildProperty(frameworkGuid, "SWIFT_VERSION", "5.0");
         project.AddBuildProperty(frameworkGuid, "OTHER_LDFLAGS", "-weak_framework ActivityKit");
         if (widget) AddWidgetExtension(project, path, mainGuid, bundleId, appGroup);
+        AddPrivacyManifest(project, path, mainGuid, "iOSPrivacy", ".");
         project.WriteToFile(projPath);
         UseCatalogLaunchLogo(path);
 
@@ -78,6 +84,25 @@ public static class IosPostProcess
         if (gameCenter) capabilities.AddGameCenter();
         if (widget) capabilities.AddAppGroups(new[] { appGroup });
         capabilities.WriteToFile();
+    }
+
+    /// <summary>Copy a PrivacyInfo.xcprivacy from the Unity project's <paramref name="sourceDir"/>
+    /// into the Xcode project's <paramref name="destDir"/> and bundle it with a target.</summary>
+    static void AddPrivacyManifest(PBXProject project, string path, string targetGuid, string sourceDir, string destDir)
+    {
+        const string File_ = "PrivacyInfo.xcprivacy";
+        string source = Path.GetFullPath(Path.Combine(Application.dataPath, "..", sourceDir, File_));
+        if (!File.Exists(source))
+        {
+            Debug.LogWarning($"[IosPostProcess] no privacy manifest at {source}");
+            return;
+        }
+        string rel = destDir == "." ? File_ : destDir + "/" + File_;
+        Directory.CreateDirectory(Path.Combine(path, destDir));
+        File.Copy(source, Path.Combine(path, rel), overwrite: true);
+        string guid = project.FindFileGuidByProjectPath(rel);
+        if (string.IsNullOrEmpty(guid)) guid = project.AddFile(rel, rel);
+        project.AddFileToBuildSection(targetGuid, project.GetResourcesBuildPhaseByTarget(targetGuid), guid);
     }
 
     /// <summary>Point the launch storyboard's image views at the logo in the asset catalog
@@ -145,6 +170,8 @@ public static class IosPostProcess
             shared = project.AddFile("Libraries/Plugins/iOS/RaidAttributes.swift", "Libraries/Plugins/iOS/RaidAttributes.swift");
         project.AddFileToBuild(ext, shared);
         project.AddFile(WidgetDir + "/" + WidgetName + ".entitlements", WidgetDir + "/" + WidgetName + ".entitlements");
+        project.AddResourcesBuildPhase(ext);
+        AddPrivacyManifest(project, path, ext, "iOSWidget", WidgetDir);
         project.AddFrameworkToProject(ext, "WidgetKit.framework", false);
         project.AddFrameworkToProject(ext, "SwiftUI.framework", false);
         project.AddFrameworkToProject(ext, "ActivityKit.framework", false);
