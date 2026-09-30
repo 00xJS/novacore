@@ -543,6 +543,8 @@ namespace GalaxyRoyale.Sim.Save
                 ["crates"] = (long)s.SupplyCrates,
                 ["nextTick"] = (long)s.NextSupplyDropTick,
             };
+            if (s.EventSiteId.Length > 0) root["eventSite"] = s.EventSiteId;
+            if (s.PendingNova >= 0) root["pendingNova"] = (long)s.PendingNova;
             if (s.TutorialFlags.Count > 0)
             {
                 var flags = new List<string>(s.TutorialFlags);
@@ -800,6 +802,10 @@ namespace GalaxyRoyale.Sim.Save
                 DailiesClaimed = Opt("dailiesClaimed"),
                 SupplyDropsCollected = Opt("supplyDrops"),
                 ItemsUsed = Opt("itemsUsed"),
+                CometHauled = stats.TryGetValue("cometHauled", out var ch) && ch != null ? ToI64(ch) : 0,
+                CaravansDone = Opt("caravansDone"),
+                StormCampsCleared = Opt("stormCamps"),
+                NovaHauled = stats.TryGetValue("novaHauled", out var nh) && nh != null ? ToI64(nh) : 0,
             };
 
             if (d.TryGetValue("achievements", out var ach) && ach != null)
@@ -814,6 +820,8 @@ namespace GalaxyRoyale.Sim.Save
                 s.SupplyCrates = supply.TryGetValue("crates", out var cr) && cr != null ? ToI32(cr) : 0;
                 s.NextSupplyDropTick = supply.TryGetValue("nextTick", out var nt) && nt != null ? ToI32(nt) : 0;
             }
+            s.EventSiteId = d.TryGetValue("eventSite", out var es) && es is string esId ? esId : "";
+            s.PendingNova = d.TryGetValue("pendingNova", out var pn) && pn != null ? ToI32(pn) : -1;
             if (d.TryGetValue("purchases", out var pu) && pu != null)
                 foreach (var raw in AsArr(pu, "purchases"))
                     if (raw is string tx) s.CreditedTransactions.Add(tx);
@@ -1219,6 +1227,10 @@ namespace GalaxyRoyale.Sim.Save
             Opt("dailiesClaimed", st.DailiesClaimed);
             Opt("supplyDrops", st.SupplyDropsCollected);
             Opt("itemsUsed", st.ItemsUsed);
+            Opt("cometHauled", st.CometHauled);
+            Opt("caravansDone", st.CaravansDone);
+            Opt("stormCamps", st.StormCampsCleared);
+            Opt("novaHauled", st.NovaHauled);
             return d;
         }
 
@@ -1537,6 +1549,8 @@ namespace GalaxyRoyale.Sim.Save
             NodeKind.Derelict => "derelict",
             NodeKind.Camp => "camp",
             NodeKind.DMField => "dmfield",
+            NodeKind.Comet => "comet",
+            NodeKind.Caravan => "caravan",
             _ => throw new InvalidOperationException($"unknown NodeKind {k}"),
         };
 
@@ -1548,6 +1562,8 @@ namespace GalaxyRoyale.Sim.Save
             "derelict" => NodeKind.Derelict,
             "camp" => NodeKind.Camp,
             "dmfield" => NodeKind.DMField,
+            "comet" => NodeKind.Comet,
+            "caravan" => NodeKind.Caravan,
             _ => throw new FormatException($"unknown node kind '{s}'"),
         };
 

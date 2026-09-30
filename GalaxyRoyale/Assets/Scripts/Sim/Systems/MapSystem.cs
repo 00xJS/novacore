@@ -20,6 +20,7 @@ namespace GalaxyRoyale.Sim.Systems
             {
                 if (!state.Map.NodeOverrides.TryGetValue(id, out var ov)) continue;
                 if (ov.Retired) continue;
+                if (id.StartsWith(EventSites.IdPrefix, System.StringComparison.Ordinal)) continue; // EventSites owns them
                 bool depleted = ov.Cleared || (ov.Remaining.HasValue && ov.Remaining.Value <= 0);
 
                 if (ov.RespawnAtTick == 0)

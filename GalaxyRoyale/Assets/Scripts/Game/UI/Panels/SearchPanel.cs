@@ -4,6 +4,7 @@
 using System;
 using UnityEngine.UIElements;
 using GalaxyRoyale.Data;
+using GalaxyRoyale.Sim.Systems;
 
 namespace GalaxyRoyale.Game.UI
 {
@@ -23,6 +24,16 @@ namespace GalaxyRoyale.Game.UI
             var kindButtons = new System.Collections.Generic.Dictionary<NodeKind, Button>();
             var levelButtons = new System.Collections.Generic.Dictionary<int, Button>();
 
+            // A live map event first (2026-09-30).
+            if (ctx.State != null && EventSites.Focus(ctx.State) is { } spot)
+            {
+                var ev = Widgets.Primary(Widgets.TextButton(
+                    $"{EventSystem.Current(ctx.State.Tick).Def.Name.ToUpperInvariant()}: SHOW ON MAP",
+                    () => EventsPanel.ShowOnMap(ctx, spot.tile, spot.node), 11));
+                ev.style.marginBottom = 10;
+                ev.style.height = 38;
+                content.Add(ev);
+            }
             content.Add(Widgets.Text("WHAT", 10, UiTheme.Dim, bold: true));
             var kindList = new VisualElement();
             foreach (var k in Nodes.All)

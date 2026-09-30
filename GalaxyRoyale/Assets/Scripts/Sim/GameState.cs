@@ -333,6 +333,11 @@ namespace GalaxyRoyale.Sim
         public int SupplyDropsCollected;
         /// <summary>Items used from the inventory.</summary>
         public int ItemsUsed;
+        // Map events (2026-09-30): the goals' counters (whole units for hauls).
+        public long CometHauled;
+        public int CaravansDone;
+        public int StormCampsCleared;
+        public long NovaHauled;
     }
 
     /// <summary>Your mark on the galactic market (MarketSystem): how far your own
@@ -416,6 +421,12 @@ namespace GalaxyRoyale.Sim
         /// Command Center, and when the next one lands (0 = schedule on the next tick).</summary>
         public int SupplyCrates;
         public int NextSupplyDropTick;
+        /// <summary>Map events (2026-09-30): the event node EventSites has on the map
+        /// ("" = none), and a Supernova waiting to go off (its instance; -1 = none).</summary>
+        public string EventSiteId = "";
+        public int PendingNova = -1;
+        /// <summary>Not saved: the event (and caravan stop) EventSites last checked.</summary>
+        public int SiteCheckedInstance = int.MinValue, SiteCheckedStop = -1;
         /// <summary>Equipped commander title — an unlocked achievement's id (null = none).</summary>
         public string? Title;
         /// <summary>Galaxy event being tracked (EventSystem): its instance number,

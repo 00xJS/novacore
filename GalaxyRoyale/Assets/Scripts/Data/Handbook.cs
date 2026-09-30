@@ -170,6 +170,8 @@ namespace GalaxyRoyale.Data
                 {
                     "A Pirate Dreadnought drops into the galaxy from time to time. Strike it along with the other commanders before it leaves: your survivors carry off salvage, and its Dark Matter is shared out by damage dealt.",
                     "Galaxy events change the rules for a day or two, such as faster research or richer mines, and set a goal with a reward. Daily objectives reset every day and pay Dark Matter.",
+                    "Some events put something on the map near you. A Comet Pass brings a comet rich in every resource and Dark Matter; rivals mine it too, so be quick. A Trade Caravan docks at four waystations: ATTACK it for its cargo, or ESCORT it with warships for a fee when it moves on.",
+                    "An Ion Storm darkens your region: fleets fly slower through it, radar can't see raids coming, and its camps carry more loot. A Supernova Warning marks a doomed sector whose worlds gather fast and pay more, until the star explodes and takes every fleet still there.",
                     "Seasons last a week. Everyone is ranked by the might they gain during the season, so a young colony can beat the giants, and the final rank pays Dark Matter.",
                 },
             },

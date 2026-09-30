@@ -218,7 +218,9 @@ namespace GalaxyRoyale.Sim.Systems
             var preview = new MarchPreview
             {
                 Ok = true,
-                TravelSec = rawSpeed == int.MaxValue ? 0 : Balance.TravelSeconds(dist, (int)speed),
+                // The Ion Storm slows flights into or out of it (map events, 2026-09-30).
+                TravelSec = rawSpeed == int.MaxValue ? 0
+                    : Balance.TravelSeconds(dist, Math.Max(1, (int)(speed * EventSites.SpeedMult(state, state.HomeTile, target)))),
                 HeliumCost = (int)Math.Ceiling(rawHelium * ResearchSystem.HeliumMult(state) * JumpGateSystem.HeliumMult(state)),
                 CargoCap = EffCargoCap(state, ships),
                 Distance = dist,
@@ -252,13 +254,13 @@ namespace GalaxyRoyale.Sim.Systems
             if (mission == MarchMission.Gather)
             {
                 if (node.Kind == NodeKind.Camp) return SimResult.Fail("Pirates hold this — attack instead");
-                if (node.Kind != NodeKind.Derelict)
+                if (node.Kind != NodeKind.Derelict && node.Kind != NodeKind.Caravan) // a caravan: GATHER = escort
                 {
                     int remaining = overrideForNode?.Remaining ?? node.Amount;
                     if (remaining <= 0) return SimResult.Fail("Depleted");
                 }
             }
-            else if (mission == MarchMission.Attack && node.Kind != NodeKind.Camp)
+            else if (mission == MarchMission.Attack && node.Kind != NodeKind.Camp && node.Kind != NodeKind.Caravan)
             {
                 return SimResult.Fail("Nothing to attack there");
             }
@@ -410,26 +412,7 @@ namespace GalaxyRoyale.Sim.Systems
             else if (march.Phase == MarchPhase.Gathering && march.Mission == MarchMission.Gather)
             {
                 // partial harvest: rate × time on station, bounded by cargo + node stock
-                var node = MapLookup.NodeAt(state, march.Node);
-                if (node != null && node.RatePerSec > 0)
-                {
-                    state.Map.NodeOverrides.TryGetValue(node.Id, out var ov);
-                    int remaining = ov?.Remaining ?? node.Amount;
-                    int elapsed = state.Tick - march.DepartedAtTick;
-                    long free = FreeCargo(state, march); // pre-loaded launch cargo takes space
-                    long harvested = (long)Math.Floor(elapsed * (double)node.RatePerSec * ResearchSystem.GatherRateMult(state));
-                    int gathered = (int)Math.Min(Math.Min(remaining, free), harvested);
-                    if (gathered > 0 && node.Resource is ResourceId res)
-                    {
-                        march.Cargo.Set(res, march.Cargo.Get(res) + gathered);
-                        UpsertOverride(state, node.Id, o => o.Remaining = remaining - gathered);
-                    }
-                    else if (gathered > 0 && node.Kind == NodeKind.DMField)
-                    {
-                        march.CargoDm += gathered; // partial DM harvest on recall (v13)
-                        UpsertOverride(state, node.Id, o => o.Remaining = remaining - gathered);
-                    }
-                }
+                SettleGather(state, march);
             }
 
             march.Phase = MarchPhase.Returning;
@@ -506,7 +489,7 @@ namespace GalaxyRoyale.Sim.Systems
 
         static void StartReturn(GameState state, March march)
         {
-            double speed = EffSpeed(state, march.Ships);
+            double speed = Math.Max(1, EffSpeed(state, march.Ships) * EventSites.SpeedMult(state, march.Node, state.HomeTile));
             double dist = TileXY.Distance(march.Node, state.HomeTile);
             march.Phase = MarchPhase.Returning;
             march.LegFrom = march.Node;
@@ -639,6 +622,12 @@ namespace GalaxyRoyale.Sim.Systems
                 return;
             }
 
+            if (node.Kind == NodeKind.Caravan)
+            {
+                ArriveAtCaravan(state, events, march, node);
+                return;
+            }
+
             if (march.Mission == MarchMission.Attack && node.Kind == NodeKind.Camp)
             {
                 // The camp composer's forecast (BattleForecast.Predict) makes this
@@ -659,6 +648,12 @@ namespace GalaxyRoyale.Sim.Systems
                     var loot = CampLoot(state, node);
                     // Pirate Armada (galaxy event): camps carry double loot.
                     float armada = EventSystem.CampLootMult(state);
+                    // Ion Storm (map events, 2026-09-30): its camps carry more, and count for its goal.
+                    if (EventSites.InStorm(state, node.Tile, state.Tick))
+                    {
+                        armada *= GalaxyEvents.StormCampLoot;
+                        state.Stats.StormCampsCleared++;
+                    }
                     if (armada != 1f)
                         loot = new ResourceBag((long)(loot.Gold * armada), (long)(loot.Quartz * armada),
                             (long)(loot.Helium * armada));
@@ -753,24 +748,136 @@ namespace GalaxyRoyale.Sim.Systems
             march.LegTo = march.Node;
             march.DepartedAtTick = state.Tick;
             march.ArrivesAtTick = state.Tick +
-                (int)Math.Ceiling(gatherable / (node.RatePerSec * (double)ResearchSystem.GatherRateMult(state)));
+                (int)Math.Ceiling(gatherable / (node.RatePerSec * (double)ResearchSystem.GatherRateMult(state)
+                    * NovaRateMult(state, node)));
             events.Emit(new MarchPhaseChanged(march.Id, MarchPhase.Gathering));
+        }
+
+        /// <summary>The Supernova's doomed sector gathers faster (map events, 2026-09-30).</summary>
+        static double NovaRateMult(GameState state, MapNode node) =>
+            EventSites.InNova(state, node.Tile, state.Tick) ? GalaxyEvents.NovaGatherRate : 1.0;
+
+        /// <summary>Load what a gathering march took from its node (map events,
+        /// 2026-09-30, shared by the finish and the partial harvest on a recall):
+        /// the node's own resource, a Dark Matter field's DM, or the comet's mix.
+        /// Counts the map events' hauls and pays the doomed sector's bonus.</summary>
+        static void LoadHaul(GameState state, March march, MapNode node, int gathered)
+        {
+            if (gathered <= 0) return;
+            if (node.Resource is ResourceId res)
+                march.Cargo.Set(res, march.Cargo.Get(res) + gathered);
+            else if (node.Kind == NodeKind.DMField)
+                march.CargoDm += gathered; // Dark Matter field (v13)
+            else if (node.Kind == NodeKind.Comet)
+            {
+                march.Cargo.Gold += gathered * 40L / 100;
+                march.Cargo.Quartz += gathered * 35L / 100;
+                march.Cargo.Helium += gathered * 25L / 100;
+                march.CargoDm += gathered / GalaxyEvents.CometUnitsPerDarkMatter; // milli → milli DM
+                state.Stats.CometHauled += gathered / 1000;
+            }
+            if (EventSites.InNova(state, node.Tile, state.Tick) && node.Resource is ResourceId nr)
+            {
+                march.Cargo.Set(nr, march.Cargo.Get(nr) + (long)(gathered * (double)GalaxyEvents.NovaHaulBonus));
+                state.Stats.NovaHauled += gathered / 1000;
+            }
+        }
+
+        static bool Gatherable(MapNode node) =>
+            node.Resource is ResourceId || node.Kind == NodeKind.DMField || node.Kind == NodeKind.Comet;
+
+        /// <summary>A gathering march's partial harvest: rate × time on station, bounded
+        /// by its cargo and the node's stock (a recall, or the comet leaving).</summary>
+        public static void SettleGather(GameState state, March march)
+        {
+            var node = MapLookup.NodeAt(state, march.Node);
+            if (node == null || node.RatePerSec <= 0 || !Gatherable(node)) return;
+            state.Map.NodeOverrides.TryGetValue(node.Id, out var ov);
+            int remaining = ov?.Remaining ?? node.Amount;
+            int elapsed = state.Tick - march.DepartedAtTick;
+            long free = FreeCargo(state, march); // pre-loaded launch cargo takes space
+            long harvested = (long)Math.Floor(elapsed * (double)node.RatePerSec * ResearchSystem.GatherRateMult(state)
+                * NovaRateMult(state, node));
+            int gathered = (int)Math.Min(Math.Min(remaining, free), harvested);
+            if (gathered <= 0) return;
+            LoadHaul(state, march, node, gathered);
+            UpsertOverride(state, node.Id, o => o.Remaining = remaining - gathered);
+        }
+
+        /// <summary>The Trade Caravan (map events, 2026-09-30): an attack fights its
+        /// escort and takes its cargo on a win; a gather march escorts it — it holds
+        /// there, and EventSites pays it when the caravan moves on.</summary>
+        static void ArriveAtCaravan(GameState state, SimEventBus events, March march, MapNode node)
+        {
+            if (march.Mission == MarchMission.Gather)
+            {
+                Hold(state, march);
+                events.Emit(new MarchPhaseChanged(march.Id, march.Phase));
+                return;
+            }
+            if (march.Mission != MarchMission.Attack)
+            {
+                StartReturn(state, march);
+                events.Emit(new MarchPhaseChanged(march.Id, march.Phase));
+                return;
+            }
+            var report = CombatResolver.Resolve(march.Ships, EventSites.CaravanEscort(node), ResearchSystem.CombatMods(state));
+            report.Location = march.Node;
+            report.DefenderName = "Trade caravan";
+            march.Ships = report.AttackerSurvivors;
+            if (report.Winner == BattleWinner.Attacker)
+            {
+                state.Stats.BattlesWon++;
+                state.Stats.CaravansDone++;
+                UpsertOverride(state, node.Id, o => o.Cleared = true);
+                var loot = EventSites.CaravanLoot(state, node);
+                long free = FreeCargo(state, march);
+                double scale = loot.Total > 0 ? Math.Min(1.0, free / (double)loot.Total) : 0;
+                var taken = new ResourceBag((long)(loot.Gold * scale), (long)(loot.Quartz * scale), (long)(loot.Helium * scale));
+                march.Cargo.Add(taken);
+                report.Loot = taken;
+                state.Stats.LootMilli += taken.Total;
+                // Every escort still riding with it scatters home unpaid.
+                foreach (var other in state.Marches.ToArray())
+                    if (other != march && other.Node.Equals(node.Tile) && other.Phase == MarchPhase.Gathering)
+                        StartReturn(state, other);
+            }
+            else state.Stats.BattlesLost++;
+            var mail = new BattleMailReport
+            {
+                Id = state.NextReportId++,
+                AtTick = state.Tick,
+                Target = march.Node,
+                Subject = report.Winner == BattleWinner.Attacker
+                    ? $"Caravan intercepted at {march.Node.X},{march.Node.Y}"
+                    : $"The caravan's escort drove you off at {march.Node.X},{march.Node.Y}",
+                Report = report,
+            };
+            SalvageSystem.OnMail(state, mail);
+            RepairSystem.OnMail(state, mail);
+            state.Mailbox.Insert(0, mail);
+            TrimMailbox(state);
+            events.Emit(new BattleResolved(report));
+            if (FleetCount(march.Ships) == 0)
+            {
+                state.Marches.RemoveAll(m => m.Id == march.Id);
+                return;
+            }
+            StartReturn(state, march);
+            events.Emit(new MarchPhaseChanged(march.Id, march.Phase));
         }
 
         static void FinishGathering(GameState state, SimEventBus events, March march)
         {
             var node = MapLookup.NodeAt(state, march.Node);
-            if (node != null && (node.Resource is ResourceId || node.Kind == NodeKind.DMField))
+            if (node != null && Gatherable(node))
             {
                 state.Map.NodeOverrides.TryGetValue(node.Id, out var ov);
                 int remaining = ov?.Remaining ?? node.Amount;
                 int gathered = (int)Math.Min(remaining, FreeCargo(state, march));
                 if (gathered > 0)
                 {
-                    if (node.Resource is ResourceId res)
-                        march.Cargo.Set(res, march.Cargo.Get(res) + gathered);
-                    else
-                        march.CargoDm += gathered; // Dark Matter field (v13)
+                    LoadHaul(state, march, node, gathered);
                     UpsertOverride(state, node.Id, o => o.Remaining = remaining - gathered);
                     if (remaining - gathered <= 0) events.Emit(new NodeDepleted(node.Id));
                 }
@@ -830,6 +937,18 @@ namespace GalaxyRoyale.Sim.Systems
                 };
                 return baseReport;
             }
+            if (node.Kind == NodeKind.Caravan)
+            {
+                baseReport.Subject = $"Recon {node.Tile.X},{node.Tile.Y} — trade caravan";
+                baseReport.Intel = new SpyIntel
+                {
+                    Kind = NodeKind.Caravan,
+                    Tier = node.Tier,
+                    CampLevel = node.CampLevel,
+                    Garrison = EventSites.CaravanEscort(node),
+                };
+                return baseReport;
+            }
             baseReport.Subject = $"Recon {node.Tile.X},{node.Tile.Y} — {node.Kind}";
             baseReport.Intel = new SpyIntel
             {
@@ -849,7 +968,7 @@ namespace GalaxyRoyale.Sim.Systems
         }
 
         /// <summary>Get-or-create a NodeOverride for `id` and let the caller mutate it.</summary>
-        static void UpsertOverride(GameState state, string id, Action<NodeOverride> mutate)
+        public static void UpsertOverride(GameState state, string id, Action<NodeOverride> mutate)
         {
             if (!state.Map.NodeOverrides.TryGetValue(id, out var ov))
             {

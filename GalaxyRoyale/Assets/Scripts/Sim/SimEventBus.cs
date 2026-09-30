@@ -66,6 +66,10 @@ namespace GalaxyRoyale.Sim
     public sealed record ProtectionEnded(string Reason) : SimEvent;
     /// <summary>A supply drop landed at the Command Center (Waiting = crates now waiting).</summary>
     public sealed record SupplyDropLanded(int Waiting) : SimEvent;
+    /// <summary>Map events (2026-09-30): the caravan moved on and paid its escort (milli + DM).</summary>
+    public sealed record CaravanEscorted(ResourceBag PayMilli, int DarkMatter) : SimEvent;
+    /// <summary>The Supernova went off; <paramref name="ShipsLost"/> of yours were still in the sector.</summary>
+    public sealed record SupernovaDetonated(TileXY Centre, int ShipsLost) : SimEvent;
 
     public sealed class SimEventBus
     {

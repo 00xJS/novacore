@@ -13,6 +13,7 @@ using UnityEngine;
 using GalaxyRoyale.Data;
 using GalaxyRoyale.Sim;
 using GalaxyRoyale.Sim.Map;
+using GalaxyRoyale.Sim.Systems;
 
 namespace GalaxyRoyale.Game
 {
@@ -56,6 +57,8 @@ namespace GalaxyRoyale.Game
             NodeKind.HeliumCloud => 2,
             NodeKind.Derelict => 3,
             NodeKind.Camp => 4,
+            NodeKind.Comet => 6,   // map events (2026-09-30)
+            NodeKind.Caravan => 7,
             _ => 5, // DMField
         };
 
@@ -72,11 +75,13 @@ namespace GalaxyRoyale.Game
             {
                 state.Map.NodeOverrides.TryGetValue(node.Id, out var ov);
                 if (ov != null && (ov.Retired || ov.Cleared)) continue;
-                if (node.Kind != NodeKind.Camp && (ov?.Remaining ?? node.Amount) <= 0) continue;
+                if (!MapLookup.IsLive(state, node)) continue;
                 Add(node);
             }
             foreach (var node in MapLookup.AllNodes(state))
-                if (node.Id.StartsWith("dyn-", System.StringComparison.Ordinal)) Add(node);
+                if ((node.Id.StartsWith("dyn-", System.StringComparison.Ordinal)
+                     || node.Id.StartsWith(EventSites.IdPrefix, System.StringComparison.Ordinal))
+                    && MapLookup.IsLive(state, node)) Add(node);
 
             int n = _centres.Count;
             _verts = new Vector3[n * 4];

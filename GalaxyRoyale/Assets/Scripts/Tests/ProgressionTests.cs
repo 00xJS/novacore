@@ -20,16 +20,22 @@ namespace GalaxyRoyale.Sim.Tests
         [Test]
         public void Rotation_FollowsGalaxyTime()
         {
-            Assert.AreEqual(7 * 24 * Hour, EventSystem.CycleSec, "the rotation spans one week");
+            // Eleven days since the map events (2026-09-30): the original four with
+            // a map event after each.
+            Assert.AreEqual(11 * 24 * Hour, EventSystem.CycleSec, "the rotation spans eleven days");
             Assert.AreEqual(GalaxyEventKind.None, EventSystem.Current(0).Def.Kind, "a new galaxy starts quiet");
             Assert.AreEqual(GalaxyEventKind.GoldRush, EventSystem.Current(LeadIn).Def.Kind);
-            Assert.AreEqual(GalaxyEventKind.ResearchSurge, EventSystem.Current(LeadIn + 48 * Hour).Def.Kind);
-            Assert.AreEqual(GalaxyEventKind.PirateArmada, EventSystem.Current(LeadIn + 72 * Hour).Def.Kind);
-            Assert.AreEqual(GalaxyEventKind.WarGames, EventSystem.Current(LeadIn + 120 * Hour).Def.Kind);
-            var nextWeek = EventSystem.Current(LeadIn + EventSystem.CycleSec + 5);
-            Assert.AreEqual(GalaxyEventKind.GoldRush, nextWeek.Def.Kind);
-            Assert.AreEqual(4, nextWeek.Instance, "every occurrence has its own number");
-            Assert.AreEqual(LeadIn + EventSystem.CycleSec, nextWeek.StartTick);
+            Assert.AreEqual(GalaxyEventKind.CometPass, EventSystem.Current(LeadIn + 48 * Hour).Def.Kind);
+            Assert.AreEqual(GalaxyEventKind.ResearchSurge, EventSystem.Current(LeadIn + 72 * Hour).Def.Kind);
+            Assert.AreEqual(GalaxyEventKind.TradeCaravan, EventSystem.Current(LeadIn + 96 * Hour).Def.Kind);
+            Assert.AreEqual(GalaxyEventKind.PirateArmada, EventSystem.Current(LeadIn + 120 * Hour).Def.Kind);
+            Assert.AreEqual(GalaxyEventKind.IonStorm, EventSystem.Current(LeadIn + 168 * Hour).Def.Kind);
+            Assert.AreEqual(GalaxyEventKind.WarGames, EventSystem.Current(LeadIn + 192 * Hour).Def.Kind);
+            Assert.AreEqual(GalaxyEventKind.Supernova, EventSystem.Current(LeadIn + 240 * Hour).Def.Kind);
+            var nextRound = EventSystem.Current(LeadIn + EventSystem.CycleSec + 5);
+            Assert.AreEqual(GalaxyEventKind.GoldRush, nextRound.Def.Kind);
+            Assert.AreEqual(8, nextRound.Instance, "every occurrence has its own number");
+            Assert.AreEqual(LeadIn + EventSystem.CycleSec, nextRound.StartTick);
             Assert.AreEqual(GalaxyEventKind.GoldRush, EventSystem.Next(0).Def.Kind, "the chip can say what's first");
         }
 
@@ -77,7 +83,7 @@ namespace GalaxyRoyale.Sim.Tests
             s.Stats.UpgradesDone = 3;
             Assert.IsTrue(EventSystem.Claim(s).Ok);
 
-            s.Tick = LeadIn + 48 * Hour; // Research Surge
+            s.Tick = LeadIn + 72 * Hour; // Research Surge
             s.Stats.ResearchDone = 7;
             EventSystem.Tick(s);
             Assert.IsFalse(s.EventClaimed);
@@ -113,7 +119,7 @@ namespace GalaxyRoyale.Sim.Tests
             var s = GameState.CreateNewGame(42, testMode: false);
             s.Tick = 0; // quiet — no research effect
             int normal = ResearchSystem.GetResearchTime(s, TechId.YieldOptimization, 1);
-            s.Tick = LeadIn + 50 * Hour; // Research Surge
+            s.Tick = LeadIn + 74 * Hour; // Research Surge
             int surge = ResearchSystem.GetResearchTime(s, TechId.YieldOptimization, 1);
             Assert.AreEqual(normal * GalaxyEvents.ResearchSurgeTime, surge, 2.0);
         }

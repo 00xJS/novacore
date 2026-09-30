@@ -68,6 +68,8 @@ namespace GalaxyRoyale.Game
             NodeKind.Derelict => new Color(0.81f, 0.85f, 1.00f),
             NodeKind.Camp     => new Color(0.94f, 0.35f, 0.35f),
             NodeKind.DMField  => new Color(0.79f, 0.63f, 0.91f), // Dark Matter violet
+            NodeKind.Comet    => new Color(0.55f, 0.95f, 1.00f), // map events (2026-09-30)
+            NodeKind.Caravan  => new Color(1.00f, 0.80f, 0.35f),
             _ => Color.white,
         };
 
@@ -469,6 +471,51 @@ namespace GalaxyRoyale.Game
             _novaCore = core.transform;
         }
 
+        // ---------- map events (2026-09-30): the Ion Storm and the doomed sector ----------
+
+        GameObject? _zoneRoot;
+        SpriteRenderer? _zoneFill;
+        string _zoneKey = "";
+
+        void SyncEventZone(GameState state, float t)
+        {
+            var zone = EventSites.ZoneNow(state);
+            string key = zone is { } z ? $"{z.Kind}|{z.Centre.X},{z.Centre.Y}" : "";
+            if (key != _zoneKey)
+            {
+                _zoneKey = key;
+                if (_zoneRoot != null) Destroy(_zoneRoot);
+                _zoneRoot = null;
+                _zoneFill = null;
+                if (zone is { } live)
+                {
+                    bool storm = live.Kind == GalaxyEventKind.IonStorm;
+                    var tint = storm ? new Color(0.45f, 0.55f, 1f) : new Color(1f, 0.42f, 0.2f);
+                    _zoneRoot = new GameObject(storm ? "Ion Storm" : "Doomed Sector");
+                    _zoneRoot.transform.SetParent(_root!.transform, worldPositionStays: false);
+                    _zoneRoot.transform.localPosition = TileToWorld(live.Centre.X, live.Centre.Y) + new Vector3(0f, 0f, 6.5f);
+                    float d = live.Radius * 2f;
+                    _zoneFill = MapVisuals.Spawn(_zoneRoot.transform, "Fill", MapVisuals.Glow, Vector3.zero, d * 1.15f, d * 1.15f,
+                        new Color(tint.r, tint.g, tint.b, 0.22f), 4);
+                    var ring = MapVisuals.OverrideSprite("core-zone");
+                    if (ring != null)
+                    {
+                        float size = 1024f * live.Radius / 500f;
+                        MapVisuals.Spawn(_zoneRoot.transform, "Edge", ring, Vector3.zero, size, size, tint, 4);
+                    }
+                }
+            }
+            // The storm churns; the star's glow quickens as it nears the end.
+            if (_zoneFill != null && zone is { } z2)
+            {
+                float left = Mathf.Max(0f, z2.EndTick - state.Tick);
+                float speed = z2.Kind == GalaxyEventKind.IonStorm ? 0.6f : Mathf.Lerp(3f, 0.8f, Mathf.Clamp01(left / 86400f));
+                var c = _zoneFill.color;
+                c.a = 0.16f + 0.08f * Mathf.Sin(t * speed);
+                _zoneFill.color = c;
+            }
+        }
+
         void BuildHome(GameState state)
         {
             var root = new GameObject("Map Home Planet");
@@ -620,11 +667,12 @@ namespace GalaxyRoyale.Game
                     if (!InView(node.Tile) || !ShowKind(node.Kind)) continue;
                     state.Map.NodeOverrides.TryGetValue(node.Id, out var ov);
                     if (ov != null && (ov.Retired || ov.Cleared)) continue;
-                    if (node.Kind != NodeKind.Camp && (ov?.Remaining ?? node.Amount) <= 0) continue;
+                    if (!MapLookup.IsLive(state, node)) continue;
                     wanted.Add(node.Id);
                 }
                 foreach (var node in state.Map.DynamicNodes)
-                    if (InView(node.Tile) && ShowKind(node.Kind) && !Balance.InCoreZone(node.Tile)) wanted.Add(node.Id);
+                    if (InView(node.Tile) && ShowKind(node.Kind) && !Balance.InCoreZone(node.Tile)
+                        && MapLookup.IsLive(state, node)) wanted.Add(node.Id);
             }
 
             // Drop sprites that fell out of view / got hidden.
@@ -673,7 +721,7 @@ namespace GalaxyRoyale.Game
         {
             Layer.Resources => kind != NodeKind.Camp,
             Layer.Empires => false,
-            Layer.Hostile => kind == NodeKind.Camp,
+            Layer.Hostile => kind == NodeKind.Camp || kind == NodeKind.Caravan,
             _ => true,
         };
 
@@ -972,10 +1020,7 @@ namespace GalaxyRoyale.Game
         {
             var node = MapLookup.NodeAt(state, tile);
             if (node == null) return null;
-            state.Map.NodeOverrides.TryGetValue(node.Id, out var ov);
-            if (ov != null && ov.Cleared) return null;
-            if (node.Kind != NodeKind.Camp && (ov?.Remaining ?? node.Amount) <= 0) return null;
-            return node;
+            return MapLookup.IsLive(state, node) ? node : null;
         }
 
         /// <summary>Nearest live node whose marker (radius `worldRadius`) covers the
@@ -1115,6 +1160,7 @@ namespace GalaxyRoyale.Game
             }
 
             SyncBoss(t);
+            SyncEventZone(state, t);
 
             if (_field != null)
             {

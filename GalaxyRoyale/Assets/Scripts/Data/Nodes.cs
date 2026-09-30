@@ -14,6 +14,10 @@ namespace GalaxyRoyale.Data
         Derelict,   // mixed salvage
         Camp,       // hostile — attack for loot
         DMField,    // rare Dark Matter field — the F2P premium-currency path
+        // Galaxy events (2026-09-30), placed and removed by EventSites — never
+        // generated, so the map's seed layout is untouched:
+        Comet,      // Comet Pass: gather a mix of all three resources + Dark Matter
+        Caravan,    // Trade Caravan: attack it (intercept) or gather at it (escort)
     }
 
     public sealed class NodeDef
@@ -108,6 +112,9 @@ namespace GalaxyRoyale.Data
                 BaseAmount = 0,
                 BaseRatePerSec = 0,
             },
+            // Event sites: amounts and rates are set by EventSites.
+            [NodeKind.Comet] = new NodeDef { Name = "Passing Comet", Resource = null },
+            [NodeKind.Caravan] = new NodeDef { Name = "Trade Caravan", Resource = null },
         };
 
         /// <summary>Per-tier probability weights. Indexed by tier (0..4).</summary>

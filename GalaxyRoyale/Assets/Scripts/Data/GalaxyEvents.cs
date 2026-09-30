@@ -6,7 +6,12 @@ using System.Collections.Generic;
 
 namespace GalaxyRoyale.Data
 {
-    public enum GalaxyEventKind { None, GoldRush, ResearchSurge, PirateArmada, WarGames }
+    public enum GalaxyEventKind
+    {
+        None, GoldRush, ResearchSurge, PirateArmada, WarGames,
+        // Map events (2026-09-30): each puts something on the map near you.
+        CometPass, TradeCaravan, IonStorm, Supernova,
+    }
 
     public sealed class GalaxyEventDef
     {
@@ -29,6 +34,35 @@ namespace GalaxyRoyale.Data
         public const float PirateArmadaLoot = 2f;
         public const float WarGamesLoot = 1.5f;
 
+        // ---- map events (2026-09-30), placed by Sim/Systems/EventSites ----
+        /// <summary>Comet Pass: a comet parks this far from your colony (tiles).</summary>
+        public const int CometMinDist = 50, CometMaxDist = 110;
+        /// <summary>Its stock: this many hours of your colony's mine output (at least 20,000).</summary>
+        public const double CometHoursOfOutput = 10;
+        /// <summary>Rival commanders mine it too: this share of its stock goes each hour.</summary>
+        public const double CometRivalDrainPerHour = 0.03;
+        /// <summary>A haul from the comet splits 40% gold, 35% quartz, 25% helium, plus
+        /// 1 Dark Matter per this many units.</summary>
+        public const int CometUnitsPerDarkMatter = 400;
+
+        /// <summary>Trade Caravan: it docks at this many waystations, this long each.</summary>
+        public const int CaravanStops = 4, CaravanStopSec = 6 * 3600;
+        public const int CaravanMinDist = 40, CaravanMaxDist = 100;
+
+        /// <summary>Ion Storm: a disc this wide (tiles) whose centre sits this far from your colony.</summary>
+        public const int StormRadius = 220, StormOffset = 110;
+        /// <summary>Fleets flying into or out of the storm fly at this share of their speed.</summary>
+        public const float StormSpeed = 0.7f;
+        /// <summary>Camps inside the storm carry this much more loot.</summary>
+        public const float StormCampLoot = 1.5f;
+
+        /// <summary>Supernova: the doomed sector's radius, and how far its centre sits from your colony.</summary>
+        public const int NovaRadius = 70, NovaMinDist = 110, NovaMaxDist = 170;
+        /// <summary>Gathering in the doomed sector runs this much faster…</summary>
+        public const float NovaGatherRate = 3f;
+        /// <summary>…and each haul from it pays this much extra when it lands home.</summary>
+        public const float NovaHaulBonus = 0.5f;
+
         /// <summary>A new galaxy opens with this long of quiet skies before the
         /// first event. Besides giving a new commander the plain economy first,
         /// it keeps the rivals' pre-simulated head start (up to
@@ -44,7 +78,7 @@ namespace GalaxyRoyale.Data
             DurationSec = LeadInSec,
         };
 
-        /// <summary>The weekly rotation (after the lead-in), in order; durations sum to one week.</summary>
+        /// <summary>The original weekly four (Rotation interleaves the map events between them).</summary>
         public static readonly IReadOnlyList<GalaxyEventDef> Cycle = new[]
         {
             new GalaxyEventDef
@@ -74,6 +108,43 @@ namespace GalaxyRoyale.Data
                 Effect = "Raiding fleets haul 50% more loot — yours and theirs",
                 Goal = "Win battles", Target = 3, DurationSec = 48 * 3600,
                 Reward = new ResourceBag(1500, 1500, 1000), RewardDM = 50,
+            },
+        };
+
+        /// <summary>The two-week rotation since the map events (2026-09-30), in order.</summary>
+        public static readonly IReadOnlyList<GalaxyEventDef> Rotation = new[]
+        {
+            Cycle[0], // Gold Rush
+            new GalaxyEventDef
+            {
+                Kind = GalaxyEventKind.CometPass, Name = "Comet Pass",
+                Effect = "A comet rich in every resource and Dark Matter parks near your colony. Rivals are mining it too",
+                Goal = "Haul from the comet", Target = 5000, DurationSec = 24 * 3600,
+                Reward = new ResourceBag(2000, 1500, 800), RewardDM = 40,
+            },
+            Cycle[1], // Research Surge
+            new GalaxyEventDef
+            {
+                Kind = GalaxyEventKind.TradeCaravan, Name = "Trade Caravan",
+                Effect = "A rich convoy docks at four waystations near you, six hours each. ATTACK it, or ESCORT it for a fee",
+                Goal = "Intercept or escort it", Target = 1, DurationSec = 24 * 3600,
+                Reward = new ResourceBag(2500, 1500, 1000), RewardDM = 40,
+            },
+            Cycle[2], // Pirate Armada
+            new GalaxyEventDef
+            {
+                Kind = GalaxyEventKind.IonStorm, Name = "Ion Storm",
+                Effect = "A storm darkens your region: fleets fly 30% slower through it, radar can't see raids coming, and its camps carry 50% more loot",
+                Goal = "Clear camps in the storm", Target = 3, DurationSec = 24 * 3600,
+                Reward = new ResourceBag(2000, 2000, 1000), RewardDM = 45,
+            },
+            Cycle[3], // War Games
+            new GalaxyEventDef
+            {
+                Kind = GalaxyEventKind.Supernova, Name = "Supernova Warning",
+                Effect = "A star near you will explode when the event ends. Its worlds gather 3x faster and pay 50% more. Any fleet still there is lost",
+                Goal = "Haul from the doomed sector", Target = 8000, DurationSec = 24 * 3600,
+                Reward = new ResourceBag(2500, 2000, 1200), RewardDM = 50,
             },
         };
     }
