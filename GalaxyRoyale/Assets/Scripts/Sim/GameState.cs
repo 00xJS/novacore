@@ -477,6 +477,8 @@ namespace GalaxyRoyale.Sim
         public int CareerWindow = -1;
         /// <summary>The galaxy week whose twist has been announced (TwistSystem).</summary>
         public int TwistWeek;
+        /// <summary>Mega-projects (2026-09-30).</summary>
+        public Systems.MegaprojectState Mega = new();
         /// <summary>Today's daily objectives (Game/DailyObjectives; in the save since 2026-09-30).</summary>
         public DailyState Daily = new();
         /// <summary>Not saved: ResourceSystem.Tick's production rates and the inputs'

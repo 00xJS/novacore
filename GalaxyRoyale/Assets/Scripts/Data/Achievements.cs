@@ -13,6 +13,7 @@ namespace GalaxyRoyale.Data
         CoresSeized, CoreHoursHeld, BossDamage, BossFinalBlows, MarketTrades,
         NemesesDefeated, // 2026-09-30
         LordsDefeated, ChaptersDone, // the campaign (2026-09-30)
+        MegaprojectsDone, // mega-projects (2026-09-30)
     }
 
     public sealed class AchievementDef
@@ -72,6 +73,9 @@ namespace GalaxyRoyale.Data
             A("court-breaker", "Court-Breaker", "Defeat every Pirate Lord", AchievementGoal.LordsDefeated, 10, 500, "Scourge of the Court"),
             A("nightwalker", "Nightwalker", "Finish 5 chapters of The Long Night", AchievementGoal.ChaptersDone, 5, 250, "Nightwalker"),
             A("dawnbringer", "Dawnbringer", "Finish The Long Night", AchievementGoal.ChaptersDone, 10, 600, "Dawnbringer"),
+            // Mega-projects (2026-09-30).
+            A("wonder-builder", "Wonder-Builder", "Complete a mega-project", AchievementGoal.MegaprojectsDone, 1, 300, "Wonder-Builder"),
+            A("architect-of-worlds", "Architect of Worlds", "Complete all four mega-projects", AchievementGoal.MegaprojectsDone, 4, 600, "Architect of Worlds"),
         };
 
         public static AchievementDef? ById(string id)

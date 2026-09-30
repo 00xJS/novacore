@@ -641,6 +641,16 @@ namespace GalaxyRoyale.Sim.Save
                     ["humbled"] = IntMap(nm.Humbled),
                 };
             }
+            // Mega-projects (2026-09-30).
+            if (s.Mega.Stages.Count > 0 || s.Mega.Active >= 0)
+            {
+                var st = new Dictionary<string, object?>();
+                foreach (var kv in s.Mega.Stages) st[kv.Key.ToString()] = (long)kv.Value;
+                root["mega"] = new Dictionary<string, object?>
+                {
+                    ["stages"] = st, ["active"] = (long)s.Mega.Active, ["ends"] = (long)s.Mega.EndsTick,
+                };
+            }
             // The campaign and the Pirate Lords (2026-09-30).
             var cp = s.Campaign;
             if (cp.Chapter > 0 || cp.Open || cp.LordWins.Count > 0 || cp.RematchId.Length > 0)
@@ -1055,6 +1065,14 @@ namespace GalaxyRoyale.Sim.Save
                 }
                 ReadMap("grudges", n.Grudges);
                 ReadMap("humbled", n.Humbled);
+            }
+            if (d.TryGetValue("mega", out var mgo) && mgo is Dictionary<string, object?> mg)
+            {
+                if (mg.TryGetValue("stages", out var sto) && sto is Dictionary<string, object?> std)
+                    foreach (var kv in std)
+                        if (kv.Value != null && Enum.TryParse<MegaprojectKind>(kv.Key, out var mk)) s.Mega.Stages[mk] = ToI32(kv.Value);
+                s.Mega.Active = I32(mg, "active");
+                s.Mega.EndsTick = I32(mg, "ends");
             }
             if (d.TryGetValue("campaign", out var cpo) && cpo is Dictionary<string, object?> cpd)
             {

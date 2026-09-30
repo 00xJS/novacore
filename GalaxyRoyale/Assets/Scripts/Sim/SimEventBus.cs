@@ -101,6 +101,8 @@ namespace GalaxyRoyale.Sim
     public sealed record LordReturns(int Lord, int Tier, TileXY Tile) : SimEvent;
     // Weekly galaxy twists (2026-09-30).
     public sealed record TwistBegan(TwistKind Kind) : SimEvent;
+    // Mega-projects (2026-09-30).
+    public sealed record MegaprojectStageDone(MegaprojectKind Kind, int Stage) : SimEvent;
 
     public sealed class SimEventBus
     {

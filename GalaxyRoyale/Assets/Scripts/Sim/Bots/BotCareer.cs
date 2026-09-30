@@ -55,6 +55,7 @@ namespace GalaxyRoyale.Sim.Bots
             Commander(s, personality);
             Path(s, rng);
             Terraform(s, personality);
+            BuildMegaprojects(s);
             OffScreen(bot, s, rng);
         }
 
@@ -160,8 +161,21 @@ namespace GalaxyRoyale.Sim.Bots
             TerraformSystem.Start(s, path);
         }
 
-        /// <summary>Per think step (BotSystem.ThinkStep): finish a terraform stage.</summary>
-        public static void CompleteProjects(GameState s) => TerraformSystem.Tick(s, Quiet);
+        /// <summary>Per think step (BotSystem.ThinkStep): finish a terraform or mega-project stage.</summary>
+        public static void CompleteProjects(GameState s)
+        {
+            TerraformSystem.Tick(s, Quiet);
+            MegaprojectSystem.Tick(s, Quiet);
+        }
+
+        // ---------- mega-projects: the next stage, in order, when it's affordable ----------
+
+        static void BuildMegaprojects(GameState s)
+        {
+            if (MegaprojectSystem.Busy(s) || SavingForCommand(s)) return;
+            foreach (var def in Data.Megaprojects.All)
+                if (MegaprojectSystem.Start(s, def.Kind).Ok) return;
+        }
 
         // ---------- off-screen: expeditions and pirate hunting ----------
 
