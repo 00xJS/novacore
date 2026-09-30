@@ -99,6 +99,8 @@ namespace GalaxyRoyale.Sim
     public sealed record ChapterClaimed(int Chapter, ResourceBag PayMilli, int DarkMatter) : SimEvent;
     public sealed record LordDefeated(int Lord, int Tier, ResourceBag PayMilli, int DarkMatter, RelicKind? Relic) : SimEvent;
     public sealed record LordReturns(int Lord, int Tier, TileXY Tile) : SimEvent;
+    // Weekly galaxy twists (2026-09-30).
+    public sealed record TwistBegan(TwistKind Kind) : SimEvent;
 
     public sealed class SimEventBus
     {

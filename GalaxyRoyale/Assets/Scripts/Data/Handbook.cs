@@ -208,6 +208,7 @@ namespace GalaxyRoyale.Data
                     "The Bounty Board marks the rim's most-wanted raider: win a raid on them for a big reward, before a rival collects it. In a Core Tournament the Core's holder is thrown out and its guardians fall to half strength; whoever holds it when the tournament ends wins a prize.",
                     "An Ion Storm darkens your region: fleets fly slower through it, radar can't see raids coming, and its camps carry more loot. A Supernova Warning marks a doomed sector whose worlds gather fast and pay more, until the star explodes and takes every fleet still there.",
                     "Seasons last a week. Everyone is ranked by the might they gain during the season, so a young colony can beat the giants, and the final rank pays Dark Matter.",
+                    "From the second week, every galaxy week also brings a twist that bends one rule for everyone, rivals included: Low Gravity (faster fleets), Rich Veins (faster gathering), Solar Maximum (more production), Hunter's Moon (richer Pirate Lords) and more. The event card and EVENTS & SEASON show this week's and next week's.",
                 },
             },
             new HandbookTopic

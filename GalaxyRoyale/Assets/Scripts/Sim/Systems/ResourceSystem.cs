@@ -66,7 +66,7 @@ namespace GalaxyRoyale.Sim.Systems
             var bal = GetEnergyBalance(state);
             float boost = state.Buffs.ProdBoostUntilTick > state.Tick ? Balance.ProdBoostFactor : 1f;
             // Gold Rush (galaxy event) lifts every empire's production.
-            float research = ResearchSystem.ProdMultiplier(state) * EventSystem.ProductionMult(state)
+            float research = ResearchSystem.ProdMultiplier(state) * EventSystem.ProductionMult(state) * TwistSystem.ProductionMult(state)
                 * (1f + HomeGuardBonus(state));
             var rates = new ResourceBag();
 
@@ -186,6 +186,7 @@ namespace GalaxyRoyale.Sim.Systems
                 Mix(state.Buffs.ProdBoostUntilTick > state.Tick ? 1 : 0);
                 Mix(state.Buffs.EnergyBoostUntilTick > state.Tick ? 1 : 0);
                 Mix((int)EventSystem.KindAt(state.Tick));
+                Mix((int)TwistSystem.KindAt(state.Tick));
                 foreach (var kv in state.Ships) { Mix((int)kv.Key); Mix(kv.Value); }
                 return h;
             }

@@ -27,7 +27,7 @@ namespace GalaxyRoyale.Sim.Systems
             var def = Techs.Defs[id];
             double raw = def.BaseTimeSec * Math.Pow(def.TimeGrowth, toLevel - 1);
             // Research Surge (galaxy event) cuts research started while it runs.
-            return Math.Max(1, (int)Math.Ceiling(raw * ResearchTimeMult(state) * EventSystem.ResearchTimeMult(state)));
+            return Math.Max(1, (int)Math.Ceiling(raw * ResearchTimeMult(state) * EventSystem.ResearchTimeMult(state) * TwistSystem.ResearchTimeMult(state)));
         }
 
         static int LabLevel(GameState state) => state.Buildings[BuildingId.ResearchLab].Level;

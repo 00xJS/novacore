@@ -32,7 +32,7 @@ namespace GalaxyRoyale.Game.UI
             content.Add(body);
 
             // Countdown labels tick every second without rebuilding the page.
-            Label? eventLeft = null, nextLeft = null, seasonLeft = null;
+            Label? eventLeft = null, nextLeft = null, seasonLeft = null, twistLeft = null;
             string key = "";
             int lastTick = -1;
 
@@ -107,6 +107,21 @@ namespace GalaxyRoyale.Game.UI
                 nextRow.Add(nextBox);
                 body.Add(nextRow);
 
+                // ---- the week's twist (2026-09-30) ----
+                var twist = TwistSystem.At(state.Tick);
+                var nextTwist = TwistSystem.Next(state.Tick);
+                body.Add(Section("THIS WEEK'S TWIST"));
+                var tw = Card(twist.Kind == TwistKind.None ? UiTheme.Stroke : UiTheme.Accent);
+                var twHead = Widgets.HBox(Justify.SpaceBetween);
+                twHead.Add(Widgets.IconText(Icon.Bolt, twist.Name.ToUpperInvariant(), 13, UiTheme.Accent, bold: true));
+                twistLeft = Widgets.Text("", 10, UiTheme.Accent, bold: true);
+                twHead.Add(twistLeft);
+                tw.Add(twHead);
+                tw.Add(Wrap(Widgets.Text(twist.Effect, 12, UiTheme.Text), 4));
+                if (twist.Flavor.Length > 0) tw.Add(Wrap(Widgets.Text(twist.Flavor, 11, UiTheme.Dim), 3));
+                tw.Add(Wrap(Widgets.Text($"Next week: {nextTwist.Name} · {nextTwist.Effect}", 10, UiTheme.Dim), 6));
+                body.Add(tw);
+
                 // ---- the season ----
                 body.Add(Section("SEASON"));
                 var season = Card(UiTheme.Accent);
@@ -170,6 +185,7 @@ namespace GalaxyRoyale.Game.UI
                 if (eventLeft != null)
                     eventLeft.text = $"{(EventSystem.IsQuiet(live) ? "FIRST IN" : "ENDS IN")} {UiTheme.FmtLong(live.EndTick - state.Tick)}";
                 if (nextLeft != null) nextLeft.text = $"in {UiTheme.FmtLong(live.EndTick - state.Tick)}";
+                if (twistLeft != null) twistLeft.text = $"NEW IN {UiTheme.FmtLong(TwistSystem.LeftSec(state.Tick))}";
                 int season = Math.Max(1, state.Season);
                 if (seasonLeft != null)
                     seasonLeft.text = $"ENDS IN {UiTheme.FmtLong(SeasonSystem.EndTick(season) - state.Tick)}";

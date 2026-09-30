@@ -126,6 +126,8 @@ namespace GalaxyRoyale.Sim.Systems
             var hourly = ResourceSystem.MineOutputPerHour(s);
             var pay = new ResourceBag(hourly.Gold * hours, hourly.Quartz * hours, hourly.Helium * hours);
             int dm = tier == 0 ? 100 + 25 * lord : 50 + 10 * Math.Min(tier, 10);
+            float moon = TwistSystem.LordRewardMult(s); // Hunter's Moon
+            if (moon != 1f) { pay = new ResourceBag((long)(pay.Gold * moon), (long)(pay.Quartz * moon), (long)(pay.Helium * moon)); dm = (int)(dm * moon); }
             return (pay, dm);
         }
 

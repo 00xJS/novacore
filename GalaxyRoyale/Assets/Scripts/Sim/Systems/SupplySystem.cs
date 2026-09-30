@@ -13,9 +13,10 @@ namespace GalaxyRoyale.Sim.Systems
     {
         public static void Tick(GameState s, SimEventBus events)
         {
-            if (s.NextSupplyDropTick == 0) { s.NextSupplyDropTick = s.Tick + Balance.SupplyDropEverySec; return; }
+            int every = (int)(Balance.SupplyDropEverySec * TwistSystem.SupplyIntervalMult(s)); // Supply Surge
+            if (s.NextSupplyDropTick == 0) { s.NextSupplyDropTick = s.Tick + every; return; }
             if (s.Tick < s.NextSupplyDropTick) return;
-            s.NextSupplyDropTick = s.Tick + Balance.SupplyDropEverySec;
+            s.NextSupplyDropTick = s.Tick + every;
             if (s.SupplyCrates >= Balance.SupplyDropMaxStored) return;
             s.SupplyCrates++;
             events.Emit(new SupplyDropLanded(s.SupplyCrates));

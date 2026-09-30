@@ -27,7 +27,7 @@ namespace GalaxyRoyale.Sim.Systems
         {
             var def = Buildings.Defs[id];
             double raw = def.BaseTimeSec * Math.Pow(Balance.TimeGrowth, toLevel - 1);
-            return Math.Max(1, (int)Math.Ceiling(raw * ResearchSystem.BuildTimeMult(state)));
+            return Math.Max(1, (int)Math.Ceiling(raw * ResearchSystem.BuildTimeMult(state) * TwistSystem.BuildTimeMult(state)));
         }
 
         /// <summary>Concurrent build slots: base 2 (the standard everyone runs),

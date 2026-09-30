@@ -38,6 +38,9 @@ namespace GalaxyRoyale.Game
             if (Environment.GetEnvironmentVariable("GR_EVENT") is { } ev && ctx.State != null
                 && Enum.TryParse<Data.GalaxyEventKind>(ev, out var kind))
                 Sim.Systems.EventSystem.DebugForce = (kind, ctx.State.Tick);
+            // GR_TWIST=LowGravity (any TwistKind): that weekly twist, for a look.
+            if (Environment.GetEnvironmentVariable("GR_TWIST") is { } tw && Enum.TryParse<Data.TwistKind>(tw, out var twist))
+                Sim.Systems.TwistSystem.DebugForce = twist;
             // GR_CAMPAIGN=<chapter 1-10>: that chapter of The Long Night opens now, for a look.
             if (Environment.GetEnvironmentVariable("GR_CAMPAIGN") is { } chapter && ctx.State != null
                 && int.TryParse(chapter, out int ch))
