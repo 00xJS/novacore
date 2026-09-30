@@ -19,7 +19,7 @@ namespace GalaxyRoyale.Game
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
             "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail, " +
             "command, mines, frontier, port, wilds, sector, find, orbit, orbitsouth, mapcore, mapall, report, replay, demoreport, demoreplay, " +
-            "tour, fxdemo, handbook";
+            "tour, fxdemo, handbook, recap";
 
         public static void Run(GameContext ctx)
         {
@@ -117,6 +117,19 @@ namespace GalaxyRoyale.Game
                             UI.EventsPanel.ShowOnMap(ctx, spot.tile, spot.node);
                         break;
                     case "darkmatter": ui.OpenDarkMatterShop(); break;
+                    case "recap": // the season recap: the last finished season, or a sample one
+                        if (ctx.State != null)
+                            UI.SeasonRecapPanel.Open(ctx, ctx.State.SeasonHistory.Count > 0
+                                ? ctx.State.SeasonHistory[^1]
+                                : new Sim.SeasonRecord
+                                {
+                                    Season = 3, Rank = 7, Of = 250, Gain = 48_210, RewardDM = 300,
+                                    Champion = "Vex Hadrian", ChampionGain = 91_400,
+                                    Highlights = new() { ["raids"] = 12, ["camps"] = 30, ["loot"] = 1_840_000,
+                                        ["gathered"] = 2_600_000, ["upgrades"] = 21, ["events"] = 2, ["expeditions"] = 4,
+                                        ["nemeses"] = 1 },
+                                }, justEnded: true);
+                        break;
                     case "research": ui.OpenResearch(); break;
                     case "profile": ui.OpenProfile(); break;
                     case "fleet": ui.SwitchView(UI.ViewId.Fleet); break;

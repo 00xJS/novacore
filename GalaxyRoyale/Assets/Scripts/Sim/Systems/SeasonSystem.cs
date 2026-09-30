@@ -29,6 +29,25 @@ namespace GalaxyRoyale.Sim.Systems
             _ => 40,
         };
 
+        /// <summary>The record a season recap reports, by key: lifetime counters
+        /// whose difference over a season is what you did in it.</summary>
+        public static Dictionary<string, long> Tally(Stats s) => new()
+        {
+            ["raids"] = s.RaidsWon,
+            ["camps"] = s.CampsCleared,
+            ["defenses"] = s.DefensesWon,
+            ["loot"] = s.LootMilli / 1000,
+            ["gathered"] = s.GatheredMilli / 1000,
+            ["ships"] = s.ShipsBuilt,
+            ["upgrades"] = s.UpgradesDone,
+            ["research"] = s.ResearchDone,
+            ["events"] = s.EventsCompleted,
+            ["boss"] = s.BossStrikes,
+            ["cores"] = s.CoresSeized,
+            ["expeditions"] = s.ExpeditionsDone,
+            ["nemeses"] = s.NemesesDefeated,
+        };
+
         public static long PlayerGain(GameState player) =>
             PowerSystem.ComputePower(player) - player.SeasonStartMight;
 
@@ -60,6 +79,8 @@ namespace GalaxyRoyale.Sim.Systems
         {
             int now = SeasonAt(player.Tick);
             if (player.Season == 0) { Begin(player, galaxy, now); return null; }
+            // A save from before the recap: count from here, so this season's recap has something.
+            if (player.SeasonStartTally.Count == 0) player.SeasonStartTally = Tally(player.Stats);
             if (now == player.Season) return null;
 
             var rows = Standings(player, galaxy);
@@ -71,7 +92,16 @@ namespace GalaxyRoyale.Sim.Systems
                 Of = rows.Count,
                 Gain = PlayerGain(player),
                 RewardDM = RewardFor(rank),
+                Champion = rows[0].name,
+                ChampionGain = rows[0].gain,
             };
+            // Only a season that started with a tally knows what happened in it.
+            if (player.SeasonStartTally.Count > 0)
+                foreach (var (key, count) in Tally(player.Stats))
+                {
+                    long delta = count - (player.SeasonStartTally.TryGetValue(key, out var was) ? was : 0);
+                    if (delta > 0) record.Highlights[key] = delta;
+                }
             player.SeasonHistory.Add(record);
             player.Premium.DarkMatter += record.RewardDM;
             if (player.Stats.BestSeasonRank == 0 || rank < player.Stats.BestSeasonRank)
@@ -84,6 +114,7 @@ namespace GalaxyRoyale.Sim.Systems
         {
             player.Season = season;
             player.SeasonStartMight = PowerSystem.ComputePower(player);
+            player.SeasonStartTally = Tally(player.Stats);
             foreach (var bot in galaxy.Bots) bot.SeasonStartMight = bot.CachedMight;
         }
     }

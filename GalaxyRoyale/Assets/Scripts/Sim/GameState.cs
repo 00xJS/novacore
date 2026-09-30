@@ -397,6 +397,12 @@ namespace GalaxyRoyale.Sim
         public int Of;
         public long Gain;
         public int RewardDM;
+        // The season recap (2026-09-30). Empty on seasons settled before it.
+        /// <summary>The season's winner and the might they gained.</summary>
+        public string Champion = "";
+        public long ChampionGain;
+        /// <summary>What you did this season: SeasonSystem.Tally key → count.</summary>
+        public Dictionary<string, long> Highlights = new();
     }
 
 
@@ -491,6 +497,8 @@ namespace GalaxyRoyale.Sim
         /// <summary>Current season (0 = not started) and the might it began at.</summary>
         public int Season;
         public long SeasonStartMight;
+        /// <summary>SeasonSystem.Tally at the season's start (empty on older saves).</summary>
+        public Dictionary<string, long> SeasonStartTally = new();
         public List<SeasonRecord> SeasonHistory = new();
         /// <summary>The player's clan (ClanSystem; 0 = none) — membership lives
         /// here for the player, on BotEmpire.ClanId for the rivals.</summary>

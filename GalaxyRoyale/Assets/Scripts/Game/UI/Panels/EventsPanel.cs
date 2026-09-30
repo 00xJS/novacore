@@ -156,6 +156,8 @@ namespace GalaxyRoyale.Game.UI
                         box.Add(Widgets.Text($"#{rec.Rank} of {rec.Of} · +{rec.Gain:N0} · {rec.RewardDM} DM", 11,
                             rec.Rank <= 10 ? UiTheme.Energy : UiTheme.Dim));
                         row.Add(box);
+                        // Tap a past season for its recap.
+                        row.RegisterCallback<ClickEvent>(_ => SeasonRecapPanel.Open(ctx, rec));
                         body.Add(row);
                     }
                 }

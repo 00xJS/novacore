@@ -184,6 +184,35 @@ namespace GalaxyRoyale.Sim.Tests
         }
 
         [Test]
+        public void SeasonRecap_NamesTheChampion_AndCountsOnlyThisSeason_AndSaves()
+        {
+            var player = GameState.CreateNewGame(Spawn.GalaxySeed);
+            var galaxy = Galaxy();
+            player.Stats.RaidsWon = 5; // last season's work doesn't count
+            SeasonSystem.Tick(player, galaxy);
+            player.Stats.RaidsWon += 3;
+            player.Stats.ExpeditionsDone += 2;
+            player.Stats.LootMilli += 40_000_000;
+            player.Ships[HullId.Fighter] = (player.Ships.TryGetValue(HullId.Fighter, out var f) ? f : 0) + 50;
+
+            player.Tick = SeasonSystem.SeasonSec;
+            var record = SeasonSystem.Tick(player, galaxy)!;
+            Assert.AreEqual(player.Profile.Name, record.Champion, "you won it");
+            Assert.AreEqual(record.Gain, record.ChampionGain);
+            Assert.AreEqual(3, record.Highlights["raids"]);
+            Assert.AreEqual(2, record.Highlights["expeditions"]);
+            Assert.AreEqual(40_000, record.Highlights["loot"]);
+            Assert.IsFalse(record.Highlights.ContainsKey("camps"), "nothing done, nothing listed");
+
+            var back = SaveCodec.Decode(SaveCodec.Encode(SaveManager.Wrap(player, 1000))).State;
+            var saved = back.SeasonHistory[0];
+            Assert.AreEqual(record.Champion, saved.Champion);
+            Assert.AreEqual(record.ChampionGain, saved.ChampionGain);
+            CollectionAssert.AreEquivalent(record.Highlights, saved.Highlights);
+            CollectionAssert.AreEquivalent(player.SeasonStartTally, back.SeasonStartTally);
+        }
+
+        [Test]
         public void Rewards_ShrinkDownTheBoard()
         {
             Assert.Greater(SeasonSystem.RewardFor(1), SeasonSystem.RewardFor(2));
