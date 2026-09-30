@@ -92,10 +92,10 @@ namespace GalaxyRoyale.Sim.Tests
             var core = new TileXY(Balance.SectorSize / 2, Balance.SectorSize / 2);
 
             Assert.IsTrue(MarchSystem.InCoreExclusion(core));
-            Assert.IsTrue(MarchSystem.InCoreExclusion(
-                new TileXY(core.X + Balance.CoreExclusionHalf, core.Y - Balance.CoreExclusionHalf)));
-            Assert.IsFalse(MarchSystem.InCoreExclusion(
-                new TileXY(core.X + Balance.CoreExclusionHalf + 1, core.Y)));
+            Assert.IsTrue(MarchSystem.InCoreExclusion(new TileXY(core.X + Balance.CoreZoneRadius, core.Y)));
+            Assert.IsTrue(MarchSystem.InCoreExclusion(new TileXY(core.X + 141, core.Y - 141)));
+            Assert.IsFalse(MarchSystem.InCoreExclusion(new TileXY(core.X + Balance.CoreZoneRadius + 1, core.Y)));
+            Assert.IsFalse(MarchSystem.InCoreExclusion(new TileXY(core.X + 142, core.Y - 142)), "the zone is round");
 
             Assert.IsFalse(MarchSystem.RelocateHome(state, core).Ok, "no porting into the core");
             Assert.IsFalse(MarchSystem.SendRaidMarch(state,

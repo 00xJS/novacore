@@ -38,7 +38,8 @@ namespace GalaxyRoyale.Sim.Map
                             int dmy = (int)Math.Floor(Rng.Hash2d(useed ^ 0x33EEu, cx, cy) * cs);
                             var dmTile = new TileXY(cx * cs + dmx, cy * cs + dmy);
                             if (dmTile.X < size && dmTile.Y < size
-                                && TileXY.Distance(dmTile, home) > HomeClearRadius)
+                                && TileXY.Distance(dmTile, home) > HomeClearRadius
+                                && !Balance.InCoreZone(dmTile) && Balance.InGalaxy(dmTile))
                             {
                                 nodes[dmTile.Key()] = new MapNode
                                 {
@@ -60,6 +61,8 @@ namespace GalaxyRoyale.Sim.Map
                     var tile = new TileXY(cx * cs + jx, cy * cs + jy);
                     if (tile.X >= size || tile.Y >= size) continue;
                     if (TileXY.Distance(tile, home) <= HomeClearRadius) continue;
+                    // The Core Zone stays clear: the Core alone at the centre.
+                    if (Balance.InCoreZone(tile) || !Balance.InGalaxy(tile)) continue;
 
                     int tier = Balance.TierOf((int)TileXY.Distance(tile, core));
                     var kind = PickKind(tier, Rng.Hash2d(useed ^ 0x2b7eu, cx, cy));

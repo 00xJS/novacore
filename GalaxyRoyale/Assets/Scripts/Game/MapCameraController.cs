@@ -34,8 +34,8 @@ namespace GalaxyRoyale.Game
         [Header("Zoom (view half-height, in tiles)")]
         [Tooltip("Closest zoom-in. Raised so you can't zoom in so close the map feels claustrophobic (user feedback).")]
         [SerializeField] float minViewSize = 26f;
-        [Tooltip("Farthest zoom-out — the WHOLE universe fits the screen (user spec 2026-07-07). Nodes hide past hideNodesAbove; planets stay.")]
-        [SerializeField] float maxViewSize = 2800f;
+        [Tooltip("Farthest zoom-out: the galaxy's top and bottom edges fill the map (user 2026-09-29; it was 2800, the whole galaxy small in the middle of the screen).")]
+        [SerializeField] float maxViewSize = 1500f;
         [SerializeField] float mouseZoomFactor = 0.09f;
         [SerializeField] float pinchZoomFactor = 0.007f;
 
@@ -51,6 +51,12 @@ namespace GalaxyRoyale.Game
         /// <summary>World-space pan bounds (min/max corners of the padded sector).</summary>
         public Vector2 BoundsMin;
         public Vector2 BoundsMax;
+        /// <summary>The galaxy's centre and half-extent (world units). Zoomed out, the
+        /// framed point is held this far in from the edge less what the view shows, so
+        /// the screen stays on the galaxy instead of empty space (user 2026-09-29).
+        /// Radius 0 = no such limit.</summary>
+        public Vector2 GalaxyCentre;
+        public float GalaxyRadius;
         /// <summary>Tap handler — receives the world-space (z=0) point under the finger.</summary>
         public System.Action<Vector3>? OnTap;
 
@@ -62,7 +68,7 @@ namespace GalaxyRoyale.Game
         public float ViewSize
         {
             get => _viewSize;
-            set { _viewSize = Mathf.Clamp(value, minViewSize, maxViewSize); ApplyPose(); }
+            set { _viewSize = Mathf.Clamp(value, minViewSize, maxViewSize); Frame(Target); }
         }
 
         public float MinViewSize => minViewSize;
@@ -86,6 +92,16 @@ namespace GalaxyRoyale.Game
         {
             groundXY.x = Mathf.Clamp(groundXY.x, BoundsMin.x, BoundsMax.x);
             groundXY.y = Mathf.Clamp(groundXY.y, BoundsMin.y, BoundsMax.y);
+            if (GalaxyRadius > 0f)
+            {
+                // What the view shows either side of the framed point: its width (aspect)
+                // across, and a little less than its half-height up and down at the tilt.
+                float aspect = Cam != null ? Cam.aspect : 0.46f;
+                float reachX = Mathf.Max(0f, GalaxyRadius - _viewSize * aspect * 0.9f);
+                float reachY = Mathf.Max(0f, GalaxyRadius - _viewSize * 0.8f);
+                groundXY.x = Mathf.Clamp(groundXY.x, GalaxyCentre.x - reachX, GalaxyCentre.x + reachX);
+                groundXY.y = Mathf.Clamp(groundXY.y, GalaxyCentre.y - reachY, GalaxyCentre.y + reachY);
+            }
             Target = groundXY;
             ApplyPose();
         }

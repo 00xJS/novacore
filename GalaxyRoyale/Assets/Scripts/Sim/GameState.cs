@@ -266,6 +266,9 @@ namespace GalaxyRoyale.Sim
         /// <summary>Aegis Shield: while active nobody can target this planet with a
         /// raid, and inbound fleets deflect at arrival. Launching a raid drops it.</summary>
         public int ShieldUntilTick;
+        /// <summary>Holds the Galactic Core right now (Galactic Command: faster marches).
+        /// Kept in step by CoreSystem; not saved — the next Core tick restores it.</summary>
+        public bool CoreHolder;
     }
 
     public sealed class Skins
@@ -371,6 +374,8 @@ namespace GalaxyRoyale.Sim
         public int QuestStep;
         /// <summary>Unlocked achievement ids (Data/Achievements).</summary>
         public HashSet<string> Achievements = new();
+        /// <summary>Fingerprints of the redeem codes used in this game (RedeemSystem).</summary>
+        public HashSet<string> RedeemedCodes = new();
         /// <summary>Equipped commander title — an unlocked achievement's id (null = none).</summary>
         public string? Title;
         /// <summary>Galaxy event being tracked (EventSystem): its instance number,

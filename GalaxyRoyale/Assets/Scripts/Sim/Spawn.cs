@@ -49,8 +49,8 @@ namespace GalaxyRoyale.Sim
         {
             if (taken != null && taken.Contains(tile.Key())) return false;
             int center = Balance.SectorSize / 2;
-            if (System.Math.Abs(tile.X - center) <= Balance.CoreExclusionHalf + clear
-                && System.Math.Abs(tile.Y - center) <= Balance.CoreExclusionHalf + clear) return false;
+            double ox = tile.X - center, oy = tile.Y - center, keep = Balance.CoreZoneRadius + clear;
+            if (ox * ox + oy * oy <= keep * keep) return false; // no homes in the Core Zone
             for (int dy = -clear; dy <= clear; dy++)
                 for (int dx = -clear; dx <= clear; dx++)
                     if (sector.Nodes.ContainsKey(new TileXY(tile.X + dx, tile.Y + dy).Key()))

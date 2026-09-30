@@ -45,9 +45,11 @@ namespace GalaxyRoyale.Sim.Systems
             return cap;
         }
 
-        /// <summary>Research-adjusted march speed (probe-only fleets also get the radar bonus).</summary>
+        /// <summary>Research-adjusted march speed (probe-only fleets also get the radar
+        /// bonus; the Galactic Core's holder gets Galactic Command).</summary>
         public static double EffSpeed(GameState state, Dictionary<HullId, int> ships) =>
-            FleetSpeed(ships) * ResearchSystem.MarchSpeedMult(state) * RadarSystem.FleetSpeedMult(state, ships);
+            FleetSpeed(ships) * ResearchSystem.MarchSpeedMult(state) * RadarSystem.FleetSpeedMult(state, ships)
+            * (state.Buffs.CoreHolder ? CoreSystem.CommandSpeedMult : 1.0);
 
         /// <summary>Research-adjusted cargo capacity, milli-units.</summary>
         public static long EffCargoCap(GameState state, Dictionary<HullId, int> ships) =>
@@ -150,13 +152,9 @@ namespace GalaxyRoyale.Sim.Systems
             return null;
         }
 
-        /// <summary>Inside the 100×100 forbidden square around the supernova core?</summary>
-        public static bool InCoreExclusion(TileXY tile)
-        {
-            int c = Balance.SectorSize / 2;
-            return Math.Abs(tile.X - c) <= Balance.CoreExclusionHalf
-                && Math.Abs(tile.Y - c) <= Balance.CoreExclusionHalf;
-        }
+        /// <summary>Inside the Core Zone — the clear circle around the Galactic Core?
+        /// (Was a 100×100 square until the 2026-09-29 map redesign.)</summary>
+        public static bool InCoreExclusion(TileXY tile) => Balance.InCoreZone(tile);
 
         public static SimResult RelocateHome(GameState state, TileXY tile)
         {
@@ -165,7 +163,7 @@ namespace GalaxyRoyale.Sim.Systems
             if (state.Marches.Count > 0)
                 return SimResult.Fail("Recall all fleets before relocating");
             if (InCoreExclusion(tile))
-                return SimResult.Fail("The supernova core is forbidden space");
+                return SimResult.Fail("The Core Zone is forbidden space");
             if (!MapLookup.IsBlankTile(state, tile)) return SimResult.Fail("Pick an empty tile");
             state.HomeTile = new TileXY(tile.X, tile.Y);
             return SimResult.Success;
@@ -292,7 +290,7 @@ namespace GalaxyRoyale.Sim.Systems
         {
             marchId = 0;
             if (target.Equals(state.HomeTile)) return SimResult.Fail("That's your own colony");
-            if (InCoreExclusion(target)) return SimResult.Fail("The supernova core is forbidden space");
+            if (InCoreExclusion(target)) return SimResult.Fail("The Core Zone is forbidden space");
 
             var preview = PreviewMarch(state, ships, target);
             if (!preview.Ok) return SimResult.Fail(preview.Reason ?? "Cannot launch");

@@ -26,9 +26,13 @@ namespace GalaxyRoyale.Sim.Map
         public static MapNode? DynamicNodeAt(GameState state, TileXY tile)
         {
             foreach (var n in state.Map.DynamicNodes)
-                if (n.Tile.X == tile.X && n.Tile.Y == tile.Y) return n;
+                if (n.Tile.X == tile.X && n.Tile.Y == tile.Y) return InZone(n) ? null : n;
             return null;
         }
+
+        /// <summary>A respawn a save made before the Core Zone existed may sit inside
+        /// it; such nodes are treated as gone.</summary>
+        static bool InZone(MapNode n) => Balance.InCoreZone(n.Tile);
 
         /// <summary>The live node at a tile — a dynamic respawn, or a non-retired seed node.</summary>
         public static MapNode? NodeAt(GameState state, TileXY tile)
@@ -47,7 +51,7 @@ namespace GalaxyRoyale.Sim.Map
             if (id.StartsWith("dyn-", StringComparison.Ordinal))
             {
                 foreach (var n in state.Map.DynamicNodes)
-                    if (n.Id == id) return n;
+                    if (n.Id == id) return InZone(n) ? null : n;
                 return null;
             }
             return GetSector(state).Nodes.TryGetValue(id, out var n2) ? n2 : null;
@@ -63,7 +67,8 @@ namespace GalaxyRoyale.Sim.Map
                 if (state.Map.NodeOverrides.TryGetValue(n.Id, out var ov) && ov.Retired) continue;
                 out_.Add(n);
             }
-            out_.AddRange(state.Map.DynamicNodes);
+            foreach (var n in state.Map.DynamicNodes)
+                if (!InZone(n)) out_.Add(n);
             return out_;
         }
 
@@ -72,6 +77,7 @@ namespace GalaxyRoyale.Sim.Map
         {
             var sector = GetSector(state);
             if (tile.X < 0 || tile.Y < 0 || tile.X >= sector.Size || tile.Y >= sector.Size) return false;
+            if (Balance.InCoreZone(tile)) return false; // respawns and ports never land in the Core Zone
             if (sector.Nodes.ContainsKey(tile.Key())) return false;
             return tile.X != state.HomeTile.X || tile.Y != state.HomeTile.Y;
         }

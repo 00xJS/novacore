@@ -118,6 +118,16 @@ namespace GalaxyRoyale.Sim.Save
                 ["nextRoll"] = (long)g.Core.NextRollTick,
                 ["nextTribute"] = (long)g.Core.NextTributeTick,
                 ["seized"] = (long)g.Core.TimesSeized,
+                ["history"] = Arr(g.Core.History, h => (object?)new Dictionary<string, object?>
+                {
+                    ["at"] = (long)h.AtTick,
+                    ["kind"] = h.Kind.ToString(),
+                    ["actorId"] = (long)h.ActorId,
+                    ["actor"] = h.Actor,
+                    ["other"] = h.Other,
+                    ["held"] = (long)h.HeldSec,
+                    ["lost"] = (long)h.ShipsLost,
+                }),
             },
             ["boss"] = EncodeBoss(g.Boss),
             ["empires"] = Arr(g.Bots, b => (object?)new Dictionary<string, object?>
@@ -239,6 +249,23 @@ namespace GalaxyRoyale.Sim.Save
                 g.Core.NextRollTick = I32(co, "nextRoll");
                 g.Core.NextTributeTick = I32(co, "nextTribute");
                 g.Core.TimesSeized = I32(co, "seized");
+                // Core history (map redesign, 2026-09-29) — older galaxies start with an empty log.
+                if (co.TryGetValue("history", out var rawHist) && rawHist != null)
+                    foreach (var raw in AsArr(rawHist, "core.history"))
+                    {
+                        var h = AsObj(raw, "core.history[]");
+                        if (!Enum.TryParse<Bots.CoreLogKind>(Str(h, "kind"), out var kind)) continue;
+                        g.Core.History.Add(new Bots.CoreLogEntry
+                        {
+                            AtTick = I32(h, "at"),
+                            Kind = kind,
+                            ActorId = I32(h, "actorId"),
+                            Actor = Str(h, "actor"),
+                            Other = Str(h, "other"),
+                            HeldSec = I32(h, "held"),
+                            ShipsLost = I32(h, "lost"),
+                        });
+                    }
             }
             // The Pirate Dreadnought (2026-09-28) — older galaxies schedule their first visit on load.
             if (d.TryGetValue("boss", out var rawBoss) && rawBoss is Dictionary<string, object?> bo)
@@ -481,6 +508,12 @@ namespace GalaxyRoyale.Sim.Save
                 ids.Sort(StringComparer.Ordinal);
                 root["achievements"] = Arr(ids, x => (object?)x);
             }
+            if (s.RedeemedCodes.Count > 0)
+            {
+                var used = new List<string>(s.RedeemedCodes);
+                used.Sort(StringComparer.Ordinal);
+                root["redeemed"] = Arr(used, x => (object?)x);
+            }
             if (s.Title != null) root["title"] = s.Title;
             if (s.EventInstance >= 0)
                 root["event"] = new Dictionary<string, object?>
@@ -714,6 +747,9 @@ namespace GalaxyRoyale.Sim.Save
             if (d.TryGetValue("achievements", out var ach) && ach != null)
                 foreach (var raw in AsArr(ach, "achievements"))
                     if (raw is string id) s.Achievements.Add(id);
+            if (d.TryGetValue("redeemed", out var red) && red != null)
+                foreach (var raw in AsArr(red, "redeemed"))
+                    if (raw is string hash) s.RedeemedCodes.Add(hash);
             s.Title = d.TryGetValue("title", out var tt) ? tt as string : null;
             if (d.TryGetValue("event", out var ev) && ev != null)
             {

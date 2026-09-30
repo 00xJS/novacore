@@ -56,6 +56,10 @@ namespace GalaxyRoyale.Sim.Systems
         public const double HelperRange = 400;
         public const int MaxHelpers = 3;
         public const double HelperShare = 0.15;
+        /// <summary>Galactic Command: the holder's marches fly this much faster.</summary>
+        public const double CommandSpeedMult = 1.10;
+        /// <summary>Entries kept in the core's history log.</summary>
+        public const int MaxHistory = 30;
 
         // ---------- who holds it ----------
 
@@ -240,6 +244,7 @@ namespace GalaxyRoyale.Sim.Systems
 
             // You recalled your garrison (or it was wiped): the core falls back to the guardians.
             if (core.HolderId == 0 && PlayerGarrison(player) == null) Release(player, galaxy, events, now);
+            SyncCommand(player, galaxy);
 
             for (int guard = 0; guard < 512; guard++)
             {
@@ -251,7 +256,11 @@ namespace GalaxyRoyale.Sim.Systems
                 int t = Math.Min(Math.Min(rebuildAt, tributeAt), Math.Min(arrivalAt, rollAt));
                 if (t > now) break;
 
-                if (rebuildAt == t) RebuildGuardians(galaxy, t);
+                if (rebuildAt == t)
+                {
+                    RebuildGuardians(galaxy, t);
+                    Log(galaxy, new CoreLogEntry { AtTick = t, Kind = CoreLogKind.Rebuilt, ActorId = GuardiansId, Actor = "the Core Guardians" });
+                }
                 else if (tributeAt == t) PayTribute(player, galaxy, events, t);
                 else if (arrivalAt == t)
                 {
@@ -260,6 +269,7 @@ namespace GalaxyRoyale.Sim.Systems
                 }
                 else RollBotAssault(player, galaxy, events, t);
             }
+            SyncCommand(player, galaxy);
         }
 
         /// <summary>The earliest core arrival waiting to be settled: a Core march of
@@ -290,6 +300,9 @@ namespace GalaxyRoyale.Sim.Systems
         {
             var core = galaxy.Core;
             int prev = core.HolderId;
+            string from = prev == GuardiansId ? "the Core Guardians" : HolderName(player, galaxy);
+            int heldSec = prev == GuardiansId ? 0 : Math.Max(0, at - core.HeldSinceTick);
+            HandOver(galaxy, prev);
             core.HolderId = holderId;
             core.HeldSinceTick = at;
             core.NextTributeTick = at + TributeIntervalSec;
@@ -299,6 +312,12 @@ namespace GalaxyRoyale.Sim.Systems
             core.GuardiansRebuildTick = 0;
             core.NextRollTick = Math.Max(core.NextRollTick, at + SettleSec);
             galaxy.AddBulletin(at, $"{HolderName(player, galaxy)} seized the Galactic Core");
+            Log(galaxy, new CoreLogEntry
+            {
+                AtTick = at, Kind = CoreLogKind.Seized, ActorId = holderId,
+                Actor = HolderName(player, galaxy), Other = from, HeldSec = heldSec,
+            });
+            SyncCommand(player, galaxy);
             events.Emit(new CoreSeized(holderId, prev));
         }
 
@@ -309,12 +328,16 @@ namespace GalaxyRoyale.Sim.Systems
             var core = galaxy.Core;
             int prev = core.HolderId;
             string was = HolderName(player, galaxy);
+            int heldSec = Math.Max(0, at - core.HeldSinceTick);
+            HandOver(galaxy, prev);
             core.HolderId = GuardiansId;
             core.HeldSinceTick = at;
             core.NextTributeTick = 0;
             core.Garrison.Clear();
             RebuildGuardians(galaxy, at, 0.5);
             galaxy.AddBulletin(at, $"{was} abandoned the Galactic Core — the guardians returned");
+            Log(galaxy, new CoreLogEntry { AtTick = at, Kind = CoreLogKind.Abandoned, ActorId = prev, Actor = was, HeldSec = heldSec });
+            SyncCommand(player, galaxy);
             events.Emit(new CoreSeized(GuardiansId, prev));
         }
 
@@ -407,6 +430,12 @@ namespace GalaxyRoyale.Sim.Systems
                 player.Stats.BattlesLost++;
                 if (MarchSystem.FleetCount(march.Ships) == 0) player.Marches.Remove(march);
                 else MarchSystem.ReturnHome(player, march, at);
+                Log(galaxy, new CoreLogEntry
+                {
+                    AtTick = at, Kind = CoreLogKind.Repelled, ActorId = 0,
+                    Actor = ClanSystem.Tagged(player, galaxy, 0, player.Profile.Name),
+                    Other = holderId == GuardiansId ? "the Core Guardians" : holderName, ShipsLost = ShipsIn(atkLosses),
+                });
                 galaxy.AddBulletin(at,
                     $"{holderName} held the Galactic Core against {ClanSystem.Tagged(player, galaxy, 0, player.Profile.Name)}");
             }
@@ -622,9 +651,18 @@ namespace GalaxyRoyale.Sim.Systems
                 Take(player, galaxy, events, holder.Id, at);
                 core.Garrison = survivors[keeper];
             }
-            else if (prev != 0)
-                galaxy.AddBulletin(at,
-                    $"{defenderName} held the Galactic Core against {ClanSystem.Tagged(player, galaxy, attacker.Id, attacker.Name)}");
+            else
+            {
+                if (prev != 0)
+                    galaxy.AddBulletin(at,
+                        $"{defenderName} held the Galactic Core against {ClanSystem.Tagged(player, galaxy, attacker.Id, attacker.Name)}");
+                Log(galaxy, new CoreLogEntry
+                {
+                    AtTick = at, Kind = CoreLogKind.Repelled, ActorId = attacker.Id,
+                    Actor = ClanSystem.Tagged(player, galaxy, attacker.Id, attacker.Name),
+                    Other = prev == GuardiansId ? "the Core Guardians" : defenderName, ShipsLost = ShipsIn(atkLosses),
+                });
+            }
 
             if (prev != 0) return;
             // It was YOUR core: file the defence report.
@@ -651,6 +689,60 @@ namespace GalaxyRoyale.Sim.Systems
             events.Emit(new BattleResolved(report));
             if (held && playerGarrison != null && MarchSystem.FleetCount(playerGarrison.Ships) == 0)
                 Release(player, galaxy, events, at); // the guns held, but nobody is left to hold them
+        }
+
+        // ---------- history + buffs ----------
+
+        static void Log(BotGalaxy galaxy, CoreLogEntry entry)
+        {
+            var log = galaxy.Core.History;
+            log.Insert(0, entry);
+            if (log.Count > MaxHistory) log.RemoveRange(MaxHistory, log.Count - MaxHistory);
+        }
+
+        static int ShipsIn(List<Dictionary<HullId, int>> lines)
+        {
+            int n = 0;
+            foreach (var l in lines) n += MarchSystem.FleetCount(l);
+            return n;
+        }
+
+        /// <summary>Galactic Command follows the holder: the player's flag every tick,
+        /// a bot's whenever the core changes hands (and after a load).</summary>
+        static void SyncCommand(GameState player, BotGalaxy galaxy)
+        {
+            player.Buffs.CoreHolder = galaxy.Core.HolderId == 0;
+            if (HolderBot(galaxy) is { } holder) holder.State.Buffs.CoreHolder = true;
+        }
+
+        static void HandOver(BotGalaxy galaxy, int prev)
+        {
+            if (prev > 0 && galaxy.Find(prev) is { } was) was.State.Buffs.CoreHolder = false;
+        }
+
+        /// <summary>Core Beacon: while the player holds the core, every assault flying
+        /// at it — lead and wings, with where they launched and when they land.</summary>
+        public static List<BotMarch> BeaconContacts(GameState player, BotGalaxy galaxy)
+        {
+            var list = new List<BotMarch>();
+            if (galaxy.Core.HolderId != 0) return list;
+            foreach (var m in galaxy.Marches)
+                if (m.Kind == BotMarchKind.CoreAssault && !m.Resolved && m.ArrivesAtTick > player.Tick)
+                    list.Add(m);
+            list.Sort((a, b) => a.ArrivesAtTick.CompareTo(b.ArrivesAtTick));
+            return list;
+        }
+
+        /// <summary>Every assault flying at the core right now, whoever holds it.</summary>
+        public static int InboundAssaults(GameState player, BotGalaxy galaxy)
+        {
+            var groups = new HashSet<int>();
+            foreach (var m in galaxy.Marches)
+                if (m.Kind == BotMarchKind.CoreAssault && !m.Resolved && m.ArrivesAtTick > player.Tick)
+                    groups.Add(m.LinkId);
+            foreach (var m in player.Marches)
+                if (m.Mission == MarchMission.Core && m.Phase == MarchPhase.Outbound) groups.Add(-m.Id);
+            return groups.Count;
         }
 
         // ---------- bits ----------

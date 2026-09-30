@@ -175,6 +175,7 @@ namespace GalaxyRoyale.Game.UI
             }
             _searchFab = LeftFab(Icon.Search, "FIND", () => SearchPanel.Open(_ctx), 56f);
             _favoritesFab = LeftFab(Icon.Star, null, () => FavoritesPanel.Open(_ctx), 112f);
+            BuildMapFilter();
 
             // The globe base: district tabs above the ticker, and ORBIT / HOME / LAND at
             // the top right where the old SPIN toggle sat (Update tracks the safe area).
@@ -220,7 +221,7 @@ namespace GalaxyRoyale.Game.UI
             _labelBlockers.AddRange(new[]
             {
                 _header, _nav, _ticker, _queuesFab, _moreFab, _moreMenu,
-                _spinToggle, _searchFab, _favoritesFab, _calloutLayer, _leftStack, _districts.Bar, _districts.WildsHud,
+                _spinToggle, _searchFab, _favoritesFab, _calloutLayer, _leftStack, _districts.Bar, _districts.WildsHud, _mapFilter,
             });
 
             _ctx.Events!.Subscribe(OnSimEvent);
@@ -548,6 +549,46 @@ namespace GalaxyRoyale.Game.UI
             if (_moreOpen) GetComponent<BuildingMarkers>()?.Deselect();
             _moreMenu.style.display = _moreOpen ? DisplayStyle.Flex : DisplayStyle.None;
             Widgets.SetButtonHighlight(_moreFab, _moreOpen);
+        }
+
+        // ---------- the galaxy map's layer filter (map redesign, 2026-09-29) ----------
+
+        VisualElement _mapFilter = null!;
+        readonly List<(Button button, MapView.Layer layer)> _filterChips = new();
+
+        void BuildMapFilter()
+        {
+            _mapFilter = Widgets.HBox();
+            _mapFilter.style.position = Position.Absolute;
+            _mapFilter.style.left = 12;
+            _mapFilter.style.top = 112;
+            _mapFilter.style.display = DisplayStyle.None;
+            foreach (var (label, layer) in new[]
+            {
+                ("ALL", MapView.Layer.All), ("RESOURCES", MapView.Layer.Resources),
+                ("EMPIRES", MapView.Layer.Empires), ("HOSTILE", MapView.Layer.Hostile),
+            })
+            {
+                var chip = Widgets.TextButton(label, () =>
+                {
+                    GetComponent<MapView>()?.SetFilter(layer);
+                    PaintFilter();
+                }, 9);
+                chip.style.height = 28;
+                chip.style.paddingLeft = 10;
+                chip.style.paddingRight = 10;
+                chip.style.marginRight = 6;
+                _mapFilter.Add(chip);
+                _filterChips.Add((chip, layer));
+            }
+            _root.Add(_mapFilter);
+            PaintFilter();
+        }
+
+        void PaintFilter()
+        {
+            var current = GetComponent<MapView>()?.Filter ?? MapView.Layer.All;
+            foreach (var (button, layer) in _filterChips) Widgets.SetButtonHighlight(button, layer == current);
         }
 
         void BuildQueuesFab()
@@ -1097,6 +1138,7 @@ namespace GalaxyRoyale.Game.UI
             float headerH = Mathf.Max(topInset + 4f, 34f) + 20f + 50f;
             _spinToggle.style.top = headerH + 10f;
             _leftStack.style.top = headerH + 10f;
+            _mapFilter.style.top = headerH + 10f;
 
             // Header numbers only move when the sim ticks (1 Hz) or the player
             // acts — refreshing them 60×/frame was ComputePower + string-format
@@ -1123,6 +1165,7 @@ namespace GalaxyRoyale.Game.UI
                 ? DisplayStyle.Flex : DisplayStyle.None;
             _searchFab.style.display = mapFabDisplay;
             _favoritesFab.style.display = mapFabDisplay;
+            _mapFilter.style.display = mapFabDisplay;
             _spinToggle.style.display = View == ViewId.Base && _modal == null
                 ? DisplayStyle.Flex : DisplayStyle.None;
             _districts.SetVisible(View == ViewId.Base && _modal == null && !calloutUp);

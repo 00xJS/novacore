@@ -37,9 +37,17 @@ namespace GalaxyRoyale.Game
         // (user feedback: don't grow them as you zoom out — they should shrink to
         // little dots on the overview). The player's own planet keeps its
         // zoom-scaled prominence.
-        static float NodeMarkerScale(float size, bool lodDot) => 5f;
+        // Map redesign (2026-09-29): every world stays visible at every zoom (the
+        // GalaxyField draws them all). Past mid zoom they barely grow, so on screen
+        // they shrink as you pull out (user: too big fully zoomed out, and hard to
+        // tell from colonies — the colonies below grow faster and stand out).
+        static float NodeMarkerScale(float size, bool lodDot) => Mathf.Max(5f, 5f * Mathf.Pow(size / 600f, 0.25f));
         static float PlayerMarkerScale(float size) =>
-            Mathf.Max(7f, 7f * Mathf.Sqrt(size / 18f));
+            Mathf.Min(Mathf.Max(14f, 7f * Mathf.Sqrt(size / 18f)), Mathf.Max(16f, 16f * Mathf.Sqrt(size / 600f)));
+        /// <summary>Rival colonies: well over twice a world's size close in, about three
+        /// times it fully zoomed out, so colonies stand out from the resource worlds.</summary>
+        static float RivalMarkerScale(float size) =>
+            Mathf.Min(PlayerMarkerScale(size), Mathf.Max(12f, 12f * Mathf.Sqrt(size / 600f)));
 
         static readonly Color[] TierTint =
         {
@@ -81,6 +89,11 @@ namespace GalaxyRoyale.Game
         float _novaShockScale, _novaCoreScale;
         readonly List<(Transform t, float r, float speed, float phase, SpriteRenderer sr)> _orbiters = new();
         Vector3 _coreWorld;
+        /// <summary>All the galaxy's worlds in one draw; rebuilt when the node set changes.</summary>
+        GalaxyField? _field;
+        bool _fieldDirty;
+        /// <summary>Type badges beside the worlds show only this close in.</summary>
+        const float BadgesBelow = 180f;
 
         // Home + selection.
         Transform? _home;
@@ -102,6 +115,8 @@ namespace GalaxyRoyale.Game
             /// <summary>Live fire shown while this planet's BurningUntilTick is live.</summary>
             public BurnFx Burn = null!;
             public bool Burning;
+            /// <summary>The rim says who they are to you: rival, clanmate or hostile.</summary>
+            public SpriteRenderer Rim = null!;
         }
 
         int? _followMarchId; // camera chases this fleet while its callout is open
@@ -330,11 +345,16 @@ namespace GalaxyRoyale.Game
             _camCtl.OnTap = OnMapTap;
 
             _coreWorld = TileToWorld(sector.Core.X, sector.Core.Y);
+            _camCtl.GalaxyCentre = new Vector2(_coreWorld.x, _coreWorld.y);
+            _camCtl.GalaxyRadius = sector.Size * 0.5f;
 
             BuildStarfield();
             BuildNebulae(state, sector.Size);
             BuildRingsAndSupernova();
             BuildHome(state);
+            _field = new GalaxyField(_root.transform, t => TileToWorld(t.X, t.Y));
+            _field.Show = ShowKind;
+            _field.Rebuild(state);
 
             // Select reticle (hidden until a node is tapped).
             _selectRing = MapVisuals.Spawn(_root.transform, "Select Ring", MapVisuals.Ring,
@@ -348,7 +368,7 @@ namespace GalaxyRoyale.Game
             _ctx.Events!.Subscribe(e =>
             {
                 if (e is BattleResolved || e is MarchReturned || e is NodeDepleted || e is NodeRespawned)
-                    _needsSync = true;
+                    _needsSync = _fieldDirty = true;
             });
         }
 
@@ -415,60 +435,27 @@ namespace GalaxyRoyale.Game
                     _coreWorld + new Vector3(0f, 0f, 8f), r * 2f, r * 2f,
                     new Color(0.94f, 0.62f, 0.35f, 0.07f), 3); // fainter (still marks risk tiers)
 
-            // Orbital rings — calmed down to two faint ellipses (user feedback:
-            // the five-ring + four-tier-ring stack was visual noise).
-            foreach (float r in new[] { 700f, 1300f })
-                MapVisuals.Spawn(_root!.transform, $"Orbit Ring {r}", MapVisuals.Ring,
-                    _coreWorld + new Vector3(0f, 0f, 8f), r * 2f, r * 2f * 0.62f,
-                    new Color(0.5f, 0.83f, 1f, 0.05f), 4);
-
-            // Decorative worlds riding the orbit rings (trimmed to four).
-            var orbitDefs = new (float r, float speed, float phase, Color tint)[]
+            // THE GALACTIC CORE (map redesign, 2026-09-29): a sun at the heart of the
+            // galaxy, alone in the Core Zone. The zone's dashed edge lies flat on the
+            // map; the sun stands up facing the viewer. (The decorative orbiting
+            // worlds went: they read as worlds you could tap.)
+            MapVisuals.Spawn(_root!.transform, "Core Warmth", MapVisuals.Glow,
+                _coreWorld + new Vector3(0f, 0f, 7.5f), 1100f, 1100f, new Color(1f, 0.6f, 0.3f, 0.16f), 3);
+            var zoneArt = MapVisuals.OverrideSprite("core-zone");
+            if (zoneArt != null)
             {
-                (700f, -0.041f, 2.1f, new Color(0.7f, 0.85f, 0.7f)),
-                (700f, -0.041f, 5.3f, new Color(0.9f, 0.6f, 0.55f)),
-                (1300f, 0.022f, 4.0f, new Color(0.85f, 0.8f, 0.6f)),
-                (1300f, 0.022f, 0.9f, new Color(0.6f, 0.85f, 0.85f)),
-            };
-            foreach (var d in orbitDefs)
-            {
-                var sr = MapVisuals.Spawn(_root!.transform, "Orbit World", MapVisuals.Disc,
-                    _coreWorld + new Vector3(0f, 0f, 6f), 14f, 14f, d.tint, 6);
-                sr.gameObject.AddComponent<MapBillboard>(); // orbiting worlds stand up
-                _orbiters.Add((sr.transform, d.r, d.speed, d.phase, sr));
+                // The dashed ring sits at 500 of the image's 1024 px: size it to the zone.
+                float zoneSize = 1024f * Balance.CoreZoneRadius / 500f;
+                MapVisuals.Spawn(_root!.transform, "Core Zone", zoneArt,
+                    _coreWorld + new Vector3(0f, 0f, 7f), zoneSize, zoneSize, Color.white, 4);
             }
-
-            // THE SUPERNOVA — layered halo, pulsing shockwave ring, pulsing core.
-            // With user art (Resources/Map/supernova-core.png — the blue-violet
-            // Kingdom stronghold w/ ring station) the warm procedural palette
-            // shifts blue-violet to match and the art replaces the core glow.
-            var novaArt = MapVisuals.OverrideSprite("supernova-core");
-            var haloColor = novaArt != null
-                ? new Color(0.45f, 0.4f, 1f, 0.35f) : new Color(1f, 0.75f, 0.45f, 0.35f);
-            var shockColor = novaArt != null
-                ? new Color(0.6f, 0.55f, 1f, 0.5f) : new Color(1f, 0.85f, 0.6f, 0.5f);
-            MapVisuals.Spawn(_root!.transform, "Nova Halo", MapVisuals.Glow,
-                _coreWorld + new Vector3(0f, 0f, 7f), 1800f, 1800f, haloColor, 4);
-            var shock = MapVisuals.Spawn(_root!.transform, "Nova Shock", MapVisuals.Ring,
-                _coreWorld + new Vector3(0f, 0f, 7f), 1200f, 1200f, shockColor, 4);
-            _novaShock = shock.transform;
-            _novaShockScale = 1200f;
-            var core = MapVisuals.Spawn(_root!.transform, "Nova Core", MapVisuals.Glow,
-                _coreWorld + new Vector3(0f, 0f, 6f), 520f, 520f,
-                new Color(1f, 0.95f, 0.85f, 0.95f), 5);
-            if (novaArt != null)
-            {
-                core.sprite = novaArt;
-                core.color = Color.white;
-                _novaCoreScale = 640f; // art carries its own glow — a bit larger reads regal
-                _novaStatic = true;    // user call: no pulsing on the art core
-                core.transform.localScale = new Vector3(_novaCoreScale, _novaCoreScale, 1f);
-            }
-            else
-            {
-                _novaCoreScale = 520f;
-            }
-            core.gameObject.AddComponent<MapBillboard>(); // the core stands up facing the viewer
+            var sunArt = MapVisuals.OverrideSprite("core-sun");
+            var core = MapVisuals.Spawn(_root!.transform, "Core Sun", sunArt ?? MapVisuals.Glow,
+                _coreWorld + new Vector3(0f, 0f, 6f), 400f, 400f,
+                sunArt != null ? Color.white : new Color(1f, 0.85f, 0.55f, 0.95f), 5);
+            _novaCoreScale = 400f; // the disc's radius is ~90 tiles; its corona reaches the zone's edge
+            _novaStatic = true;
+            core.gameObject.AddComponent<MapBillboard>(); // the sun stands up facing the viewer
             _novaCore = core.transform;
         }
 
@@ -483,6 +470,8 @@ namespace GalaxyRoyale.Game
                 new Color(0.45f, 0.75f, 1f), 11);
             _homeBurn = SpawnBurnFlame(root.transform);
             _homeShield = SpawnShieldBubble(root.transform);
+            MapVisuals.Spawn(root.transform, "Rim", MapVisuals.Ring, new Vector3(0f, 0f, -0.02f), 1.3f, 1.3f,
+                new Color(1f, 0.6f, 0.24f, 1f), 12); // your colony: the accent orange
             _home = root.transform;
             root.AddComponent<MapBillboard>(); // stand the planet up facing the viewer
             _homeCache = state.HomeTile;
@@ -603,7 +592,7 @@ namespace GalaxyRoyale.Game
                 ? new Vector3(_camCtl.Target.x, _camCtl.Target.y, 0f)
                 : cam.transform.position;
 
-            bool hideAll = size > hideNodesAbove;
+            bool hideAll = size > BadgesBelow; // the worlds themselves are the GalaxyField's
             bool lodDot = !hideAll && size > dotLodAbove;
 
             bool InView(TileXY tile)
@@ -618,14 +607,14 @@ namespace GalaxyRoyale.Game
             {
                 foreach (var node in sector.Nodes.Values)
                 {
-                    if (!InView(node.Tile)) continue;
+                    if (!InView(node.Tile) || !ShowKind(node.Kind)) continue;
                     state.Map.NodeOverrides.TryGetValue(node.Id, out var ov);
                     if (ov != null && (ov.Retired || ov.Cleared)) continue;
                     if (node.Kind != NodeKind.Camp && (ov?.Remaining ?? node.Amount) <= 0) continue;
                     wanted.Add(node.Id);
                 }
                 foreach (var node in state.Map.DynamicNodes)
-                    if (InView(node.Tile)) wanted.Add(node.Id);
+                    if (InView(node.Tile) && ShowKind(node.Kind) && !Balance.InCoreZone(node.Tile)) wanted.Add(node.Id);
             }
 
             // Drop sprites that fell out of view / got hidden.
@@ -652,27 +641,38 @@ namespace GalaxyRoyale.Game
                 t.localScale = new Vector3(markerScale, markerScale, 1f);
         }
 
+        /// <summary>A world's type badge (the world itself is drawn by the GalaxyField).
+        /// Local units are planet diameters: the root is scaled to the drawn size.</summary>
         void MakeNodeSprite(MapNode node)
         {
             var root = new GameObject($"Node {node.Id}");
             root.transform.SetParent(_root!.transform, worldPositionStays: false);
             root.transform.localPosition = TileToWorld(node.Tile.X, node.Tile.Y);
-            var color = KindColor(node.Kind) * TierTint[Mathf.Clamp(node.Tier, 0, TierTint.Length - 1)];
-            color.a = 1f;
-            MapVisuals.Spawn(root.transform, "Glow", MapVisuals.Glow, Vector3.zero, 2.2f, 2.2f,
-                WithAlpha(color, 0.35f), 9);
-            // Optional user art: Resources/Map/node-<kind>.png replaces the disc.
-            var art = MapVisuals.OverrideSprite($"node-{node.Kind.ToString().ToLowerInvariant()}");
-            // The procedural disc is fully tinted; ART shows at (near) native color
-            // — multiplying by the dark kind-color was making quartz/helium/derelict
-            // look muddy. A faint tier warmth still hints at risk.
-            var discColor = art != null
-                ? Color.Lerp(Color.white, TierTint[Mathf.Clamp(node.Tier, 0, TierTint.Length - 1)], 0.22f)
-                : color;
-            var disc = MapVisuals.Spawn(root.transform, "Disc", MapVisuals.Disc, Vector3.zero, 0.9f, 0.9f, discColor, 10);
-            if (art != null) disc.sprite = art;
+            var badge = MapVisuals.OverrideSprite($"map-badge-{node.Kind.ToString().ToLowerInvariant()}");
+            if (badge != null)
+                MapVisuals.Spawn(root.transform, "Badge", badge, new Vector3(0.42f, -0.4f, -0.05f), 0.36f, 0.36f, Color.white, 12);
             root.AddComponent<MapBillboard>(); // face the viewer at the tilt
             _nodeSprites[node.Id] = root.transform;
+        }
+
+        /// <summary>The layer filter (ALL / RESOURCES / EMPIRES / HOSTILE).</summary>
+        public enum Layer { All, Resources, Empires, Hostile }
+        public Layer Filter { get; private set; } = Layer.All;
+
+        bool ShowKind(NodeKind kind) => Filter switch
+        {
+            Layer.Resources => kind != NodeKind.Camp,
+            Layer.Empires => false,
+            Layer.Hostile => kind == NodeKind.Camp,
+            _ => true,
+        };
+
+        public void SetFilter(Layer layer)
+        {
+            if (layer == Filter) return;
+            Filter = layer;
+            _fieldDirty = _needsSync = true;
+            SyncRivalPlanets();
         }
 
         // ---------- tap handling ----------
@@ -757,7 +757,8 @@ namespace GalaxyRoyale.Game
             {
                 foreach (var kv in _remotes)
                 {
-                    if (WorldDist(world, kv.Value.Tile) <= playerR)
+                    if (!kv.Value.Root.gameObject.activeSelf) continue; // filtered off the map
+                    if (WorldDist(world, kv.Value.Tile) <= RivalMarkerScale(size) * 0.62f)
                     {
                         // Ring the planet like any other selected tile (user report:
                         // rival planets gave no selection feedback).
@@ -853,7 +854,7 @@ namespace GalaxyRoyale.Game
             }
             if (MarchSystem.InCoreExclusion(tile))
             {
-                Notify("The supernova core is forbidden space");
+                Notify("The Core Zone is forbidden space");
                 return;
             }
             var sector = MapLookup.GetSector(state);
@@ -1095,6 +1096,12 @@ namespace GalaxyRoyale.Game
 
             SyncBoss(t);
 
+            if (_field != null)
+            {
+                if (_fieldDirty) { _fieldDirty = false; _field.Rebuild(state); }
+                _field.Spread(cam.transform.rotation, NodeMarkerScale(cam.orthographicSize, false));
+            }
+
             // Coordinates readout replaces the header's HQ line while on the map.
             // Use the ground TARGET the camera frames, not its (tilted) position.
             var lookingAt = WorldToTile(new Vector3(_camCtl!.Target.x, _camCtl.Target.y, 0f));
@@ -1123,7 +1130,7 @@ namespace GalaxyRoyale.Game
             }
             foreach (var kv in _remotes)
             {
-                float rs = PlayerMarkerScale(cam.orthographicSize); // same size as home
+                float rs = RivalMarkerScale(cam.orthographicSize);
                 kv.Value.Root.localScale = new Vector3(rs, rs, 1f);
                 UpdateAftermathFx(kv.Value.Burn, null,
                     kv.Value.Burning, false, seed: kv.Key * 1.7f);
@@ -1561,7 +1568,7 @@ namespace GalaxyRoyale.Game
             {
                 foreach (int id in _labelOrder)
                 {
-                    if (!_remotes.TryGetValue(id, out var vis)) continue;
+                    if (!_remotes.TryGetValue(id, out var vis) || !vis.Root.gameObject.activeSelf) continue;
                     _labels.Place(LabelAnchor(vis.Root.position, vis.Root.localScale.y), vis.Name,
                         10, RemoteLabelColor, above: true);
                 }
@@ -1587,7 +1594,7 @@ namespace GalaxyRoyale.Game
         int _coreLabelTick = -1;
         string _coreLabelText = "";
         /// <summary>World units (≈ tiles) around the core centre that open the core.</summary>
-        const float CoreTapRadius = 110f;
+        const float CoreTapRadius = Balance.CoreZoneRadius; // anywhere in the Core Zone opens the Core
         static readonly Color CoreLabelColor = new(0.98f, 0.82f, 0.45f, 0.97f);
         int _bossLabelTick = -1;
         string _bossLabelText = "";
@@ -1636,6 +1643,9 @@ namespace GalaxyRoyale.Game
             if (galaxy == null || _root == null) return;
 
             var live = new HashSet<int>();
+            var hostileIds = new HashSet<int>();
+            foreach (var atk in galaxy.Inbound) hostileIds.Add(atk.BotId); // flying at you right now
+            int myClan = _ctx.State != null ? GalaxyRoyale.Sim.Systems.ClanSystem.ClanOf(_ctx.State, galaxy, 0) : 0;
             foreach (var bot in galaxy.Bots)
             {
                 live.Add(bot.Id);
@@ -1648,8 +1658,10 @@ namespace GalaxyRoyale.Game
                     var disc = MapVisuals.Spawn(root.transform, "Disc", MapVisuals.Disc, Vector3.zero, 1f, 1f,
                         new Color(0.72f, 0.50f, 0.95f), 11);
                     var burn = SpawnBurnFlame(root.transform);
+                    var rim = MapVisuals.Spawn(root.transform, "Rim", MapVisuals.Ring, new Vector3(0f, 0f, -0.02f), 1.28f, 1.28f,
+                        RivalRim, 12);
                     root.AddComponent<MapBillboard>(); // rival planets stand up too
-                    vis = new RemoteVisual { Root = root.transform, Disc = disc, Glow = glow, Burn = burn };
+                    vis = new RemoteVisual { Root = root.transform, Disc = disc, Glow = glow, Burn = burn, Rim = rim };
                     _remotes[bot.Id] = vis;
                 }
                 vis.Name = bot.Name;
@@ -1658,6 +1670,17 @@ namespace GalaxyRoyale.Game
                 // Battle scar: their planet burns for 4 h after a lost defense —
                 // returning players can read last night's wars off the map.
                 vis.Burning = bot.State.BurningUntilTick > (_ctx.State?.Tick ?? 0);
+                // Who they are to you (map redesign): clanmate teal, hostile red, else a quiet rival rim.
+                bool hostile = hostileIds.Contains(bot.Id)
+                    || (myClan != 0 && bot.ClanId != 0 && GalaxyRoyale.Sim.Systems.ClanSystem.AtWarWith(galaxy, myClan, bot.ClanId));
+                bool mate = myClan != 0 && bot.ClanId == myClan;
+                vis.Rim.color = mate ? ClanRim : hostile ? HostileRim : RivalRim;
+                vis.Root.gameObject.SetActive(Filter switch
+                {
+                    Layer.Resources => false,
+                    Layer.Hostile => hostile,
+                    _ => true,
+                });
                 string skin = bot.State.Skins.ActivePlanet;
                 if (vis.Skin != skin)
                 {
@@ -1693,6 +1716,9 @@ namespace GalaxyRoyale.Game
         }
 
         readonly Dictionary<int, long> _mightSnapshot = new();
+        static readonly Color RivalRim = new(0.62f, 0.58f, 0.77f, 0.8f);
+        static readonly Color ClanRim = new(0.18f, 0.9f, 0.78f, 0.95f);
+        static readonly Color HostileRim = new(1f, 0.3f, 0.42f, 1f);
         System.Comparison<int>? _byMightDesc;
     }
 }
