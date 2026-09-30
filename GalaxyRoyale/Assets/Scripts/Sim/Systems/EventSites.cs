@@ -109,6 +109,10 @@ namespace GalaxyRoyale.Sim.Systems
                 && MapLookup.IsLive(s, node))
                 return (node.Tile, node);
             if (ZoneNow(s) is { } z) return (z.Centre, null);
+            // Rival events (2026-09-30): the marked commander's colony, the Core.
+            var kind = EventSystem.KindAt(s);
+            if (kind == GalaxyEventKind.BountyBoard && BountySystem.IsMarked(s, s.BountyTargetId)) return (s.BountyTile, null);
+            if (kind == GalaxyEventKind.CoreTournament) return (CoreSystem.CoreTile, null);
             return null;
         }
 

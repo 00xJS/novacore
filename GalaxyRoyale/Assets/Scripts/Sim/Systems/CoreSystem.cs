@@ -242,6 +242,7 @@ namespace GalaxyRoyale.Sim.Systems
                 RebuildGuardians(galaxy, now);
             if (core.NextRollTick == 0) core.NextRollTick = now + RollIntervalSec;
 
+            TournamentTick(player, galaxy, events, now);
             // You recalled your garrison (or it was wiped): the core falls back to the guardians.
             if (core.HolderId == 0 && PlayerGarrison(player) == null) Release(player, galaxy, events, now);
             SyncCommand(player, galaxy);
@@ -310,7 +311,7 @@ namespace GalaxyRoyale.Sim.Systems
             core.Garrison.Clear();
             core.Guardians.Clear();
             core.GuardiansRebuildTick = 0;
-            core.NextRollTick = Math.Max(core.NextRollTick, at + SettleSec);
+            core.NextRollTick = Math.Max(core.NextRollTick, at + (InTournament(at) ? SettleSec / 3 : SettleSec));
             galaxy.AddBulletin(at, $"{HolderName(player, galaxy)} seized the Galactic Core");
             Log(galaxy, new CoreLogEntry
             {
@@ -515,11 +516,11 @@ namespace GalaxyRoyale.Sim.Systems
         static void RollBotAssault(GameState player, BotGalaxy galaxy, SimEventBus events, int at)
         {
             var core = galaxy.Core;
-            core.NextRollTick = at + RollIntervalSec;
+            core.NextRollTick = at + (InTournament(at) ? RollIntervalSec / 2 : RollIntervalSec);
             foreach (var m in galaxy.Marches)
                 if (m.Kind == BotMarchKind.CoreAssault && !m.Resolved) return; // one assault at a time
             var rng = Rng.Mulberry32(unchecked((uint)player.Seed * 2654435761u ^ (uint)(at / RollIntervalSec) ^ 0xC0DEC0DEu));
-            if (rng() >= RollChance) return;
+            if (rng() >= (InTournament(at) ? 0.9 : RollChance)) return;
 
             int holderClan = core.HolderId == GuardiansId ? 0 : ClanSystem.ClanOf(player, galaxy, core.HolderId);
             // Against your garrison, the difficulty sets the edge they want.
@@ -713,6 +714,78 @@ namespace GalaxyRoyale.Sim.Systems
         {
             player.Buffs.CoreHolder = galaxy.Core.HolderId == 0;
             if (HolderBot(galaxy) is { } holder) holder.State.Buffs.CoreHolder = true;
+        }
+
+        // ---------- the Core Tournament (rival events, 2026-09-30) ----------
+
+        /// <summary>A Core Tournament is under way at this galaxy time (assaults come
+        /// twice as often, and the Core changes hands sooner).</summary>
+        public static bool InTournament(int tick) => EventSystem.KindAt(tick) == GalaxyEventKind.CoreTournament;
+
+        /// <summary>Open a tournament as it begins (the holder is thrown out, the guardians
+        /// drop to half strength) and settle it when it ends (the holder wins the prize).</summary>
+        static void TournamentTick(GameState player, BotGalaxy galaxy, SimEventBus events, int now)
+        {
+            var core = galaxy.Core;
+            var live = EventSystem.Current(now);
+            bool on = live.Def.Kind == GalaxyEventKind.CoreTournament;
+            if (core.TournamentInstance >= 0 && (!on || live.Instance != core.TournamentInstance))
+                EndTournament(player, galaxy, events, now);
+            if (on && core.TournamentInstance != live.Instance) OpenTournament(player, galaxy, events, live.Instance, now);
+        }
+
+        static void OpenTournament(GameState player, BotGalaxy galaxy, SimEventBus events, int instance, int at)
+        {
+            var core = galaxy.Core;
+            core.TournamentInstance = instance;
+            string was = core.HolderId == GuardiansId ? "" : HolderName(player, galaxy);
+            if (core.HolderId == 0 && PlayerGarrison(player) is { } garrison)
+            {
+                garrison.GuardEmpireId = 0;
+                MarchSystem.ReturnHome(player, garrison, at);
+            }
+            else if (HolderBot(galaxy) is { } bot)
+                foreach (var kv in core.Garrison)
+                    bot.State.Ships[kv.Key] = (bot.State.Ships.TryGetValue(kv.Key, out var n) ? n : 0) + kv.Value;
+            HandOver(galaxy, core.HolderId);
+            core.HolderId = GuardiansId;
+            core.HeldSinceTick = at;
+            core.NextTributeTick = 0;
+            core.Garrison.Clear();
+            RebuildGuardians(galaxy, at, GalaxyEvents.TournamentGuardians);
+            core.NextRollTick = at + 10 * 60;
+            galaxy.AddBulletin(at, "The Core Tournament begins: the Galactic Core is open to all");
+            Log(galaxy, new CoreLogEntry { AtTick = at, Kind = CoreLogKind.TournamentOpened, ActorId = GuardiansId,
+                Actor = "the Core Tournament", Other = was });
+            SyncCommand(player, galaxy);
+            events.Emit(new CoreTournament(true, false, new ResourceBag(), 0, was));
+        }
+
+        static void EndTournament(GameState player, BotGalaxy galaxy, SimEventBus events, int at)
+        {
+            var core = galaxy.Core;
+            core.TournamentInstance = -1;
+            if (core.HolderId == GuardiansId)
+            {
+                galaxy.AddBulletin(at, "The Core Tournament ended with the guardians still holding the Core");
+                events.Emit(new CoreTournament(false, false, new ResourceBag(), 0, "the Core Guardians"));
+                return;
+            }
+            string holder = HolderName(player, galaxy);
+            Log(galaxy, new CoreLogEntry { AtTick = at, Kind = CoreLogKind.TournamentWon, ActorId = core.HolderId, Actor = holder });
+            galaxy.AddBulletin(at, $"{holder} won the Core Tournament");
+            if (core.HolderId == 0)
+            {
+                var prize = HourShare(player, GalaxyEvents.TournamentPrizeHours);
+                ResourceSystem.Add(player, prize);
+                player.Premium.DarkMatter += GalaxyEvents.TournamentPrizeDarkMatter;
+                player.Stats.TournamentsWon++;
+                events.Emit(new CoreTournament(false, true, prize, GalaxyEvents.TournamentPrizeDarkMatter, holder));
+                return;
+            }
+            bool clan = HolderBot(galaxy) is { } hb && ClanSystem.SameClanAsPlayer(player, hb);
+            if (clan) player.Premium.DarkMatter += GalaxyEvents.TournamentClanDarkMatter;
+            events.Emit(new CoreTournament(false, false, new ResourceBag(), clan ? GalaxyEvents.TournamentClanDarkMatter : 0, holder));
         }
 
         static void HandOver(BotGalaxy galaxy, int prev)

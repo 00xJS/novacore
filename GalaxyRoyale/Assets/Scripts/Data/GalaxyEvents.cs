@@ -11,6 +11,8 @@ namespace GalaxyRoyale.Data
         None, GoldRush, ResearchSurge, PirateArmada, WarGames,
         // Map events (2026-09-30): each puts something on the map near you.
         CometPass, TradeCaravan, IonStorm, Supernova,
+        // Rival events (2026-09-30): the galaxy's commanders at the centre of it.
+        BountyBoard, CoreTournament,
     }
 
     public sealed class GalaxyEventDef
@@ -25,6 +27,10 @@ namespace GalaxyRoyale.Data
         public int DurationSec;
         public ResourceBag Reward = new();
         public int RewardDM;
+        /// <summary>On top of Reward: this many hours of the colony's mine output, split in
+        /// Reward's proportions (user 2026-09-30: fixed rewards were far too small for a
+        /// grown colony). 0 = the default for its length (EventSystem.RewardHours).</summary>
+        public double RewardHours;
     }
 
     public static class GalaxyEvents
@@ -62,6 +68,24 @@ namespace GalaxyRoyale.Data
         public const float NovaGatherRate = 3f;
         /// <summary>…and each haul from it pays this much extra when it lands home.</summary>
         public const float NovaHaulBonus = 0.5f;
+
+        // ---- rival events (2026-09-30) ----
+        /// <summary>Bounty Board: the most-wanted raider is picked from commanders this close (tiles).</summary>
+        public const int BountyRange = 450;
+        /// <summary>…and whose might is within this factor of yours, either way.</summary>
+        public const double BountyMightBand = 2.0;
+        /// <summary>The bounty: this many camp stockpiles (at your Command Center) plus Dark Matter.</summary>
+        public const int BountyStockpiles = 4, BountyDarkMatter = 150;
+        /// <summary>Rivals hunt the marked commander this many times as keenly.</summary>
+        public const double BountyHuntWeight = 3.0;
+
+        /// <summary>Core Tournament: the guardians reset to this share of full strength.</summary>
+        public const double TournamentGuardians = 0.5;
+        /// <summary>Holding the Core when it ends: this many hours of your production, plus Dark Matter.</summary>
+        public const double TournamentPrizeHours = 12;
+        public const int TournamentPrizeDarkMatter = 400;
+        /// <summary>A clanmate holding it pays you this much Dark Matter.</summary>
+        public const int TournamentClanDarkMatter = 100;
 
         /// <summary>A new galaxy opens with this long of quiet skies before the
         /// first event. Besides giving a new commander the plain economy first,
@@ -145,6 +169,20 @@ namespace GalaxyRoyale.Data
                 Effect = "A star near you will explode when the event ends. Its worlds gather 3x faster and pay 50% more. Any fleet still there is lost",
                 Goal = "Haul from the doomed sector", Target = 8000, DurationSec = 24 * 3600,
                 Reward = new ResourceBag(2500, 2000, 1200), RewardDM = 50,
+            },
+            new GalaxyEventDef
+            {
+                Kind = GalaxyEventKind.BountyBoard, Name = "Bounty Board",
+                Effect = "The rim's most-wanted raider has a price on their head. Win a raid on them to collect, before the rivals do",
+                Goal = "Claim the bounty", Target = 1, DurationSec = 24 * 3600,
+                Reward = new ResourceBag(2500, 2000, 1500), RewardDM = 50,
+            },
+            new GalaxyEventDef
+            {
+                Kind = GalaxyEventKind.CoreTournament, Name = "Core Tournament",
+                Effect = "The Core's holder is thrown out and its guardians fall to half strength. Whoever holds it when the tournament ends wins a prize",
+                Goal = "Seize the Galactic Core", Target = 1, DurationSec = 48 * 3600,
+                Reward = new ResourceBag(4000, 3000, 2000), RewardDM = 100,
             },
         };
     }

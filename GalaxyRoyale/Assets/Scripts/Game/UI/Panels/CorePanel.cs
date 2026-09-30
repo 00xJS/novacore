@@ -315,6 +315,11 @@ namespace GalaxyRoyale.Game.UI
                     return (you ? "You withdrew from the Core" : $"{e.Actor} left the Core",
                         e.HeldSec > 0 ? $"held {UiTheme.FmtLong(e.HeldSec)} · the guardians returned" : "the guardians returned",
                         UiTheme.Dim);
+                case CoreLogKind.TournamentOpened:
+                    return ("The Core Tournament began", e.Other.Length > 0 ? $"{e.Other} was thrown out · the guardians fell to half strength"
+                        : "the guardians fell to half strength", UiTheme.Energy);
+                case CoreLogKind.TournamentWon:
+                    return (you ? "You won the Core Tournament" : $"{e.Actor} won the Core Tournament", "", you ? UiTheme.Good : UiTheme.Energy);
                 default:
                     return ("The Core Guardians rebuilt to full strength", "", UiTheme.DarkMatter);
             }

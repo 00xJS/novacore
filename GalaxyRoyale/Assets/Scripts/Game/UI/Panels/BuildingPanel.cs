@@ -640,9 +640,10 @@ namespace GalaxyRoyale.Game.UI
                     if (level < ObservatorySystem.ForecastLevel)
                         Stat("Dreadnought forecast", $"from level {ObservatorySystem.ForecastLevel}");
                     else if (galaxy.Boss.Active)
-                        Stat("Pirate Dreadnought", $"here now, at {galaxy.Boss.Tile.X}, {galaxy.Boss.Tile.Y}", UiTheme.Bad);
+                        Stat(BossSystem.Name(galaxy.Boss.Variant), $"here now, at {galaxy.Boss.Tile.X}, {galaxy.Boss.Tile.Y}", UiTheme.Bad);
                     else if (ObservatorySystem.Forecast(s, galaxy) is { } f)
-                        Stat("Next Pirate Dreadnought", $"{f.tile.X}, {f.tile.Y} in {UiTheme.FmtDuration(Math.Max(0, f.atTick - s.Tick))}", UiTheme.Energy);
+                        Stat($"Next: {BossSystem.Name(BossSystem.VariantFor(galaxy.Boss.Visit + 1))}",
+                            $"{f.tile.X}, {f.tile.Y} in {UiTheme.FmtDuration(Math.Max(0, f.atTick - s.Tick))}", UiTheme.Energy);
                     return;
                 }
             }

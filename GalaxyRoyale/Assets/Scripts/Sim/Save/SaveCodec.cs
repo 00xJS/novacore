@@ -118,6 +118,7 @@ namespace GalaxyRoyale.Sim.Save
                 ["nextRoll"] = (long)g.Core.NextRollTick,
                 ["nextTribute"] = (long)g.Core.NextTributeTick,
                 ["seized"] = (long)g.Core.TimesSeized,
+                ["tournament"] = (long)g.Core.TournamentInstance,
                 ["history"] = Arr(g.Core.History, h => (object?)new Dictionary<string, object?>
                 {
                     ["at"] = (long)h.AtTick,
@@ -249,6 +250,7 @@ namespace GalaxyRoyale.Sim.Save
                 g.Core.NextRollTick = I32(co, "nextRoll");
                 g.Core.NextTributeTick = I32(co, "nextTribute");
                 g.Core.TimesSeized = I32(co, "seized");
+                g.Core.TournamentInstance = co.TryGetValue("tournament", out var ti) && ti != null ? ToI32(ti) : -1;
                 // Core history (map redesign, 2026-09-29) — older galaxies start with an empty log.
                 if (co.TryGetValue("history", out var rawHist) && rawHist != null)
                     foreach (var raw in AsArr(rawHist, "core.history"))
@@ -319,6 +321,8 @@ namespace GalaxyRoyale.Sim.Save
                 ["lastYourDamage"] = b.LastYourDamage,
                 ["lastYourRank"] = (long)b.LastYourRank,
                 ["lastReward"] = (long)b.LastRewardDM,
+                ["variant"] = b.Variant.ToString(),
+                ["nextSiege"] = (long)b.NextSiegeTick,
             };
         }
 
@@ -342,6 +346,9 @@ namespace GalaxyRoyale.Sim.Save
                 LastYourDamage = L("lastYourDamage"),
                 LastYourRank = (int)L("lastYourRank"),
                 LastRewardDM = (int)L("lastReward"),
+                NextSiegeTick = (int)L("nextSiege"),
+                Variant = o.TryGetValue("variant", out var va) && va is string vs
+                    && Enum.TryParse<Bots.BossVariant>(vs, out var vv) ? vv : Bots.BossVariant.Dreadnought,
             };
             if (o.TryGetValue("damage", out var dm) && dm is Dictionary<string, object?> dmd)
                 foreach (var kv in dmd)
@@ -545,6 +552,16 @@ namespace GalaxyRoyale.Sim.Save
             };
             if (s.EventSiteId.Length > 0) root["eventSite"] = s.EventSiteId;
             if (s.PendingNova >= 0) root["pendingNova"] = (long)s.PendingNova;
+            if (s.BountyInstance >= 0)
+                root["bounty"] = new Dictionary<string, object?>
+                {
+                    ["instance"] = (long)s.BountyInstance,
+                    ["target"] = (long)s.BountyTargetId,
+                    ["name"] = s.BountyTargetName,
+                    ["x"] = (long)s.BountyTile.X,
+                    ["y"] = (long)s.BountyTile.Y,
+                    ["claimed"] = s.BountyClaimed,
+                };
             if (s.TutorialFlags.Count > 0)
             {
                 var flags = new List<string>(s.TutorialFlags);
@@ -806,6 +823,8 @@ namespace GalaxyRoyale.Sim.Save
                 CaravansDone = Opt("caravansDone"),
                 StormCampsCleared = Opt("stormCamps"),
                 NovaHauled = stats.TryGetValue("novaHauled", out var nh) && nh != null ? ToI64(nh) : 0,
+                BountiesClaimed = Opt("bounties"),
+                TournamentsWon = Opt("tournamentsWon"),
             };
 
             if (d.TryGetValue("achievements", out var ach) && ach != null)
@@ -822,6 +841,14 @@ namespace GalaxyRoyale.Sim.Save
             }
             s.EventSiteId = d.TryGetValue("eventSite", out var es) && es is string esId ? esId : "";
             s.PendingNova = d.TryGetValue("pendingNova", out var pn) && pn != null ? ToI32(pn) : -1;
+            if (d.TryGetValue("bounty", out var bo) && bo is Dictionary<string, object?> bounty)
+            {
+                s.BountyInstance = I32(bounty, "instance");
+                s.BountyTargetId = I32(bounty, "target");
+                s.BountyTargetName = Str(bounty, "name");
+                s.BountyTile = new TileXY(I32(bounty, "x"), I32(bounty, "y"));
+                s.BountyClaimed = bounty.TryGetValue("claimed", out var bc) && bc is bool b && b;
+            }
             if (d.TryGetValue("purchases", out var pu) && pu != null)
                 foreach (var raw in AsArr(pu, "purchases"))
                     if (raw is string tx) s.CreditedTransactions.Add(tx);
@@ -1231,6 +1258,8 @@ namespace GalaxyRoyale.Sim.Save
             Opt("caravansDone", st.CaravansDone);
             Opt("stormCamps", st.StormCampsCleared);
             Opt("novaHauled", st.NovaHauled);
+            Opt("bounties", st.BountiesClaimed);
+            Opt("tournamentsWon", st.TournamentsWon);
             return d;
         }
 

@@ -50,6 +50,49 @@ namespace GalaxyRoyale.Sim.Systems
         public const int PoolDMKilled = 1200, PoolDMEscaped = 300;
         public const int MinRewardDM = 20, FinalBlowDM = 100, TopClanDM = 250;
 
+        // ---------- variants (rival events, 2026-09-30) ----------
+
+        /// <summary>Carrier: its fighter wings add this much to its guns, on a lighter hull.</summary>
+        public const double CarrierCannon = 1.5, CarrierHull = 0.8;
+        /// <summary>Siege: a heavier hull, and it shells the colonies within SiegeRange every SiegeEverySec.</summary>
+        public const double SiegeHull = 1.2;
+        public const int SiegeEverySec = 4 * 3600;
+        public const double SiegeRange = 450;
+        /// <summary>Each bombardment destroys this share of what the vaults don't protect.</summary>
+        public const double SiegeShare = 0.05;
+        /// <summary>Stealth: hidden (no strikes, by you or the rivals) for this long after it
+        /// arrives, unless your Deep Space Observatory is at StealthSeeLevel.</summary>
+        public const int StealthCloakSec = 8 * 3600;
+        public const int StealthSeeLevel = 3;
+
+        /// <summary>The variant of a visit: the classic first, then Carrier, Siege, Stealth in turn.</summary>
+        public static BossVariant VariantFor(int visit) => (BossVariant)(Math.Max(0, visit - 1) % 4);
+
+        public static string Name(BossVariant v) => v switch
+        {
+            BossVariant.Carrier => "Pirate Carrier",
+            BossVariant.Siege => "Siege Dreadnought",
+            BossVariant.Stealth => "Stealth Dreadnought",
+            _ => "Pirate Dreadnought",
+        };
+
+        public static string Trait(BossVariant v) => v switch
+        {
+            BossVariant.Carrier => "Its fighter wings make its guns hit 50% harder, but its hull is lighter.",
+            BossVariant.Siege => "A heavier hull, and every 4 hours it shells the colonies near it, yours included if it's close.",
+            BossVariant.Stealth => "It hides for its first 8 hours: no one can strike it until it shows (a level 3 Observatory sees it at once).",
+            _ => "The classic: one huge hull, and guns that hit harder as it fails.",
+        };
+
+        /// <summary>Can you see it (and strike it)? The Stealth variant hides at first.</summary>
+        public static bool Revealed(GameState player, BotGalaxy galaxy) =>
+            galaxy.Boss.Variant != BossVariant.Stealth
+            || player.Tick >= galaxy.Boss.ArrivedTick + StealthCloakSec
+            || ObservatorySystem.Level(player) >= StealthSeeLevel;
+
+        static bool CloakedAt(BossState boss, int at) =>
+            boss.Variant == BossVariant.Stealth && at < boss.ArrivedTick + StealthCloakSec;
+
         // ---------- queries ----------
 
         public static bool Active(BotGalaxy galaxy) => galaxy.Boss.Active;
@@ -140,6 +183,8 @@ namespace GalaxyRoyale.Sim.Systems
         {
             var boss = galaxy.Boss;
             if (!boss.Active) return SimResult.Fail("No dreadnought in the galaxy right now");
+            if (!Revealed(player, galaxy))
+                return SimResult.Fail($"Its cloak hides it for {FmtLeft(boss.ArrivedTick + StealthCloakSec - player.Tick)} more");
             if (MarchSystem.FleetCount(ships) < 1) return SimResult.Fail("No ships selected");
             int arrive = player.Tick + MarchSystem.FlightSeconds(player, ships, boss.Tile);
             if (arrive >= boss.LeavesTick) return SimResult.Fail("It will be gone before your fleet gets there");
@@ -173,9 +218,15 @@ namespace GalaxyRoyale.Sim.Systems
                 int arriveAt = boss.Active ? int.MaxValue : boss.NextVisitTick;
                 int leaveAt = boss.Active ? boss.LeavesTick : int.MaxValue;
                 int rollAt = boss.Active ? boss.NextRollTick : int.MaxValue;
+                int siegeAt = boss.Active && boss.Variant == BossVariant.Siege ? boss.NextSiegeTick : int.MaxValue;
                 var (strikeAt, mine, theirs) = NextStrike(player, galaxy);
-                int t = Math.Min(Math.Min(arriveAt, leaveAt), Math.Min(rollAt, strikeAt));
+                int t = Math.Min(Math.Min(Math.Min(arriveAt, leaveAt), Math.Min(rollAt, strikeAt)), siegeAt);
                 if (t > now) break;
+                if (siegeAt == t && strikeAt != t && leaveAt != t)
+                {
+                    Shell(player, galaxy, events, t);
+                    continue;
+                }
 
                 // A strike landing the second it leaves still counts.
                 if (strikeAt == t)
@@ -218,13 +269,24 @@ namespace GalaxyRoyale.Sim.Systems
             boss.Visit++;
             boss.Active = true;
             boss.Tile = DropPoint(player.Seed, boss.Visit);
-            boss.MaxHp = boss.Hp = TargetHull(galaxy);
-            boss.Cannon = (int)Math.Max(1, boss.MaxHp / CannonDivisor);
+            boss.Variant = VariantFor(boss.Visit);
+            long hull = TargetHull(galaxy);
+            boss.Cannon = (int)Math.Max(1, hull / CannonDivisor);
+            if (boss.Variant == BossVariant.Carrier)
+            {
+                hull = (long)(hull * CarrierHull);
+                boss.Cannon = (int)(boss.Cannon * CarrierCannon);
+            }
+            else if (boss.Variant == BossVariant.Siege) hull = (long)(hull * SiegeHull);
+            boss.MaxHp = boss.Hp = hull;
+            boss.NextSiegeTick = at + SiegeEverySec;
             boss.ArrivedTick = at;
             boss.LeavesTick = at + VisitSec;
             boss.NextRollTick = at + 10 * 60;
             boss.Damage.Clear();
-            galaxy.AddBulletin(at, $"A Pirate Dreadnought dropped out of hyperspace at {boss.Tile.X}, {boss.Tile.Y}");
+            galaxy.AddBulletin(at, boss.Variant == BossVariant.Stealth
+                ? "A Stealth Dreadnought dropped out of hyperspace somewhere in the middle rings"
+                : $"A {Name(boss.Variant)} dropped out of hyperspace at {boss.Tile.X}, {boss.Tile.Y}");
             events.Emit(new BossAppeared(boss.Tile, boss.LeavesTick));
         }
 
@@ -314,6 +376,40 @@ namespace GalaxyRoyale.Sim.Systems
             }
         }
 
+        /// <summary>The Siege Dreadnought shells every colony within SiegeRange: each loses
+        /// SiegeShare of what its vaults don't protect (shields and beginner protection hold).</summary>
+        static void Shell(GameState player, BotGalaxy galaxy, SimEventBus events, int at)
+        {
+            var boss = galaxy.Boss;
+            boss.NextSiegeTick = at + SiegeEverySec;
+            ResourceBag Hit(GameState s)
+            {
+                var safe = ResourceSystem.GetProtected(s);
+                var lost = new ResourceBag(
+                    (long)(Math.Max(0, s.Resources.Gold - safe.Gold) * SiegeShare),
+                    (long)(Math.Max(0, s.Resources.Quartz - safe.Quartz) * SiegeShare),
+                    (long)(Math.Max(0, s.Resources.Helium - safe.Helium) * SiegeShare));
+                s.Resources.Gold -= lost.Gold;
+                s.Resources.Quartz -= lost.Quartz;
+                s.Resources.Helium -= lost.Helium;
+                return lost;
+            }
+            int shelled = 0;
+            foreach (var bot in galaxy.Bots)
+                if (TileXY.Distance(bot.HomeTile, boss.Tile) <= SiegeRange && bot.State.Buffs.ShieldUntilTick <= at)
+                {
+                    Hit(bot.State);
+                    shelled++;
+                }
+            if (TileXY.Distance(player.HomeTile, boss.Tile) <= SiegeRange && !ProtectionSystem.Untargetable(player, at))
+            {
+                var lost = Hit(player);
+                shelled++;
+                events.Emit(new SiegeShelled(lost));
+            }
+            if (shelled > 0) galaxy.AddBulletin(at, $"The Siege Dreadnought shelled {shelled} colon{(shelled == 1 ? "y" : "ies")}");
+        }
+
         /// <summary>Salvage in proportion to the damage, as much as the survivors can carry (milli).</summary>
         static ResourceBag Salvage(long damage, Dictionary<HullId, int> survivors)
         {
@@ -339,6 +435,7 @@ namespace GalaxyRoyale.Sim.Systems
         {
             var boss = galaxy.Boss;
             boss.NextRollTick = at + RollIntervalSec;
+            if (CloakedAt(boss, at)) return; // nobody can find a cloaked Stealth Dreadnought
             var rng = Rng.Mulberry32(unchecked((uint)player.Seed * 0x9E3779B1u ^ (uint)boss.Visit * 0x7F4A7C15u
                 ^ (uint)(at / RollIntervalSec)));
             if (rng() >= RollChance) return;
@@ -461,6 +558,8 @@ namespace GalaxyRoyale.Sim.Systems
             boss.NextVisitTick = at + GapSec;
             events.Emit(new BossDeparted(killed, mine, reward));
         }
+
+        static string FmtLeft(int sec) => sec >= 3600 ? $"{sec / 3600}h {sec % 3600 / 60}m" : $"{Math.Max(1, sec / 60)}m";
 
         static string FmtDamage(long d) =>
             d >= 1_000_000 ? $"{d / 1_000_000.0:0.0}M" : d >= 10_000 ? $"{d / 1000.0:0.#}K" : d.ToString("N0");

@@ -12,6 +12,7 @@ namespace GalaxyRoyale.Sim.Systems
         public static void Advance(GameState player, BotGalaxy galaxy, SimEventBus events)
         {
             ClanSystem.Tick(player, galaxy, events);
+            BountySystem.Tick(player, galaxy, events); // rival events (2026-09-30)
             var season = SeasonSystem.Tick(player, galaxy);
             if (season != null) events.Emit(new SeasonEnded(season));
             foreach (var a in AchievementSystem.CheckNew(player)) events.Emit(new AchievementUnlocked(a));

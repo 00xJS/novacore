@@ -5,8 +5,15 @@ using GalaxyRoyale.Data;
 
 namespace GalaxyRoyale.Sim.Bots
 {
+    /// <summary>Dreadnought variants (rival events, 2026-09-30), in turn by visit.</summary>
+    public enum BossVariant { Dreadnought, Carrier, Siege, Stealth }
+
     public sealed class BossState
     {
+        /// <summary>This visit's variant (BossSystem.VariantFor).</summary>
+        public BossVariant Variant;
+        /// <summary>The Siege variant's next bombardment.</summary>
+        public int NextSiegeTick;
         /// <summary>The current (or last) visit's number; 0 = none has come yet.</summary>
         public int Visit;
         public bool Active;

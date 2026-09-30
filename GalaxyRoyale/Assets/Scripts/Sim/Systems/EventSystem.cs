@@ -89,6 +89,8 @@ namespace GalaxyRoyale.Sim.Systems
             GalaxyEventKind.TradeCaravan => state.Stats.CaravansDone,
             GalaxyEventKind.IonStorm => state.Stats.StormCampsCleared,
             GalaxyEventKind.Supernova => state.Stats.NovaHauled,
+            GalaxyEventKind.BountyBoard => state.Stats.BountiesClaimed,
+            GalaxyEventKind.CoreTournament => state.Stats.CoresSeized,
             _ => 0,
         };
 
@@ -121,12 +123,32 @@ namespace GalaxyRoyale.Sim.Systems
             return have >= need && !state.EventClaimed && live.Instance == state.EventInstance;
         }
 
+        /// <summary>Hours of mine output an event pays on top of its base reward: two days'
+        /// worth for a one-day event, three for a two-day one (user 2026-09-30: "more like
+        /// 250k" — a mid-game colony earns 100-200K, a grown one far more).</summary>
+        public static double RewardHours(GalaxyEventDef def) =>
+            def.RewardHours > 0 ? def.RewardHours : def.DurationSec > 24 * 3600 ? 72 : 48;
+
+        /// <summary>What completing the event pays this colony (milli): the base reward plus
+        /// RewardHours of its mine output, split like the base.</summary>
+        public static ResourceBag RewardMilli(GameState state, GalaxyEventDef def)
+        {
+            var bag = def.Reward.Milli();
+            long extra = (long)(ResourceSystem.MineOutputPerHour(state).Total * RewardHours(def));
+            long baseTotal = def.Reward.Total;
+            if (baseTotal <= 0) { bag.Gold += extra / 3; bag.Quartz += extra / 3; bag.Helium += extra / 3; return bag; }
+            bag.Gold += extra * def.Reward.Gold / baseTotal;
+            bag.Quartz += extra * def.Reward.Quartz / baseTotal;
+            bag.Helium += extra * def.Reward.Helium / baseTotal;
+            return bag;
+        }
+
         public static SimResult Claim(GameState state)
         {
             if (state.EventClaimed) return SimResult.Fail("Reward already claimed");
             if (!CanClaim(state)) return SimResult.Fail("Event goal not reached yet");
             var def = Current(state.Tick).Def;
-            var milli = def.Reward.Milli();
+            var milli = RewardMilli(state, def);
             state.Resources.Gold += milli.Gold;
             state.Resources.Quartz += milli.Quartz;
             state.Resources.Helium += milli.Helium;

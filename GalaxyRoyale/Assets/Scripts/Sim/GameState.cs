@@ -338,6 +338,9 @@ namespace GalaxyRoyale.Sim
         public int CaravansDone;
         public int StormCampsCleared;
         public long NovaHauled;
+        // Rival events (2026-09-30).
+        public int BountiesClaimed;
+        public int TournamentsWon;
     }
 
     /// <summary>Your mark on the galactic market (MarketSystem): how far your own
@@ -425,6 +428,12 @@ namespace GalaxyRoyale.Sim
         /// ("" = none), and a Supernova waiting to go off (its instance; -1 = none).</summary>
         public string EventSiteId = "";
         public int PendingNova = -1;
+        /// <summary>Bounty Board (2026-09-30): the marked commander for event instance
+        /// BountyInstance (0 = none picked), where they live, and whether you collected.</summary>
+        public int BountyInstance = -1, BountyTargetId;
+        public string BountyTargetName = "";
+        public TileXY BountyTile;
+        public bool BountyClaimed;
         /// <summary>Not saved: the event (and caravan stop) EventSites last checked.</summary>
         public int SiteCheckedInstance = int.MinValue, SiteCheckedStop = -1;
         /// <summary>Equipped commander title — an unlocked achievement's id (null = none).</summary>

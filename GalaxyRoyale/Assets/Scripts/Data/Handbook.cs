@@ -169,8 +169,10 @@ namespace GalaxyRoyale.Data
                 Paragraphs = new[]
                 {
                     "A Pirate Dreadnought drops into the galaxy from time to time. Strike it along with the other commanders before it leaves: your survivors carry off salvage, and its Dark Matter is shared out by damage dealt.",
+                    "They take turns: the classic Dreadnought, a Carrier (harder-hitting guns on a lighter hull), a Siege Dreadnought (shells the colonies near it every 4 hours; an Aegis Shield keeps it off) and a Stealth Dreadnought (hidden for its first 8 hours, unless your Observatory is level 3).",
                     "Galaxy events change the rules for a day or two, such as faster research or richer mines, and set a goal with a reward. Daily objectives reset every day and pay Dark Matter.",
                     "Some events put something on the map near you. A Comet Pass brings a comet rich in every resource and Dark Matter; rivals mine it too, so be quick. A Trade Caravan docks at four waystations: ATTACK it for its cargo, or ESCORT it with warships for a fee when it moves on.",
+                    "The Bounty Board marks the rim's most-wanted raider: win a raid on them for a big reward, before a rival collects it. In a Core Tournament the Core's holder is thrown out and its guardians fall to half strength; whoever holds it when the tournament ends wins a prize.",
                     "An Ion Storm darkens your region: fleets fly slower through it, radar can't see raids coming, and its camps carry more loot. A Supernova Warning marks a doomed sector whose worlds gather fast and pay more, until the star explodes and takes every fleet still there.",
                     "Seasons last a week. Everyone is ranked by the might they gain during the season, so a young colony can beat the giants, and the final rank pays Dark Matter.",
                 },

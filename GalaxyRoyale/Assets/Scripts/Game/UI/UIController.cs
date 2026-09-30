@@ -1034,7 +1034,10 @@ namespace GalaxyRoyale.Game.UI
                 case BossAppeared appeared:
                 {
                     int left = Math.Max(0, appeared.LeavesTick - (_ctx.State?.Tick ?? 0));
-                    Toast($"A Pirate Dreadnought dropped in at {appeared.Tile.X}, {appeared.Tile.Y} — it leaves in " +
+                    var variant = _ctx.Bots?.Boss.Variant ?? Sim.Bots.BossVariant.Dreadnought;
+                    string where = variant == Sim.Bots.BossVariant.Stealth ? "somewhere in the middle rings"
+                        : $"at {appeared.Tile.X}, {appeared.Tile.Y}";
+                    Toast($"A {BossSystem.Name(variant)} dropped in {where} — it leaves in " +
                         $"{UiTheme.FmtLong(left)}. MORE › BOSS", Icon.Warning, UiTheme.Bad);
                     GameAudio.Feedback(Sfx.Alert, Haptic.Warning);
                     break;
@@ -1071,6 +1074,28 @@ namespace GalaxyRoyale.Game.UI
                 case CampFirstClear first:
                     Toast($"First Lv {first.CampLevel} camp beaten: bonus +{UiTheme.FmtAmount(first.BonusMilli.Total)} " +
                           $"sent home · +{first.DarkMatter} DM", Icon.Trophy, UiTheme.Energy);
+                    break;
+                // Rival events (2026-09-30).
+                case BountyPosted posted:
+                    Toast($"Bounty posted on {posted.Name}: win a raid on them before the rivals do. MORE › EVENTS",
+                        Icon.Target, UiTheme.Energy);
+                    break;
+                case BountyTaken taken:
+                    Toast($"{taken.Hunter} collected the bounty on {taken.Target} first", Icon.Target, UiTheme.Dim);
+                    break;
+                case CoreTournament tour when tour.Began:
+                    Toast("The Core Tournament begins: the Galactic Core is open to all. Hold it when it ends to win",
+                        Icon.Trophy, UiTheme.Energy);
+                    break;
+                case CoreTournament tour:
+                    Toast(tour.Won
+                        ? $"You won the Core Tournament: +{UiTheme.FmtAmount(tour.PrizeMilli.Total)} · +{tour.DarkMatter} DM"
+                        : tour.DarkMatter > 0 ? $"Your clanmate {tour.Holder} won the Core Tournament · +{tour.DarkMatter} DM"
+                        : $"{tour.Holder} won the Core Tournament", Icon.Trophy, tour.Won ? UiTheme.Good : UiTheme.Dim);
+                    break;
+                case SiegeShelled shelled:
+                    Toast($"The Siege Dreadnought shelled your colony: {UiTheme.FmtAmount(shelled.LostMilli.Total)} lost. " +
+                          "An Aegis Shield keeps it off", Icon.Warning, UiTheme.Bad);
                     break;
                 // Map events (2026-09-30).
                 case CaravanEscorted paid:
@@ -1497,6 +1522,7 @@ namespace GalaxyRoyale.Game.UI
             col.style.flexShrink = 1f;
             var title = Widgets.Heading("PIRATE DREADNOUGHT", 10, UiTheme.Bad, 0.8f);
             title.pickingMode = PickingMode.Ignore;
+            _bossChipTitle = title;
             _bossChipInfo = Widgets.Text("", 9, UiTheme.Dim);
             _bossChipInfo.pickingMode = PickingMode.Ignore;
             col.Add(title);
@@ -1507,8 +1533,15 @@ namespace GalaxyRoyale.Game.UI
             _leftStack.Add(c);
         }
 
+        Label? _bossChipTitle;
+
         void RefreshBossChip(GameState state)
         {
+            if (_bossChipTitle != null && _ctx.Bots is { } bg)
+            {
+                string t = BossSystem.Name(bg.Boss.Variant).ToUpperInvariant();
+                if (_bossChipTitle.text != t) _bossChipTitle.text = t;
+            }
             var galaxy = _ctx.Bots;
             if (galaxy == null) return;
             var boss = galaxy.Boss;
