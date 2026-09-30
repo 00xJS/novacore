@@ -38,6 +38,8 @@ namespace GalaxyRoyale.Game
         /// <summary>Attack ids already turned into a mailbox warning (per session — a
         /// still-inbound contact re-warns after an app restart, which is fine).</summary>
         readonly HashSet<int> _warned = new();
+        /// <summary>Core assault groups (LinkId) already announced by the Core Beacon.</summary>
+        readonly HashSet<int> _beaconWarned = new();
         readonly List<RadarContact> _detected = new();
         SpriteRenderer? _alertHalo;
         /// <summary>ArrivesAtTick of recently landed contacts (keeps the halo lit through the grace window).</summary>
@@ -72,6 +74,7 @@ namespace GalaxyRoyale.Game
             var state = _ctx.State;
             var galaxy = _ctx.Bots;
             if (state == null || galaxy == null) return;
+            ScanBeacon(state, galaxy);
             int level = RadarSystem.Level(state);
             if (level < 1) { _detected.Clear(); return; } // no radar, no ears
 
@@ -110,6 +113,20 @@ namespace GalaxyRoyale.Game
                 _warned.Add(atk.Id);
                 _recentArrivals.Add(atk.ArrivesAtTick);
                 FileWarning(state, atk, attackerName, count, tier, toArrival);
+            }
+        }
+
+        /// <summary>Core Beacon (a buff of holding the Galactic Core): every assault
+        /// launched at the core is announced once, whatever your radar level.</summary>
+        void ScanBeacon(GameState state, BotGalaxy galaxy)
+        {
+            foreach (var m in CoreSystem.BeaconContacts(state, galaxy))
+            {
+                if (!_beaconWarned.Add(m.LinkId)) continue;
+                string who = galaxy.Find(m.BotId)?.Name ?? "A commander";
+                UI.UIController.Instance?.Toast(
+                    $"Core Beacon: {who} is assaulting the Core — lands in {UI.UiTheme.FmtDuration(m.ArrivesAtTick - state.Tick)}",
+                    UI.Icon.Target, UI.UiTheme.Bad);
             }
         }
 

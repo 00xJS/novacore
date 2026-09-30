@@ -23,5 +23,32 @@ namespace GalaxyRoyale.Sim.Bots
         /// <summary>Next hourly tribute to the holder.</summary>
         public int NextTributeTick;
         public int TimesSeized;
+        /// <summary>What happened at the core, newest first (capped at
+        /// CoreSystem.MaxHistory). Names are snapshots, as tagged at the time.</summary>
+        public List<CoreLogEntry> History = new();
+    }
+
+    public enum CoreLogKind
+    {
+        /// <summary>Actor took the core from Other (who had held it HeldSec).</summary>
+        Seized,
+        /// <summary>Actor's assault broke on Other's defence; Actor lost ShipsLost.</summary>
+        Repelled,
+        /// <summary>Actor left the core after HeldSec; the guardians returned.</summary>
+        Abandoned,
+        /// <summary>The Core Guardians rebuilt to full strength.</summary>
+        Rebuilt,
+    }
+
+    public sealed class CoreLogEntry
+    {
+        public int AtTick;
+        public CoreLogKind Kind;
+        /// <summary>0 = the player, &gt;0 = a bot, -1 = the Core Guardians.</summary>
+        public int ActorId = -1;
+        public string Actor = "";
+        public string Other = "";
+        public int HeldSec;
+        public int ShipsLost;
     }
 }

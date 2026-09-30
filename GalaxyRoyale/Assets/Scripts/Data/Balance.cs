@@ -165,9 +165,31 @@ namespace GalaxyRoyale.Data
         // 2500×2500 tiles gives room for thousands of players + tens of thousands
         // of resource nodes + camps. Rendering uses camera culling + zoom LOD.
         public const int SectorSize = 2500;
-        /// <summary>Half-size of the 100×100 forbidden square around the supernova core —
-        /// no relocation, holds, raids, or spawns inside (future kingdom stronghold zone).</summary>
-        public const int CoreExclusionHalf = 50;
+        /// <summary>The Core Zone (map redesign, 2026-09-29; it replaced a 100×100
+        /// square): nothing but the Core within this many tiles of the galaxy's
+        /// centre — no resource worlds, camps, homes, relocation, holds or raids.
+        /// The sun-like Core fills it on the map.</summary>
+        public const int CoreZoneRadius = 200;
+
+        /// <summary>Worlds only form within this many tiles of the core (map redesign,
+        /// 2026-09-29): the square's far corners held worlds no one visited, and
+        /// zoomed out the galaxy read as a square carpet. It reaches past the rim
+        /// where new players settle (≤ 1.02 × half the sector) with room for the
+        /// worlds around their homes.</summary>
+        public const int GalaxyRadius = 1400;
+
+        public static bool InGalaxy(TileXY tile)
+        {
+            double dx = tile.X - SectorSize / 2, dy = tile.Y - SectorSize / 2;
+            return dx * dx + dy * dy <= (double)GalaxyRadius * GalaxyRadius;
+        }
+
+        /// <summary>Inside the Core Zone (the Core tile itself included)?</summary>
+        public static bool InCoreZone(TileXY tile)
+        {
+            double dx = tile.X - SectorSize / 2, dy = tile.Y - SectorSize / 2;
+            return dx * dx + dy * dy <= (double)CoreZoneRadius * CoreZoneRadius;
+        }
         public static readonly TileXY HomeTile = new TileXY(500, 1250); // outer rim, tier 0
         /// <summary>Cell size for jittered-grid node placement — one node per NxN cell.</summary>
         public const int NodeCellSize = 20;

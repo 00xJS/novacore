@@ -266,6 +266,9 @@ namespace GalaxyRoyale.Sim
         /// <summary>Aegis Shield: while active nobody can target this planet with a
         /// raid, and inbound fleets deflect at arrival. Launching a raid drops it.</summary>
         public int ShieldUntilTick;
+        /// <summary>Holds the Galactic Core right now (Galactic Command: faster marches).
+        /// Kept in step by CoreSystem; not saved — the next Core tick restores it.</summary>
+        public bool CoreHolder;
     }
 
     public sealed class Skins

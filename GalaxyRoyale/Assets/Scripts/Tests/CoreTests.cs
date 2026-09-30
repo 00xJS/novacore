@@ -342,5 +342,124 @@ namespace GalaxyRoyale.Sim.Tests
             Assert.AreEqual(2, file.State.Stats.CoresSeized);
             Assert.AreEqual(30, file.State.Stats.CoreHoursHeld);
         }
+
+        // ---------- map redesign (2026-09-29): Core Zone, history, buffs ----------
+
+        [Test]
+        public void TheCoreZone_HoldsNoWorldsAndNoHomes()
+        {
+            var (player, galaxy) = Setup(bots: 249);
+            var sector = Sim.Map.MapLookup.GetSector(player);
+            Assert.IsFalse(sector.Nodes.Values.Any(n => Balance.InCoreZone(n.Tile)), "no resource worlds or camps in the zone");
+            Assert.IsTrue(sector.Nodes.Values.Any(n => TileXY.Distance(n.Tile, CoreSystem.CoreTile) < Balance.CoreZoneRadius + 60),
+                "worlds still ring the zone");
+            Assert.IsFalse(galaxy.Bots.Any(b => Balance.InCoreZone(b.HomeTile)), "no commander lives in the zone");
+            Assert.IsFalse(Sim.Map.MapLookup.IsBlankTile(player, new TileXY(CoreSystem.CoreTile.X + 150, CoreSystem.CoreTile.Y)),
+                "nothing respawns or lands there");
+        }
+
+        [Test]
+        public void AnOldRespawnInsideTheZone_IsTreatedAsGone()
+        {
+            var (player, _) = Setup();
+            var inside = new TileXY(CoreSystem.CoreTile.X + 60, CoreSystem.CoreTile.Y);
+            player.Map.DynamicNodes.Add(new Sim.Map.MapNode { Id = "dyn-900", Kind = NodeKind.Asteroid, Tile = inside, Amount = 1000, RatePerSec = 1 });
+            Assert.IsNull(Sim.Map.MapLookup.NodeAt(player, inside));
+            Assert.IsNull(Sim.Map.MapLookup.NodeById(player, "dyn-900"));
+            Assert.IsFalse(Sim.Map.MapLookup.AllNodes(player).Any(n => n.Id == "dyn-900"));
+        }
+
+        [Test]
+        public void SeizingAndLosingTheCore_WritesItsHistory()
+        {
+            var (player, galaxy) = Setup();
+            var bus = new SimEventBus();
+            var march = Assault(player, galaxy, new Dictionary<HullId, int> { [HullId.Cruiser] = 300 });
+            To(player, galaxy, bus, march.ArrivesAtTick);
+            var seized = galaxy.Core.History[0];
+            Assert.AreEqual(CoreLogKind.Seized, seized.Kind);
+            Assert.AreEqual(0, seized.ActorId);
+            Assert.AreEqual("the Core Guardians", seized.Other);
+
+            Assert.IsTrue(MarchSystem.RecallMarch(player, march.Id).Ok);
+            To(player, galaxy, bus, player.Tick + 3600);
+            var left = galaxy.Core.History[0];
+            Assert.AreEqual(CoreLogKind.Abandoned, left.Kind, "newest first");
+            Assert.AreEqual(0, left.ActorId);
+            Assert.AreEqual(2, galaxy.Core.History.Count);
+        }
+
+        [Test]
+        public void AFailedAssault_IsLoggedWithItsLosses()
+        {
+            var (player, galaxy) = Setup();
+            galaxy.Core.Guardians = new Dictionary<HullId, int> { [HullId.Cruiser] = 400 };
+            var march = Assault(player, galaxy, new Dictionary<HullId, int> { [HullId.Cruiser] = 300 });
+            To(player, galaxy, new SimEventBus(), march.ArrivesAtTick);
+            var entry = galaxy.Core.History.Single();
+            Assert.AreEqual(CoreLogKind.Repelled, entry.Kind);
+            Assert.Greater(entry.ShipsLost, 0);
+        }
+
+        [Test]
+        public void TheHistory_KeepsTheNewestThirty_AndSurvivesASave()
+        {
+            var (player, galaxy) = Setup();
+            for (int i = 0; i < CoreSystem.MaxHistory + 5; i++)
+            {
+                galaxy.Core.GuardiansRebuildTick = player.Tick + 1;
+                player.Tick += 2;
+                CoreSystem.Tick(player, galaxy, new SimEventBus());
+            }
+            Assert.AreEqual(CoreSystem.MaxHistory, galaxy.Core.History.Count);
+            Assert.IsTrue(galaxy.Core.History.All(h => h.Kind == CoreLogKind.Rebuilt));
+            galaxy.Core.History.Insert(0, new CoreLogEntry
+            {
+                AtTick = 77, Kind = CoreLogKind.Seized, ActorId = 5, Actor = "[VORT] Ricky", Other = "you", HeldSec = 900, ShipsLost = 0,
+            });
+
+            var file = SaveCodec.Decode(SaveCodec.Encode(SaveManager.Wrap(player, 1000, galaxy)));
+            var first = file.Bots!.Core.History[0];
+            Assert.AreEqual(CoreSystem.MaxHistory + 1, file.Bots.Core.History.Count);
+            Assert.AreEqual(CoreLogKind.Seized, first.Kind);
+            Assert.AreEqual("[VORT] Ricky", first.Actor);
+            Assert.AreEqual("you", first.Other);
+            Assert.AreEqual(900, first.HeldSec);
+            Assert.AreEqual(5, first.ActorId);
+        }
+
+        [Test]
+        public void GalacticCommand_SpeedsTheHoldersMarches()
+        {
+            var (player, galaxy) = Setup();
+            var fleet = new Dictionary<HullId, int> { [HullId.Cruiser] = 10 };
+            double before = MarchSystem.EffSpeed(player, fleet);
+            var march = Assault(player, galaxy, new Dictionary<HullId, int> { [HullId.Cruiser] = 300 });
+            To(player, galaxy, new SimEventBus(), march.ArrivesAtTick);
+            Assert.IsTrue(player.Buffs.CoreHolder);
+            Assert.AreEqual(before * CoreSystem.CommandSpeedMult, MarchSystem.EffSpeed(player, fleet), 1e-9);
+
+            Assert.IsTrue(MarchSystem.RecallMarch(player, march.Id).Ok);
+            To(player, galaxy, new SimEventBus(), player.Tick + 1);
+            Assert.IsFalse(player.Buffs.CoreHolder, "it ends with the hold");
+            Assert.AreEqual(before, MarchSystem.EffSpeed(player, fleet), 1e-9);
+        }
+
+        [Test]
+        public void CoreBeacon_ShowsAssaultsOnlyWhileYouHold()
+        {
+            var (player, galaxy) = Setup();
+            var bot = galaxy.Bots[3];
+            galaxy.Marches.Add(new BotMarch
+            {
+                Id = 950, BotId = bot.Id, Kind = BotMarchKind.CoreAssault, LinkId = 950,
+                Ships = new Dictionary<HullId, int> { [HullId.Cruiser] = 9 },
+                From = bot.HomeTile, To = CoreSystem.CoreTile, LaunchTick = 0, ArrivesAtTick = 10_000,
+            });
+            Assert.IsEmpty(CoreSystem.BeaconContacts(player, galaxy), "the guardians hold it: no beacon for you");
+            Assert.AreEqual(1, CoreSystem.InboundAssaults(player, galaxy));
+            galaxy.Core.HolderId = 0;
+            Assert.AreEqual(950, CoreSystem.BeaconContacts(player, galaxy).Single().Id);
+        }
     }
 }
