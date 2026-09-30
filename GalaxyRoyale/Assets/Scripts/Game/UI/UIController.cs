@@ -539,6 +539,7 @@ namespace GalaxyRoyale.Game.UI
             }
             // Each column is added top-down.
             _storyFab = MiniFab(Icon.Star, "STORY", () => CampaignPanel.Open(_ctx)); // the campaign (2026-09-30)
+            MiniFab(Icon.Orbit, "PROJECTS", () => MegaprojectsPanel.Open(_ctx)); // mega-projects (2026-09-30)
             MiniFab(Icon.Target, "CORE", () => CorePanel.Open(_ctx));
             MiniFab(Icon.Warning, "BOSS", OpenBoss);
             _clanFab = MiniFab(Icon.Pact, "CLAN", OpenClan);
@@ -1147,6 +1148,16 @@ namespace GalaxyRoyale.Game.UI
                     Toast($"{lord.FullName} is defeated: \"{lord.Last}\" +{UiTheme.FmtAmount(fell.PayMilli.Total)} · +{fell.DarkMatter} DM{relic}",
                         Icon.Trophy, UiTheme.Good);
                     GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                    break;
+                }
+                case MegaprojectStageDone mega:
+                {
+                    var def = Megaprojects.Def(mega.Kind);
+                    Toast(mega.Stage >= Megaprojects.Stages
+                        ? $"{def.Name} complete! Every stage's bonus is yours: {def.StageBonus}, five times over"
+                        : $"{def.Name}: stage {mega.Stage} of {Megaprojects.Stages} built · {def.StageBonus}. MORE › PROJECTS",
+                        Icon.Orbit, UiTheme.Good);
+                    GameAudio.Feedback(mega.Stage >= Megaprojects.Stages ? Sfx.Victory : Sfx.Success, Haptic.Success);
                     break;
                 }
                 case TwistBegan tb:

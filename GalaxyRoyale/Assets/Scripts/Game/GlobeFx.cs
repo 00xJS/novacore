@@ -137,6 +137,7 @@ namespace GalaxyRoyale.Game
             var state = _ctx?.State;
             if (state == null || _planet == null || _cam == null) return;
             WatchMarches(state);
+            WatchMegaprojects(state);
             float now = Time.time;
             for (int i = _live.Count - 1; i >= 0; i--)
             {
@@ -288,6 +289,98 @@ namespace GalaxyRoyale.Game
                     f.Root.localPosition = dir * _radius * lift;
                     f.Heading = planet.TransformDirection(Vector3.Cross(axis, dir));
                 }, persistent: true);
+            }
+        }
+
+        // ---------- mega-projects in orbit (2026-09-30) ----------
+        // Every finished stage shows: the Dyson Swarm's mirrors ring the planet in
+        // gold, the Stargate hangs in high orbit (lit once it's whole), the Shield
+        // Array's emitters glow cyan close in, and the Orbital Foundry's forges ride
+        // a slow high lane.
+
+        readonly List<Fx> _mega = new();
+        string _megaKey = "";
+
+        void WatchMegaprojects(GameState state)
+        {
+            string key = "";
+            foreach (var def in Megaprojects.All) key += MegaprojectSystem.Stage(state, def.Kind);
+            if (key == _megaKey) return;
+            _megaKey = key;
+            foreach (var fx in _mega)
+            {
+                _live.Remove(fx);
+                Destroy(fx.Material);
+                Destroy(fx.Root.gameObject);
+            }
+            _mega.Clear();
+            if (_planet == null) return;
+
+            // Dyson Swarm: six mirrors a stage on a tilted ring.
+            int mirrors = MegaprojectSystem.Stage(state, MegaprojectKind.DysonSwarm) * 6;
+            var swarmAxis = Quaternion.AngleAxis(12f, Vector3.forward) * Vector3.up;
+            var swarmStart = Vector3.Cross(swarmAxis, Vector3.forward).normalized;
+            for (int i = 0; i < mirrors; i++)
+            {
+                float phase = i / (float)mirrors;
+                float size = _radius * 0.07f;
+                _mega.Add(Make(Holo.GlowTexture, new Color(1f, 0.85f, 0.35f, 0.9f), size, size, 150f, (f, k) =>
+                {
+                    var dir = Quaternion.AngleAxis((k + phase) * 360f, swarmAxis) * swarmStart;
+                    f.Root.localPosition = dir * _radius * 1.58f;
+                }, persistent: true));
+            }
+
+            // Stargate: a ring in high orbit, bigger with each stage, lit inside when whole.
+            int gate = MegaprojectSystem.Stage(state, MegaprojectKind.Stargate);
+            if (gate > 0)
+            {
+                float size = _radius * (0.28f + 0.06f * gate);
+                var spot = Local(38, -35, 1.9f);
+                var ring = MapVisuals.Ring.texture;
+                _mega.Add(Make(ring, new Color(0.35f, 0.9f, 1f, 0.95f), size, size, 30f, (f, k) =>
+                {
+                    f.Root.localPosition = spot;
+                    f.Quad.localRotation = Quaternion.Euler(0f, 0f, k * 360f);
+                }, persistent: true));
+                if (gate >= Megaprojects.Stages)
+                    _mega.Add(Make(Holo.GlowTexture, new Color(0.45f, 0.95f, 1f, 0.8f), size * 0.8f, size * 0.8f, 4f, (f, k) =>
+                    {
+                        f.Root.localPosition = spot;
+                        f.Material.color = new Color(0.45f, 0.95f, 1f, 0.5f + 0.3f * Mathf.Sin(k * Mathf.PI * 2f));
+                    }, persistent: true));
+            }
+
+            // Shield Array: two emitters a stage, pulsing close to the surface.
+            int emitters = MegaprojectSystem.Stage(state, MegaprojectKind.ShieldArray) * 2;
+            for (int i = 0; i < emitters; i++)
+            {
+                double lat = i % 2 == 0 ? 25 : -25;
+                double lon = i * 360.0 / emitters;
+                var at = Local(lat, lon, 1.14f);
+                float size = _radius * 0.09f;
+                float offset = i * 0.17f;
+                _mega.Add(Make(Holo.GlowTexture, new Color(0.3f, 0.75f, 1f, 0.8f), size, size, 3f, (f, k) =>
+                {
+                    f.Root.localPosition = at;
+                    f.Material.color = new Color(0.3f, 0.75f, 1f, 0.45f + 0.35f * Mathf.Sin((k + offset) * Mathf.PI * 2f));
+                }, persistent: true));
+            }
+
+            // Orbital Foundry: a forge station for every other stage (one to start).
+            int forges = (MegaprojectSystem.Stage(state, MegaprojectKind.OrbitalFoundry) + 1) / 2;
+            var station = ShipArt.Photo(HullId.Atlas);
+            var foundryAxis = Quaternion.AngleAxis(-40f, Vector3.forward) * Vector3.up;
+            var foundryStart = Vector3.Cross(foundryAxis, Vector3.forward).normalized;
+            for (int i = 0; i < forges && station != null; i++)
+            {
+                float phase = i / (float)Math.Max(1, forges);
+                float size = _radius * 0.16f;
+                _mega.Add(Make(station, new Color(1f, 0.8f, 0.6f, 1f), size, size, 220f, (f, k) =>
+                {
+                    var dir = Quaternion.AngleAxis((k + phase) * 360f, foundryAxis) * foundryStart;
+                    f.Root.localPosition = dir * _radius * 1.75f;
+                }, persistent: true));
             }
         }
 

@@ -55,6 +55,7 @@ namespace GalaxyRoyale.Sim.Systems
             if (state.Buffs.EnergyBoostUntilTick > state.Tick)
                 supply = (int)Math.Floor(supply * Balance.EnergyBoostFactor);
             supply = (int)Math.Floor(supply * TerraformSystem.EnergyMult(state)); // the Temperate path
+            supply = (int)Math.Floor(supply * MegaprojectSystem.EnergyMult(state)); // the Dyson Swarm
 
             float factor = demand <= supply ? 1f : (float)supply / demand;
             return new EnergyBalance(supply, demand, factor);
@@ -187,6 +188,7 @@ namespace GalaxyRoyale.Sim.Systems
                 Mix(state.Buffs.EnergyBoostUntilTick > state.Tick ? 1 : 0);
                 Mix((int)EventSystem.KindAt(state.Tick));
                 Mix((int)TwistSystem.KindAt(state.Tick));
+                foreach (var kv in state.Mega.Stages) { Mix(100 + (int)kv.Key); Mix(kv.Value); }
                 foreach (var kv in state.Ships) { Mix((int)kv.Key); Mix(kv.Value); }
                 return h;
             }

@@ -40,6 +40,7 @@ namespace GalaxyRoyale.Sim
             ProtectionSystem.Tick(_state, _events); // after buildings: CC 5 ends it
             SupplySystem.Tick(_state, _events);
             TerraformSystem.Tick(_state, _events);
+            MegaprojectSystem.Tick(_state, _events);
             ExpeditionSystem.Tick(_state, _events);
             ResearchSystem.Tick(_state, _events);
             FleetSystem.Tick(_state, _events);

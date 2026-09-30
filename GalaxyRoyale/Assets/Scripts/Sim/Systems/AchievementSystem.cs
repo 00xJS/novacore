@@ -44,6 +44,7 @@ namespace GalaxyRoyale.Sim.Systems
                 AchievementGoal.NemesesDefeated => state.Stats.NemesesDefeated,
                 AchievementGoal.LordsDefeated => LairSystem.LordsBeaten(state),
                 AchievementGoal.ChaptersDone => CampaignSystem.ChaptersDone(state),
+                AchievementGoal.MegaprojectsDone => MegaprojectSystem.Completed(state),
                 _ => 0,
             };
             return (Math.Min(have, a.Target), a.Target);

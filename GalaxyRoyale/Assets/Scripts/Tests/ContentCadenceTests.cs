@@ -94,6 +94,12 @@ namespace GalaxyRoyale.Sim.Tests
                 d[$"event:{live.Def.Kind}"] = (Tier.Major, "event", live.Def.Name);
                 d[$"eventrun:{live.Instance}"] = (Tier.Notable, "event", $"{live.Def.Name} (again)");
             }
+            foreach (var def in Megaprojects.All)
+            {
+                if (MegaprojectSystem.Unlocked(s, def.Kind)) d[$"mega:{def.Kind}"] = (Tier.Major, "project", $"{def.Name} opens");
+                for (int st = 1; st <= MegaprojectSystem.Stage(s, def.Kind); st++)
+                    d[$"megastage:{def.Kind}:{st}"] = (Tier.Notable, "project", $"{def.Name} stage {st}");
+            }
             if (TwistSystem.KindAt(s.Tick) is var tk && tk != TwistKind.None)
                 d[$"twist:{tk}"] = (Tier.Major, "twist", $"Twist: {Twists.Def(tk).Name}");
             if (galaxy.Boss.Visit > 0)
@@ -135,6 +141,9 @@ namespace GalaxyRoyale.Sim.Tests
                     if (FleetSystem.UnlockBlocker(s, h) == null && Count(s, h) == 0 && FleetSystem.QueueShips(s, h, 3).Ok) break;
             // Claim the Wilds' finds: claimed sectors fog over again and can be surveyed anew.
             foreach (var index in s.Wilds.Sectors.Keys.ToList()) WildsSystem.Claim(s, index);
+            if (!MegaprojectSystem.Busy(s) && s.BuildQueue.Count >= BuildingSystem.BuildSlots(s))
+                foreach (var def in Megaprojects.All)
+                    if (MegaprojectSystem.Start(s, def.Kind).Ok) break;
             if (TerraformSystem.Level(s) >= 1 && s.Terraform.Path == TerraformPath.None)
                 TerraformSystem.Start(s, TerraformPath.Metallic);
             else if (s.Terraform.Path != TerraformPath.None) TerraformSystem.Start(s, s.Terraform.Path);
