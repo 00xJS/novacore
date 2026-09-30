@@ -495,12 +495,15 @@ namespace GalaxyRoyale.Game.UI
             _moreMenu.style.position = Position.Absolute;
             _moreMenu.style.right = 12;
             _moreMenu.style.bottom = UiTheme.NavH + TickerH + 16 + 56;
-            _moreMenu.style.alignItems = Align.Center;
+            _moreMenu.style.alignItems = Align.FlexEnd;
             _moreMenu.style.display = DisplayStyle.None;
 
+            // Speed-dial rows: the name rides in a tag BESIDE the hex, not inside it —
+            // Orbitron captions like MARKET / AWARDS / EVENTS spilled past the hex's
+            // cut sides. The tag is tappable too.
             Button MiniFab(Icon icon, string label, Action onTap)
             {
-                var b = Widgets.Fab(icon, label, () =>
+                void Open()
                 {
                     ToggleMoreMenu();
                     // A panel that throws while building used to just "do nothing".
@@ -510,9 +513,29 @@ namespace GalaxyRoyale.Game.UI
                         Debug.LogException(e);
                         Toast($"{label} couldn't open — the error was logged", Icon.Warning, UiTheme.Bad);
                     }
-                }, 48f, UiTheme.Stroke);
-                b.style.marginBottom = 8;
-                _moreMenu.Add(b);
+                }
+                var row = Widgets.HBox();
+                row.style.alignItems = Align.Center;
+                row.style.justifyContent = Justify.FlexEnd;
+                row.style.marginBottom = 8;
+                row.pickingMode = PickingMode.Ignore;
+
+                var tag = new VisualElement();
+                tag.style.paddingLeft = 8;
+                tag.style.paddingRight = 8;
+                tag.style.paddingTop = 3;
+                tag.style.paddingBottom = 3;
+                tag.style.marginRight = 6;
+                Holo.Frame(tag, UiTheme.Bg, UiTheme.Stroke, 5f);
+                var name = Widgets.Heading(label, 9, UiTheme.Text, 1.1f);
+                name.pickingMode = PickingMode.Ignore;
+                tag.Add(name);
+                tag.RegisterCallback<ClickEvent>(_ => { GameAudio.Tap(); Open(); });
+                row.Add(tag);
+
+                var b = Widgets.Fab(icon, null, Open, 48f, UiTheme.Stroke);
+                row.Add(b);
+                _moreMenu.Add(row);
                 return b;
             }
             // Stacked bottom-up visually; add in top-down order.
@@ -545,8 +568,16 @@ namespace GalaxyRoyale.Game.UI
             _queuesBadge.style.position = Position.Absolute;
             _queuesBadge.style.right = 4;
             _queuesBadge.style.top = 2;
-            _queuesBadge.style.width = 16;
+            // A round pip (it was a bare square); two-digit counts stretch it into a pill.
+            _queuesBadge.style.minWidth = 16;
             _queuesBadge.style.height = 16;
+            _queuesBadge.style.paddingLeft = 3;
+            _queuesBadge.style.paddingRight = 3;
+            _queuesBadge.style.borderTopLeftRadius = 8;
+            _queuesBadge.style.borderTopRightRadius = 8;
+            _queuesBadge.style.borderBottomLeftRadius = 8;
+            _queuesBadge.style.borderBottomRightRadius = 8;
+            Widgets.SetBorder(_queuesBadge, UiTheme.Bg, 1.5f);
             _queuesBadge.style.backgroundColor = UiTheme.Magenta;
             _queuesBadge.style.justifyContent = Justify.Center;
             _queuesBadge.style.alignItems = Align.Center;

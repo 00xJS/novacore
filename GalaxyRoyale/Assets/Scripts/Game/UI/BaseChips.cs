@@ -121,6 +121,10 @@ namespace GalaxyRoyale.Game.UI
                 }
             }
             c.Ring?.SetProgress(progress);
+            // Neighbours' chips peeking out between the ring's buttons made them hard
+            // to read — fade whatever sits under the ring (last frame's layout).
+            if (_ringRect is { } rr && c.Anchor.childCount > 0 && c.Anchor[0].worldBound.Overlaps(rr))
+                alpha *= 0.2f;
             c.Anchor.style.opacity = alpha;
             c.Anchor.style.translate = new Translate(chipAt.x, chipAt.y);
             if (c.Mark != null && markAt is { } m)
@@ -160,7 +164,7 @@ namespace GalaxyRoyale.Game.UI
                 b.Anchor = anchor;
                 b.Body = body;
                 b.Main = label;
-                _layer.Add(anchor);
+                AddUnderRing(anchor);
                 _bubbles[key] = b;
             }
             _bubbleTaps[key] = onTap;
@@ -187,6 +191,8 @@ namespace GalaxyRoyale.Game.UI
         }
 
         VisualElement? _ring, _costRow;
+        /// <summary>Where the ring was last placed (panel points), null while it's hidden.</summary>
+        Rect? _ringRect;
         Button? _upgrade, _info, _boost;
         Label? _upgradeCaption, _costPlain, _costLevel, _costGold, _costQuartz, _costHelium, _costTime;
         VisualElement? _costParts;
@@ -215,6 +221,7 @@ namespace GalaxyRoyale.Game.UI
             var at = spots[0];
             foreach (var spot in spots)
                 if (!BlockedRect(new Rect(spot.x, spot.y, RingW, block))) { at = spot; break; }
+            _ringRect = new Rect(at.x, at.y, RingW, block);
             _ring!.style.translate = new Translate(at.x, at.y);
             _ring.style.display = DisplayStyle.Flex;
             if (_upgradeCaption!.text != upgradeCaption) _upgradeCaption.text = upgradeCaption;
@@ -268,6 +275,7 @@ namespace GalaxyRoyale.Game.UI
 
         public void HideRing()
         {
+            _ringRect = null;
             if (_ring != null && _ring.style.display != DisplayStyle.None) _ring.style.display = DisplayStyle.None;
             if (_costRow != null && _costRow.style.display != DisplayStyle.None) _costRow.style.display = DisplayStyle.None;
         }
@@ -310,7 +318,7 @@ namespace GalaxyRoyale.Game.UI
             _costRow.style.alignItems = Align.Center;
             _costRow.style.paddingLeft = 7;
             _costRow.style.paddingRight = 8;
-            Holo.Frame(_costRow, new Color(0.03f, 0.016f, 0.09f, 0.9f), UiTheme.A(UiTheme.Accent, 0.5f), 5f);
+            Holo.Frame(_costRow, RingFill, UiTheme.A(UiTheme.Accent, 0.5f), 5f);
             Label CostLabel(VisualElement parent, int size, Color color, bool display)
             {
                 var l = display ? Widgets.Heading("", size, color, 0.6f) : Widgets.Text("", size, color, bold: true);
@@ -345,6 +353,15 @@ namespace GalaxyRoyale.Game.UI
             _layer.Add(_costRow);
         }
 
+        /// <summary>Chips and bubbles made after the quick-action ring (a pad turning into a
+        /// timer, a district rotated into view) used to be appended over it, so
+        /// UPGRADE / INFO / BOOST hid behind neighbouring name chips. New ones go under it.</summary>
+        void AddUnderRing(VisualElement anchor)
+        {
+            if (_ring != null) _layer.Insert(_layer.IndexOf(_ring), anchor);
+            else _layer.Add(anchor);
+        }
+
         Button RingButton(Icon icon, string caption, float left, float top, Action onTap, out Label captionLabel)
         {
             var b = new Button(onTap) { text = "" };
@@ -365,9 +382,9 @@ namespace GalaxyRoyale.Game.UI
             b.style.flexDirection = FlexDirection.Column;
             b.style.justifyContent = Justify.Center;
             b.style.alignItems = Align.Center;
-            Holo.Frame(b, new Color(0.03f, 0.016f, 0.09f, 0.9f), UiTheme.Accent, 0f, 1.5f, FrameShape.Hex, glow: true);
+            Holo.Frame(b, RingFill, UiTheme.Accent, 0f, 1.5f, FrameShape.Hex, glow: true);
             b.Add(Icons.Make(icon, 17, UiTheme.Accent));
-            captionLabel = Widgets.Heading(caption, 7, UiTheme.Accent, 0.3f);
+            captionLabel = Widgets.Heading(caption, 7, UiTheme.Accent, 0.2f);
             captionLabel.name = "caption";
             captionLabel.pickingMode = PickingMode.Ignore;
             captionLabel.style.marginTop = 1;
@@ -376,13 +393,17 @@ namespace GalaxyRoyale.Game.UI
             return b;
         }
 
-        static readonly Color RingDim = new(0.62f, 0.7f, 0.85f, 0.55f);
+        static readonly Color RingDim = new(0.62f, 0.7f, 0.85f, 0.7f);
+        // Solid fills: at 80–90% the art and name chips behind showed through the
+        // buttons, which sit over the row of buildings behind the selection.
+        static readonly Color RingFill = new(0.05f, 0.03f, 0.12f, 1f);
+        static readonly Color RingFillDim = new(0.04f, 0.03f, 0.08f, 1f);
 
         /// <summary>Dim, but still tappable: a dim UPGRADE or BOOST says why it can't.</summary>
         static void RingLook(Button b, bool active)
         {
             var c = active ? UiTheme.Accent : RingDim;
-            Holo.Set(b, active ? new Color(0.03f, 0.016f, 0.09f, 0.9f) : new Color(0.02f, 0.01f, 0.05f, 0.8f), c);
+            Holo.Set(b, active ? RingFill : RingFillDim, c);
             b.Query<IconElement>().ForEach(i => i.Color = c);
             var label = b.Q<Label>("caption");
             if (label != null) label.style.color = c;
@@ -556,7 +577,7 @@ namespace GalaxyRoyale.Game.UI
             }
             c.Anchor.Add(body);
             if (c.Mark != null) c.Anchor.Add(c.Mark);
-            _layer.Add(c.Anchor);
+            AddUnderRing(c.Anchor);
             return c;
         }
     }

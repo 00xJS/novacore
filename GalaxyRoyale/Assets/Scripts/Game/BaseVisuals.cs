@@ -176,10 +176,12 @@ namespace GalaxyRoyale.Game
 
             var grid = new GameObject("Hologram Grid").transform;
             grid.SetParent(root, false);
-            for (int lat = -75; lat <= 75; lat += 15)
-                Line(grid, $"Lat {lat}", Parallel(lat, -180, 180, r, 4), UiTheme.A(accent, lat == 0 ? 0.24f : 0.1f), thin, loop: false);
-            for (int lon = -180; lon < 180; lon += 15)
-                Line(grid, $"Lon {lon}", Meridian(lon, -88, 88, r, 4), UiTheme.A(accent, 0.09f), thin);
+            // A light touch (user 2026-09-29: the 15° lattice read as time zones):
+            // the equator, a ring at ±45° and six meridians keep the hologram feel.
+            foreach (int lat in new[] { -45, 0, 45 })
+                Line(grid, $"Lat {lat}", Parallel(lat, -180, 180, r, 4), UiTheme.A(accent, lat == 0 ? 0.2f : 0.07f), thin, loop: false);
+            for (int lon = -180; lon < 180; lon += 60)
+                Line(grid, $"Lon {lon}", Meridian(lon, -88, 88, r, 4), UiTheme.A(accent, 0.06f), thin);
 
             var decks = new GameObject("District Decks").transform;
             decks.SetParent(root, false);
