@@ -1160,6 +1160,14 @@ namespace GalaxyRoyale.Game.UI
                     GameAudio.Feedback(Sfx.Victory, Haptic.Success);
                     break;
                 }
+                case FestivalBegan fb:
+                {
+                    var f = Festivals.ById(fb.Id)!;
+                    Toast($"The {f.Name} has begun! {f.Effect}. Goal: {f.GoalText} for {f.RewardDM} DM and the {f.SkinName} skin. MORE › EVENTS",
+                        Icon.Star, UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Discovery, Haptic.Success);
+                    break;
+                }
                 case BlueprintFound bp:
                 {
                     var def = Modules.Def(bp.Kind);

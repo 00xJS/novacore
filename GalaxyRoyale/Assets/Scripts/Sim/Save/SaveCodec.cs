@@ -641,6 +641,17 @@ namespace GalaxyRoyale.Sim.Save
                     ["humbled"] = IntMap(nm.Humbled),
                 };
             }
+            // Seasonal festivals (2026-09-30).
+            if (s.Festival.Instance.Length > 0 || s.Festival.Claimed.Count > 0)
+            {
+                var claimed = new List<string>(s.Festival.Claimed);
+                claimed.Sort(StringComparer.Ordinal);
+                root["festival"] = new Dictionary<string, object?>
+                {
+                    ["instance"] = s.Festival.Instance, ["baseline"] = s.Festival.Baseline,
+                    ["claimed"] = Arr(claimed, k => (object?)k),
+                };
+            }
             // The codex (2026-09-30).
             if (s.Codex.Count > 0)
             {
@@ -1088,6 +1099,13 @@ namespace GalaxyRoyale.Sim.Save
                 }
                 ReadMap("grudges", n.Grudges);
                 ReadMap("humbled", n.Humbled);
+            }
+            if (d.TryGetValue("festival", out var fso) && fso is Dictionary<string, object?> fsd)
+            {
+                s.Festival.Instance = fsd.TryGetValue("instance", out var fi) && fi is string fis ? fis : "";
+                s.Festival.Baseline = fsd.TryGetValue("baseline", out var fb) && fb != null ? ToI64(fb) : 0;
+                if (fsd.TryGetValue("claimed", out var fc) && fc is List<object?> fcl)
+                    foreach (var k in fcl) if (k is string ks) s.Festival.Claimed.Add(ks);
             }
             if (d.TryGetValue("codex", out var cxo) && cxo is List<object?> cxl)
                 foreach (var k in cxl) if (k is string ks) s.Codex.Add(ks);

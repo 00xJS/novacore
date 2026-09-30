@@ -204,8 +204,13 @@ namespace GalaxyRoyale.Game
             Resumed?.Invoke(LastDebrief);
         }
 
+        /// <summary>A fixed date for the seasonal festivals (GR_DATE); null = today.</summary>
+        public static System.DateTime? DebugDate;
+
         void Update()
         {
+            // The seasonal festivals read the real calendar (2026-09-30).
+            FestivalSystem.Today = DebugDate ?? System.DateTime.UtcNow.Date;
             EnsureInit();
             long nowMs = (long)((Time.timeAsDouble - _startTime) * 1000);
             _engine!.AdvanceToWallClock(nowMs);

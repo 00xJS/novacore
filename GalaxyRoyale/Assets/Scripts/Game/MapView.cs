@@ -629,6 +629,7 @@ namespace GalaxyRoyale.Game
             "skin-emerald" or "emerald" => "emerald",
             // Earned skins (the codex, 2026-09-30).
             _ when Codex.SkinTints.ContainsKey(skinId) => skinId,
+            _ when FestivalSkinTint(skinId) != null => skinId,
             _ => "default",
         };
 
@@ -637,8 +638,15 @@ namespace GalaxyRoyale.Game
             "crimson" => new Color(1.00f, 0.42f, 0.45f),
             "emerald" => new Color(0.45f, 1.00f, 0.55f),
             var earned when Codex.SkinTints.TryGetValue(earned, out var hex) && ColorUtility.TryParseHtmlString(hex, out var c) => c,
+            var fest when FestivalSkinTint(fest) is { } fhex && ColorUtility.TryParseHtmlString(fhex, out var fc) => fc,
             _ => new Color(0.45f, 0.75f, 1.00f),
         };
+
+        static string? FestivalSkinTint(string skinId)
+        {
+            foreach (var f in Festivals.All) if (f.SkinId == skinId) return f.Tint;
+            return null;
+        }
 
         static void ApplySkin(SpriteRenderer disc, SpriteRenderer glow, string skinId)
         {

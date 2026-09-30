@@ -98,6 +98,36 @@ namespace GalaxyRoyale.Game.UI
                         }
                     body.Add(card);
                 }
+
+                // Festival skins (2026-09-30): earned at the seasonal festivals, worn from here too.
+                var fests = new System.Collections.Generic.List<FestivalDef>();
+                foreach (var f in Festivals.All) if (s.Skins.Owned.Contains(f.SkinId)) fests.Add(f);
+                if (fests.Count > 0)
+                {
+                    var h = Widgets.Text("FESTIVAL SKINS", 10, UiTheme.Dim, bold: true);
+                    h.style.marginTop = 12;
+                    body.Add(h);
+                    foreach (var f in fests)
+                    {
+                        var skin = f.SkinId;
+                        var row = Widgets.HBox(Justify.SpaceBetween);
+                        row.style.marginTop = 5;
+                        row.Add(Widgets.Text($"{f.SkinName} · {f.Name}", 11, UiTheme.Text));
+                        bool worn = s.Skins.ActivePlanet == skin;
+                        var wear = Widgets.TextButton(worn ? "WORN" : "WEAR", () =>
+                        {
+                            ShopSystem.ApplySkin(ctx.State!, skin);
+                            GameAudio.Feedback(Sfx.Confirm, Haptic.Light);
+                            LocalBootstrap.RequestSync();
+                            key = "";
+                            Render();
+                        }, 9);
+                        wear.style.width = 70;
+                        Widgets.SetButtonEnabled(wear, !worn);
+                        row.Add(wear);
+                        body.Add(row);
+                    }
+                }
             }
 
             Render();

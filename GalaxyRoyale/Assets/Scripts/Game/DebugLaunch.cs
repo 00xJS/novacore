@@ -38,6 +38,9 @@ namespace GalaxyRoyale.Game
             if (Environment.GetEnvironmentVariable("GR_EVENT") is { } ev && ctx.State != null
                 && Enum.TryParse<Data.GalaxyEventKind>(ev, out var kind))
                 Sim.Systems.EventSystem.DebugForce = (kind, ctx.State.Tick);
+            // GR_DATE=2026-10-25: the calendar the seasonal festivals see.
+            if (Environment.GetEnvironmentVariable("GR_DATE") is { } date && DateTime.TryParse(date, out var day))
+                GameContext.DebugDate = day.Date;
             // GR_TWIST=LowGravity (any TwistKind): that weekly twist, for a look.
             if (Environment.GetEnvironmentVariable("GR_TWIST") is { } tw && Enum.TryParse<Data.TwistKind>(tw, out var twist))
                 Sim.Systems.TwistSystem.DebugForce = twist;

@@ -483,6 +483,8 @@ namespace GalaxyRoyale.Sim
         public Systems.ModuleState Modules = new();
         /// <summary>The codex's entries (Data/Codex keys, 2026-09-30).</summary>
         public HashSet<string> Codex = new();
+        /// <summary>Seasonal festivals (2026-09-30).</summary>
+        public Systems.FestivalState Festival = new();
         /// <summary>Today's daily objectives (Game/DailyObjectives; in the save since 2026-09-30).</summary>
         public DailyState Daily = new();
         /// <summary>Not saved: ResourceSystem.Tick's production rates and the inputs'
