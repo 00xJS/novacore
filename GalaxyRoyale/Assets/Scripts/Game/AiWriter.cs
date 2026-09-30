@@ -1,7 +1,9 @@
 // The AI writers (build-all plan, 2026-09-28): the Galactic Gazette, battle
 // recaps and hail replies, written by Claude through the player's own proxy
 // (server/ai-proxy — a Cloudflare Worker that holds the API key; the key never
-// ships in the app). Settings › AI WRITERS takes the proxy's URL. Without one
+// ships in the app). The player-facing setting was removed for the App Store
+// release (2026-09-30): only the GR_AI developer launch hook sets the proxy,
+// for this session, and an address saved by an older build is ignored. Without one
 // — or offline, or when the proxy answers anything but 200 — every feature
 // uses the game's own text (Sim/Text/FlavorText), so nothing depends on it.
 using System;
@@ -24,19 +26,29 @@ namespace GalaxyRoyale.Game
         /// <summary>Requests in flight, so a double tap doesn't send two.</summary>
         static readonly HashSet<string> s_pending = new();
 
+        static string s_proxy = "";
+
+        /// <summary>The proxy for this session (GR_AI only; never saved).</summary>
         public static string ProxyUrl
         {
-            get => PlayerPrefs.GetString(UrlKey, "");
+            get => s_proxy;
             set
             {
                 string url = (value ?? "").Trim();
-                if (url == ProxyUrl) return;
-                PlayerPrefs.SetString(UrlKey, url);
-                // Text from another proxy (or from before the AI was switched off) isn't kept.
-                PlayerPrefs.DeleteKey(GazetteKey);
-                PlayerPrefs.Save();
+                if (url == s_proxy) return;
+                s_proxy = url;
                 s_cache.Clear();
             }
+        }
+
+        /// <summary>Forget what an older build saved: its proxy address and its AI Gazette.</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void ForgetSaved()
+        {
+            if (!PlayerPrefs.HasKey(UrlKey) && !PlayerPrefs.HasKey(GazetteKey)) return;
+            PlayerPrefs.DeleteKey(UrlKey);
+            PlayerPrefs.DeleteKey(GazetteKey);
+            PlayerPrefs.Save();
         }
 
         /// <summary>Today's AI Gazette, written in an earlier session on this device (null if none).</summary>

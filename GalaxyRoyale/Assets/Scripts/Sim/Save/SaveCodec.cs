@@ -522,14 +522,14 @@ namespace GalaxyRoyale.Sim.Save
                 ids.Sort(StringComparer.Ordinal);
                 root["achievements"] = Arr(ids, x => (object?)x);
             }
-            if (s.RedeemedCodes.Count > 0)
-            {
-                var used = new List<string>(s.RedeemedCodes);
-                used.Sort(StringComparer.Ordinal);
-                root["redeemed"] = Arr(used, x => (object?)x);
-            }
             // The new-commander training (2026-09-30); older saves read as finished.
             root["tutorial"] = (long)s.TutorialStep;
+            if (s.CreditedTransactions.Count > 0)
+            {
+                var txs = new List<string>(s.CreditedTransactions);
+                txs.Sort(StringComparer.Ordinal);
+                root["purchases"] = Arr(txs, x => (object?)x);
+            }
             if (s.TutorialFlags.Count > 0)
             {
                 var flags = new List<string>(s.TutorialFlags);
@@ -787,12 +787,12 @@ namespace GalaxyRoyale.Sim.Save
                 foreach (var raw in AsArr(ach, "achievements"))
                     if (raw is string id) s.Achievements.Add(id);
             s.TutorialStep = d.TryGetValue("tutorial", out var tut) && tut != null ? ToI32(tut) : -1;
+            if (d.TryGetValue("purchases", out var pu) && pu != null)
+                foreach (var raw in AsArr(pu, "purchases"))
+                    if (raw is string tx) s.CreditedTransactions.Add(tx);
             if (d.TryGetValue("tutorialFlags", out var tf) && tf != null)
                 foreach (var raw in AsArr(tf, "tutorialFlags"))
                     if (raw is string flag) s.TutorialFlags.Add(flag);
-            if (d.TryGetValue("redeemed", out var red) && red != null)
-                foreach (var raw in AsArr(red, "redeemed"))
-                    if (raw is string hash) s.RedeemedCodes.Add(hash);
             s.Title = d.TryGetValue("title", out var tt) ? tt as string : null;
             if (d.TryGetValue("event", out var ev) && ev != null)
             {

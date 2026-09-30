@@ -149,9 +149,12 @@ namespace GalaxyRoyale.Data
                 // — it's a cosmetic, even though it's consumable rather than a
                 // switchable skin (buys land in inventory; USE rerolls the surface).
                 new() { Id = "reroll-planet", Name = "Planetary Resurfacing",
+                    // Odds stated (App Store 3.1.1: random items bought with currency that can
+                    // be purchased must disclose them): the seed is uniform over 2^32 surfaces.
                     Description = "Regenerates your home planet's SURFACE (the base view) from a fresh " +
-                        "random seed. Surfaces are random and one-way — the old look cannot be rolled " +
-                        "back. Map skin colors are a separate, switchable cosmetic.",
+                        "random seed. Odds: every surface is equally likely, and it's purely cosmetic. " +
+                        "One-way: the old look can't be rolled back. Map skin colors are a separate, " +
+                        "switchable cosmetic.",
                     Category = ShopCategory.Skins, PriceDM = 150, Effect = ShopEffect.RerollPlanetLook },
                 new() { Id = "default", Name = "Default World",
                     Description = "The classic blue homeworld — always available",

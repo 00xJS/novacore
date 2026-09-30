@@ -91,42 +91,6 @@ namespace GalaxyRoyale.Game.UI
                 content.Add(Toggle(Settings.NotifyLabel(k), () => Settings.NotifyOn(k), on => Settings.SetNotify(k, on)));
             }
 
-            // ---- AI writers ----
-            content.Add(Header("AI WRITERS", 14));
-            content.Add(Note("Optional. Point this at your own Galaxy Royale AI proxy (server/ai-proxy in the game's " +
-                "repository) and Claude writes the Galactic Gazette, battle recaps and commanders' replies. Without it, " +
-                "the game writes them itself. Only game facts are sent: names, battle numbers and news.", 0));
-            var url = new TextField { value = AiWriter.ProxyUrl, maxLength = 200 };
-            url.style.marginTop = 6;
-            url.textEdition.placeholder = "https://galaxy-royale-ai.your-name.workers.dev";
-            url.textEdition.hidePlaceholderOnFocus = true;
-            content.Add(url);
-            var aiRow = Widgets.HBox(Justify.SpaceBetween);
-            aiRow.style.marginTop = 6;
-            var aiStatus = Note(AiWriter.Configured ? "Set — the AI writes when it's reachable." : "Not set — the game writes its own.", 0);
-            var saveUrl = Widgets.TextButton("SAVE", () =>
-            {
-                AiWriter.ProxyUrl = url.value;
-                aiStatus.text = AiWriter.Configured ? "Saved — the AI writes when it's reachable."
-                    : string.IsNullOrWhiteSpace(url.value) ? "Cleared — the game writes its own." : "That isn't a web address (https://…)";
-            }, 11);
-            saveUrl.style.width = Length.Percent(48f);
-            var test = Widgets.TextButton("TEST", () =>
-            {
-                AiWriter.ProxyUrl = url.value;
-                aiStatus.text = "Checking...";
-                AiWriter.Check(ctx, (ok, message) =>
-                {
-                    aiStatus.text = message;
-                    aiStatus.style.color = ok ? UiTheme.Good : UiTheme.Bad;
-                });
-            }, 11);
-            test.style.width = Length.Percent(48f);
-            aiRow.Add(saveUrl);
-            aiRow.Add(test);
-            content.Add(aiRow);
-            aiStatus.style.marginTop = 4;
-            content.Add(aiStatus);
 
             // ---- Game Center ----
             content.Add(Header("GAME CENTER", 14));
@@ -137,45 +101,6 @@ namespace GalaxyRoyale.Game.UI
                     : "Game Center sign-in didn't complete — try again later", Icon.Trophy, ok ? UiTheme.Good : UiTheme.Dim));
             }, "Posts your might to the Game Center leaderboard and unlocks your achievements there. " +
                "It signs in to Game Center when you turn it on."));
-
-            // ---- redeem a code ----
-            content.Add(Header("REDEEM A CODE", 14));
-            content.Add(Note("Got a code from the developer? Each code works once per game.", 2));
-            var redeemRow = Widgets.HBox();
-            redeemRow.style.marginTop = 6;
-            var codeField = new TextField { maxLength = 32 };
-            codeField.style.flexGrow = 1;
-            codeField.style.marginRight = 8;
-            codeField.style.marginLeft = 0;
-            redeemRow.Add(codeField);
-            var redeemStatus = Note("", 4);
-            var redeem = Widgets.TextButton("REDEEM", () =>
-            {
-                var res = Sim.Systems.RedeemSystem.Redeem(ctx.State!, codeField.value ?? "", out var paid);
-                if (!res.Ok)
-                {
-                    redeemStatus.text = res.Reason ?? "";
-                    redeemStatus.style.color = UiTheme.Bad;
-                    GameAudio.Feedback(Sfx.Error, Haptic.Error);
-                    return;
-                }
-                var r = paid!.Resources;
-                var parts = new System.Collections.Generic.List<string>();
-                if (r.Gold > 0) parts.Add($"{UiTheme.FmtAmount(r.Gold * 1000)} gold");
-                if (r.Quartz > 0) parts.Add($"{UiTheme.FmtAmount(r.Quartz * 1000)} quartz");
-                if (r.Helium > 0) parts.Add($"{UiTheme.FmtAmount(r.Helium * 1000)} helium");
-                if (paid.DarkMatter > 0) parts.Add($"{paid.DarkMatter} Dark Matter");
-                string got = string.Join(" · ", parts);
-                redeemStatus.text = $"{paid.Title} redeemed: {got}";
-                redeemStatus.style.color = UiTheme.Good;
-                codeField.value = "";
-                GameAudio.Feedback(Sfx.Confirm, Haptic.Success);
-                LocalBootstrap.RequestSync(); // save it right away
-                ui.Toast($"{paid.Title}: {got}", Icon.Crate, UiTheme.Good);
-            }, 11);
-            redeemRow.Add(redeem);
-            content.Add(redeemRow);
-            content.Add(redeemStatus);
 
             // ---- help ----
             content.Add(Header("HELP", 14));
@@ -219,6 +144,23 @@ namespace GalaxyRoyale.Game.UI
             content.Add(report);
             content.Add(Note("Opens the share sheet with a short report — the game version, your device, the state of " +
                 "your galaxy and any recent errors. You read it first and choose where it goes; the game sends nothing.", 4));
+
+            // ---- about (App Store: the privacy policy must be reachable in the app) ----
+            content.Add(Header("ABOUT", 14));
+            var links = Widgets.HBox(Justify.SpaceBetween);
+            links.style.marginTop = 6;
+            Button Link(string label, System.Action onTap)
+            {
+                var b = Widgets.TextButton(label, onTap, 10);
+                b.style.width = Length.Percent(32f);
+                links.Add(b);
+                return b;
+            }
+            Link("PRIVACY POLICY", () => UnityEngine.Application.OpenURL(Links.Privacy));
+            Link("SUPPORT", () => UnityEngine.Application.OpenURL(Links.Support));
+            Link("CREDITS", () => CreditsPanel.Open(ctx));
+            content.Add(links);
+            content.Add(Note($"Galaxy Royale {UnityEngine.Application.version}", 6));
 
             footer.Add(Widgets.TextButton("DONE", ui.CloseModal, 12));
             ui.OpenModal(blocker);

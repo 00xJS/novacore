@@ -87,12 +87,11 @@ Portrait-mode mobile 4X, built in **Unity 6** (URP + UI Toolkit, pure-C# UI):
   Activity counts down an incoming raid on the Lock Screen and in the Dynamic
   Island (a WidgetKit extension in `GalaxyRoyale/iOSWidget/`, added to the Xcode
   project by the build).
-- **Optional AI writers.** Deploy the small proxy in `server/ai-proxy/` (a
-  Cloudflare Worker that keeps the Anthropic API key) and paste its address into
-  Settings › AI WRITERS. Claude then writes the daily *Galactic Gazette*, a war
-  correspondent's recap of each battle, and in-character replies when you hail
-  a rival commander. Without a proxy, the game writes its own versions from the
-  same facts, so nothing depends on it.
+- **Free to play, with Dark Matter packs.** Dark Matter is earned in play and
+  can also be bought as consumable in-app purchases (StoreKit 2, in
+  `GalaxyRoyale/Assets/Plugins/iOS/GRStore.swift`). Each transaction is credited
+  once, saved, and only then finished, so a purchase interrupted by a crash is
+  delivered at the next launch.
 
 ## Why it's built the way it is
 
@@ -210,10 +209,10 @@ repo.
 
 ## Status & honesty notes
 
-- `Balance.TestMode = true` — you start rich (1M premium currency, 500K
-  resources). Deliberate, for exploration; flip it off in `Balance.cs`.
-- Fully offline — no accounts, no server, no analytics. Saves live on-device.
-  The optional AI writers talk only to a proxy you deploy yourself.
+- NEW GAME › TESTING starts rich (1M premium currency, 500K resources and
+  speed-ups) for exploring; STANDARD is the real start.
+- Offline — no accounts, no server, no analytics. Saves live on-device; only
+  buying Dark Matter needs a connection.
 - Tested on iPhone (iOS 13+ target) and in-editor on macOS. Android compiles
   from the same project but was never a focus.
 - No license has been chosen yet — if you want to build on this, open an

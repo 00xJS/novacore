@@ -174,7 +174,7 @@ namespace GalaxyRoyale.Data
                 Paragraphs = new[]
                 {
                     "ITEMS sells speed-ups, resource packs, shields and relocation for Dark Matter. What you own is in your inventory.",
-                    "Settings holds sound, notifications, text size and colour-blind colours, iCloud backup and Game Center. Got a code from the developer? Redeem it there; each works once per game.",
+                    "Settings holds sound, notifications, text size and colour-blind colours, iCloud backup, Game Center, and the privacy policy, support and credits.",
                     "The training can be started again from Settings, under Help.",
                 },
             },

@@ -112,6 +112,8 @@ namespace GalaxyRoyale.Game
             if (GetComponent<RadarService>() == null) gameObject.AddComponent<RadarService>();
             // PvP resolve-at-arrival (raids/spies fight when the fleet lands).
             if (GetComponent<RaidArrivals>() == null) gameObject.AddComponent<RaidArrivals>();
+            // App Store purchases of Dark Matter (StoreKit 2).
+            if (GetComponent<StoreService>() == null) gameObject.AddComponent<StoreService>();
             Debug.Log($"[GalaxyRoyale] New game seeded {seed}. Sector generated.");
         }
 
