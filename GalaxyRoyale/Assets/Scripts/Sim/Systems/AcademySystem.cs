@@ -59,6 +59,8 @@ namespace GalaxyRoyale.Sim.Systems
         public static void Tick(GameState s, SimEventBus events)
         {
             if (s.CaptainMarchId == 0 || s.Marches.Exists(m => m.Id == s.CaptainMarchId)) return;
+            // Leading an expedition (a negative id): ExpeditionSystem brings them home.
+            if (s.CaptainMarchId < 0 && s.Expeditions.Exists(e => e.Id == -s.CaptainMarchId)) return;
             s.CaptainMarchId = 0;
             s.CaptainWoundedUntilTick = s.Tick + WoundSec;
             events.Emit(new CommanderWounded(s.CaptainWoundedUntilTick));

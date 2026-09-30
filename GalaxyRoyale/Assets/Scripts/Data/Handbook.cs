@@ -159,6 +159,16 @@ namespace GalaxyRoyale.Data
             },
             new HandbookTopic
             {
+                Title = "Expeditions", Summary = "Fleets beyond the charted galaxy",
+                Paragraphs = new[]
+                {
+                    "MORE › EXPLORE lists three destinations beyond the map, refreshed every 12 hours. Send a fleet to one; it's away for 2 to 8 hours and off your docks.",
+                    "Halfway there, something happens and you make the call. The bold choice pays more than double and can turn up relics — if it comes off. The careful one always pays. If you don't answer, your fleet plays it safe.",
+                    "A fleet as strong as the destination calls for, and your commander leading it (the Academy), make a bold call likelier to come off. Two expeditions can be out at once.",
+                },
+            },
+            new HandbookTopic
+            {
                 Title = "Clans", Summary = "Allies, strikes and supplies",
                 Paragraphs = new[]
                 {

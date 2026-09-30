@@ -33,6 +33,7 @@ namespace GalaxyRoyale.Sim.Systems
                 QuestGoal.ItemsUsed => state.Stats.ItemsUsed,
                 QuestGoal.ClanJoined => state.ClanId != 0 ? 1 : 0,
                 QuestGoal.MarketTrades => state.Stats.MarketTrades,
+                QuestGoal.Expeditions => state.Stats.ExpeditionsDone,
                 _ => 0,
             };
             return (Math.Min(have, quest.Target), quest.Target);

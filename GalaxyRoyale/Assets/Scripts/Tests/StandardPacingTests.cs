@@ -247,6 +247,13 @@ namespace GalaxyRoyale.Sim.Tests
             if (s.ClanId == 0 && s.Buildings[BuildingId.CommandCenter].Level >= 5) s.ClanId = 1; // joins (no rivals here)
             if (s.Stats.MarketTrades == 0 && s.Buildings[BuildingId.CommandCenter].Level >= 5)
                 MarketSystem.Trade(s, ResourceId.Gold, ResourceId.Helium, 500);
+            // An expedition now and then: a squadron of fighters, the careful call.
+            if (s.Expeditions.Count == 0 && Count(s, HullId.Fighter) >= 20)
+            {
+                var offer = ExpeditionSystem.Board(s).FirstOrDefault(o => !ExpeditionSystem.Taken(s, o.Code));
+                if (offer != null)
+                    ExpeditionSystem.Send(s, offer, new Dictionary<HullId, int> { [HullId.Fighter] = 10 }, false, out _);
+            }
         }
 
         /// <summary>Chart the Wilds while both build queues are busy.</summary>

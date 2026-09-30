@@ -575,6 +575,46 @@ namespace GalaxyRoyale.Sim.Save
                 citadel["contracts"] = Arr(taken, x => (object?)(long)x);
             }
             if (citadel.Count > 0) root["citadel"] = citadel;
+            // Expeditions (2026-09-30).
+            if (s.Expeditions.Count > 0 || s.ExpeditionLog.Count > 0 || s.NextExpeditionId > 0)
+            {
+                var ex = new Dictionary<string, object?>
+                {
+                    ["next"] = (long)s.NextExpeditionId,
+                    ["out"] = Arr(s.Expeditions, e => (object?)new Dictionary<string, object?>
+                    {
+                        ["id"] = (long)e.Id,
+                        ["kind"] = e.Kind.ToString(),
+                        ["ships"] = Comp(e.Ships),
+                        ["start"] = (long)e.StartTick,
+                        ["end"] = (long)e.EndTick,
+                        ["rec"] = e.Recommended,
+                        ["choice"] = (long)e.Choice,
+                        ["led"] = e.Led,
+                        ["told"] = e.Announced,
+                    }),
+                    ["log"] = Arr(s.ExpeditionLog, l => (object?)new Dictionary<string, object?>
+                    {
+                        ["id"] = (long)l.Id,
+                        ["kind"] = l.Kind.ToString(),
+                        ["at"] = (long)l.AtTick,
+                        ["bold"] = l.Bold,
+                        ["won"] = l.Won,
+                        ["story"] = l.Story,
+                        ["loot"] = Bag(l.LootMilli),
+                        ["dm"] = (long)l.DarkMatter,
+                        ["relic"] = l.Relic?.ToString(),
+                        ["lost"] = (long)l.ShipsLost,
+                    }),
+                };
+                if (s.ExpeditionsTaken.Count > 0)
+                {
+                    var taken = new List<int>(s.ExpeditionsTaken);
+                    taken.Sort();
+                    ex["taken"] = Arr(taken, x => (object?)(long)x);
+                }
+                root["expeditions"] = ex;
+            }
             if (s.EventSiteId.Length > 0) root["eventSite"] = s.EventSiteId;
             if (s.PendingNova >= 0) root["pendingNova"] = (long)s.PendingNova;
             if (s.BountyInstance >= 0)
@@ -852,6 +892,7 @@ namespace GalaxyRoyale.Sim.Save
                 TournamentsWon = Opt("tournamentsWon"),
                 MissileKills = Opt("missileKills"),
                 ContractsDone = Opt("contracts"),
+                ExpeditionsDone = Opt("expeditions"),
             };
 
             if (d.TryGetValue("achievements", out var ach) && ach != null)
@@ -885,6 +926,45 @@ namespace GalaxyRoyale.Sim.Save
                 if (citadel.TryGetValue("contracts", out var cc) && cc != null)
                     foreach (var raw in AsArr(cc, "citadel.contracts"))
                         if (raw != null) s.ContractsTaken.Add(ToI32(raw));
+            }
+            if (d.TryGetValue("expeditions", out var exo) && exo is Dictionary<string, object?> ex)
+            {
+                s.NextExpeditionId = I32(ex, "next");
+                if (ex.TryGetValue("out", out var eo) && eo != null)
+                    foreach (var raw in AsArr(eo, "expeditions.out"))
+                    {
+                        var e = AsObj(raw, "expedition");
+                        if (!Enum.TryParse<ExpeditionKind>(Str(e, "kind"), out var ek)) continue;
+                        s.Expeditions.Add(new Systems.Expedition
+                        {
+                            Id = I32(e, "id"), Kind = ek, Ships = DecComp(AsObj(e["ships"], "expedition.ships")),
+                            StartTick = I32(e, "start"), EndTick = I32(e, "end"),
+                            Recommended = e.TryGetValue("rec", out var rc) && rc != null ? ToI64(rc) : 0,
+                            Choice = I32(e, "choice"),
+                            Led = e.TryGetValue("led", out var ld) && ld is bool ldb && ldb,
+                            Announced = e.TryGetValue("told", out var td) && td is bool tdb && tdb,
+                        });
+                    }
+                if (ex.TryGetValue("log", out var lo) && lo != null)
+                    foreach (var raw in AsArr(lo, "expeditions.log"))
+                    {
+                        var l = AsObj(raw, "expedition log");
+                        if (!Enum.TryParse<ExpeditionKind>(Str(l, "kind"), out var lk)) continue;
+                        s.ExpeditionLog.Add(new Systems.ExpeditionLog
+                        {
+                            Id = I32(l, "id"), Kind = lk, AtTick = I32(l, "at"),
+                            Bold = l.TryGetValue("bold", out var b) && b is bool bb && bb,
+                            Won = l.TryGetValue("won", out var w) && w is bool wb && wb,
+                            Story = Str(l, "story"),
+                            LootMilli = l.TryGetValue("loot", out var lt) && lt is Dictionary<string, object?> ltd ? DecBag(ltd) : new ResourceBag(),
+                            DarkMatter = I32(l, "dm"),
+                            Relic = l.TryGetValue("relic", out var rl) && rl is string rls && Enum.TryParse<RelicKind>(rls, out var rk) ? rk : null,
+                            ShipsLost = I32(l, "lost"),
+                        });
+                    }
+                if (ex.TryGetValue("taken", out var tk) && tk != null)
+                    foreach (var raw in AsArr(tk, "expeditions.taken"))
+                        if (raw != null) s.ExpeditionsTaken.Add(ToI32(raw));
             }
             s.EventSiteId = d.TryGetValue("eventSite", out var es) && es is string esId ? esId : "";
             s.PendingNova = d.TryGetValue("pendingNova", out var pn) && pn != null ? ToI32(pn) : -1;
@@ -1328,6 +1408,7 @@ namespace GalaxyRoyale.Sim.Save
             Opt("tournamentsWon", st.TournamentsWon);
             Opt("missileKills", st.MissileKills);
             Opt("contracts", st.ContractsDone);
+            Opt("expeditions", st.ExpeditionsDone);
             return d;
         }
 
