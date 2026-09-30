@@ -1072,6 +1072,17 @@ namespace GalaxyRoyale.Game.UI
                     Toast($"First Lv {first.CampLevel} camp beaten: bonus +{UiTheme.FmtAmount(first.BonusMilli.Total)} " +
                           $"sent home · +{first.DarkMatter} DM", Icon.Trophy, UiTheme.Energy);
                     break;
+                // Map events (2026-09-30).
+                case CaravanEscorted paid:
+                    Toast($"The caravan moved on and paid your escort: +{UiTheme.FmtAmount(paid.PayMilli.Total)}" +
+                          (paid.DarkMatter > 0 ? $" · +{paid.DarkMatter} DM" : ""), Icon.Crate, UiTheme.Good);
+                    break;
+                case SupernovaDetonated nova:
+                    Toast(nova.ShipsLost > 0
+                        ? $"The supernova went off: {nova.ShipsLost:N0} of your ships were still in the sector and were lost"
+                        : "The supernova went off. Its sector's worlds are stripped bare", Icon.Warning,
+                        nova.ShipsLost > 0 ? UiTheme.Bad : UiTheme.Energy);
+                    break;
                 case ProtectionEnded ended:
                     Toast(ended.Reason switch
                     {

@@ -21,9 +21,11 @@ namespace GalaxyRoyale.Sim.Systems
         /// · 3 = + fleet size and attacker name · 4 = + full hull composition.
         /// </summary>
         /// <summary>This colony's warning lead: the Radar Station's, stretched by the
-        /// Deep Space Observatory.</summary>
+        /// Deep Space Observatory. The Ion Storm blinds it while the colony sits
+        /// inside (map events, 2026-09-30).</summary>
         public static int WarnLeadSeconds(GameState state) =>
-            (int)System.Math.Round(WarnLeadSeconds(Level(state)) * ObservatorySystem.RadarLeadMult(state));
+            EventSites.RadarBlind(state) ? 0
+            : (int)System.Math.Round(WarnLeadSeconds(Level(state)) * ObservatorySystem.RadarLeadMult(state));
 
         public static int DetailTier(int radarLevel) =>
             radarLevel < 1 ? 0

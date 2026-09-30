@@ -27,6 +27,7 @@ namespace GalaxyRoyale.Game.UI
             var state = ctx.State!;
             bool isCamp = node.Kind == NodeKind.Camp;
             bool isDerelict = node.Kind == NodeKind.Derelict;
+            bool isCaravan = node.Kind == NodeKind.Caravan;
 
             var panel = new VisualElement();
             Holo.Frame(panel, new UnityEngine.Color(UiTheme.Panel.r, UiTheme.Panel.g, UiTheme.Panel.b, 0.96f), UiTheme.Stroke, 9f, 1f);
@@ -38,7 +39,10 @@ namespace GalaxyRoyale.Game.UI
 
             var head = Widgets.HBox(Justify.SpaceBetween);
             int displayLv = isCamp ? node.CampLevel : node.Tier + 1;
-            string title = isCamp ? $"Pirate Camp  Lv{displayLv}" : $"{Nodes.Defs[node.Kind].Name}  ·  Lv.{displayLv}";
+            string title = isCamp ? $"Pirate Camp  Lv{displayLv}"
+                : isCaravan ? $"Trade Caravan  ·  escort Lv{node.CampLevel}"
+                : node.Kind == NodeKind.Comet ? "Passing Comet"
+                : $"{Nodes.Defs[node.Kind].Name}  ·  Lv.{displayLv}";
             head.Add(Widgets.Text(title, 15, isCamp ? UiTheme.Bad : UiTheme.Accent, bold: true));
             var close = Widgets.TextButton("×", onClose, 12);
             close.style.width = 32;
@@ -64,6 +68,17 @@ namespace GalaxyRoyale.Game.UI
             {
                 detail = $"salvage: {UiTheme.FmtAmount(remaining)} (50/30/20 split)";
             }
+            else if (isCaravan)
+            {
+                detail = $"escort: {GarrisonText(EventSites.CaravanEscort(node))}\n" +
+                         $"ATTACK to seize its cargo, or ESCORT it: warships flying with it are paid when it moves on " +
+                         $"(in {UiTheme.FmtDuration(EventSites.SiteLeftSec(state))}).";
+            }
+            else if (node.Kind == NodeKind.Comet)
+            {
+                detail = $"{UiTheme.FmtAmount(remaining)} left: gold, quartz, helium and Dark Matter  ·  " +
+                         $"rivals are mining it too  ·  leaves in {UiTheme.FmtDuration(EventSites.SiteLeftSec(state))}";
+            }
             else
             {
                 string resName = node.Kind == NodeKind.DMField ? "dark matter" : node.Resource switch
@@ -75,6 +90,12 @@ namespace GalaxyRoyale.Game.UI
                 };
                 detail = $"{UiTheme.FmtAmount(remaining)} {resName} left  ·  gather ~{UiTheme.FmtRatePerHour(node.RatePerSec * 3600L)}";
             }
+            // Map events (2026-09-30): the storm's camps and the doomed sector's worlds.
+            if (isCamp && EventSites.InStorm(state, node.Tile, state.Tick))
+                detail += "\nInside the Ion Storm: +50% loot, and it counts for the event.";
+            if (!isCamp && EventSites.ZoneNow(state) is { Kind: GalaxyEventKind.Supernova } nova && nova.Contains(node.Tile))
+                detail += $"\nDoomed sector: gathers 3x faster, +50% haul. The star explodes in " +
+                          $"{UiTheme.FmtDuration(nova.EndTick - state.Tick)}; fleets still here are lost.";
             var detailLabel = Widgets.Text(detail, 11, UiTheme.Text);
             detailLabel.style.whiteSpace = WhiteSpace.Normal;
             detailLabel.style.marginTop = 4;
@@ -101,7 +122,13 @@ namespace GalaxyRoyale.Game.UI
                     Favorites.Add($"{Nodes.Defs[node.Kind].Name} Lv{displayLv}", node.Tile)
                         ? "Location bookmarked" : "Favorites list is full"), widthPct);
 
-            if (isCamp)
+            if (isCaravan)
+            {
+                Action("ATTACK", () => NodeComposer.Open(ctx, node), 36f);
+                Action("ESCORT", () => NodeComposer.Open(ctx, node, escort: true), 36f);
+                FavoriteAction(20f);
+            }
+            else if (isCamp)
             {
                 Action("ATTACK", () => NodeComposer.Open(ctx, node), 34f);
                 Action("SPY", () =>
@@ -127,6 +154,14 @@ namespace GalaxyRoyale.Game.UI
             panel.Add(buttons);
             return panel;
         }
+
+        public static string GarrisonText(Dictionary<HullId, int> g)
+        {
+            var parts = new List<string>();
+            foreach (var hull in Ships.All)
+                if (g.TryGetValue(hull, out var n) && n > 0) parts.Add($"{n}× {Ships.Defs[hull].Name}");
+            return string.Join(", ", parts);
+        }
     }
 
     public static class NodeComposer
@@ -134,15 +169,21 @@ namespace GalaxyRoyale.Game.UI
         /// <summary>Ships picked in the open composer (the training reads it).</summary>
         public static int SelectedCount { get; private set; }
 
-        public static void Open(GameContext ctx, MapNode node)
+        /// <param name="escort">A caravan: escort it (a gather march) instead of attacking.</param>
+        public static void Open(GameContext ctx, MapNode node, bool escort = false)
         {
             var ui = UIController.Instance!;
             var state = ctx.State!;
-            bool isCamp = node.Kind == NodeKind.Camp;
+            bool isCaravan = node.Kind == NodeKind.Caravan;
+            // An intercept is fought like a camp (the escort's garrison is public).
+            bool isCamp = node.Kind == NodeKind.Camp || (isCaravan && !escort);
             bool isDerelict = node.Kind == NodeKind.Derelict;
+            Dictionary<HullId, int> Garrison() => isCaravan ? EventSites.CaravanEscort(node) : MarchSystem.CampGarrison(node);
+            bool Intel() => isCaravan || MarchSystem.HasSpyIntel(state, node.Tile);
 
             int displayLv = isCamp ? node.CampLevel : node.Tier + 1;
-            string title = isCamp ? $"PIRATE CAMP Lv{displayLv}" : Nodes.Defs[node.Kind].Name.ToUpper();
+            string title = isCaravan ? (escort ? "ESCORT THE CARAVAN" : "INTERCEPT THE CARAVAN")
+                : isCamp ? $"PIRATE CAMP Lv{displayLv}" : Nodes.Defs[node.Kind].Name.ToUpper();
             var (blocker, content) = Widgets.ModalPanel(title, () =>
             {
                 ui.CloseModal();
@@ -153,17 +194,13 @@ namespace GalaxyRoyale.Game.UI
             state.Map.NodeOverrides.TryGetValue(node.Id, out var ov);
             long remaining = ov?.Remaining ?? node.Amount;
             string infoLine;
-            if (isCamp)
+            if (isCaravan && escort)
+                infoLine = "Warships flying with it are paid when it moves on, more for a stronger escort " +
+                           $"(full pay from {Balance.HomeGuardFullMight(state.Buildings[BuildingId.CommandCenter].Level):N0} might).";
+            else if (isCamp)
             {
-                if (MarchSystem.HasSpyIntel(state, node.Tile))
-                {
-                    var g = MarchSystem.CampGarrison(node);
-                    var parts = new List<string>();
-                    foreach (var hull in Ships.All)
-                        if (g.TryGetValue(hull, out var n) && n > 0) parts.Add($"{n}× {Ships.Defs[hull].Name}");
-                    infoLine = $"garrison: {string.Join(", ", parts)}";
-                }
-                else infoLine = "garrison unknown — send a Spy Probe to reveal it";
+                infoLine = Intel() ? $"garrison: {NodeCallout.GarrisonText(Garrison())}"
+                    : "garrison unknown — send a Spy Probe to reveal it";
             }
             else
             {
@@ -304,10 +341,10 @@ namespace GalaxyRoyale.Game.UI
                 // is exactly the arrival battle (MarchSystem's camp resolution).
                 if (!isCamp) return;
                 if (MarchSystem.FleetCount(fleet) < 1) forecast.Hide();
-                else if (!MarchSystem.HasSpyIntel(state, node.Tile))
+                else if (!Intel())
                     forecast.NeedsIntel("Spy the camp first — the forecast needs its garrison.");
                 else
-                    forecast.Show(BattleForecast.Predict(fleet, MarchSystem.CampGarrison(node),
+                    forecast.Show(BattleForecast.Predict(fleet, Garrison(),
                         ResearchSystem.CombatMods(state)), null);
             }
 
@@ -331,22 +368,26 @@ namespace GalaxyRoyale.Game.UI
                 {
                     MarchMission.Attack => "Fleet launched — battle report on arrival",
                     MarchMission.Spy => "Spy probe en route — intel to your Mailbox",
+                    _ when isCaravan => "Escort launched — paid when the caravan moves on",
                     _ => "Fleet launched — gathering on arrival",
                 });
                 ui.CloseModal();
                 ui.CloseNodeCallout();
             }
 
-            launchBtn = Widgets.TextButton(isCamp ? "ATTACK" : isDerelict ? "SALVAGE" : "GATHER",
+            launchBtn = Widgets.TextButton(isCamp ? "ATTACK" : isCaravan ? "ESCORT" : isDerelict ? "SALVAGE" : "GATHER",
                 () => Launch(isCamp ? MarchMission.Attack : MarchMission.Gather), 14);
             launchBtn.name = "tut-launch";
-            launchBtn.style.width = Length.Percent(60f);
+            launchBtn.style.width = Length.Percent(isCaravan ? 96f : 60f);
             launchBtn.style.height = 42;
             launchRow.Add(launchBtn);
-            var spyBtn = Widgets.TextButton("SPY", () => Launch(MarchMission.Spy), 12);
-            spyBtn.style.width = Length.Percent(34f);
-            spyBtn.style.height = 42;
-            launchRow.Add(spyBtn);
+            if (!isCaravan)
+            {
+                var spyBtn = Widgets.TextButton("SPY", () => Launch(MarchMission.Spy), 12);
+                spyBtn.style.width = Length.Percent(34f);
+                spyBtn.style.height = 42;
+                launchRow.Add(spyBtn);
+            }
             content.Add(launchRow);
 
             Refresh();

@@ -34,6 +34,10 @@ namespace GalaxyRoyale.Game
                     if (Data.Tutorial.Steps[i].Id == tut) index = i;
                 ctx.State.TutorialStep = tut == "off" ? Sim.Systems.TutorialSystem.Done : Math.Max(0, index);
             }
+            // GR_EVENT=CometPass (any GalaxyEventKind): that event goes live now, for a look.
+            if (Environment.GetEnvironmentVariable("GR_EVENT") is { } ev && ctx.State != null
+                && Enum.TryParse<Data.GalaxyEventKind>(ev, out var kind))
+                Sim.Systems.EventSystem.DebugForce = (kind, ctx.State.Tick);
             string? open = Environment.GetEnvironmentVariable("GR_OPEN");
             if (string.IsNullOrWhiteSpace(open)) return;
             // After the boot-time panels (the "while you were away" debrief) have had their turn.

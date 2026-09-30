@@ -14,6 +14,16 @@ namespace GalaxyRoyale.Game.UI
 {
     public static class EventsPanel
     {
+        /// <summary>Fly the map to a map event's spot and open its node, if it has one.</summary>
+        public static void ShowOnMap(GameContext ctx, TileXY tile, Sim.Map.MapNode? node)
+        {
+            var ui = UIController.Instance!;
+            ui.CloseModal();
+            ui.SwitchView(ViewId.Map);
+            ctx.GetComponent<MapView>()?.FocusTile(tile);
+            if (node != null) ui.OpenNodeCallout(node);
+        }
+
         public static VisualElement Build(GameContext ctx, out Action refresh)
         {
             var ui = UIController.Instance!;
@@ -60,6 +70,15 @@ namespace GalaxyRoyale.Game.UI
                 {
                     body.Add(EventCard(ctx, def, have, need, claimable, claimed, () => key = "", out var left));
                     eventLeft = left;
+                    // Map events (2026-09-30): take the player to it.
+                    if (EventSites.Focus(state) is { } spot)
+                    {
+                        var show = Widgets.Primary(Widgets.TextButton("SHOW ON MAP", () => ShowOnMap(ctx, spot.tile, spot.node), 12));
+                        show.name = "event-show";
+                        show.style.marginTop = 6;
+                        show.style.height = 38;
+                        body.Add(show);
+                    }
                 }
 
                 // ---- next up ----

@@ -28,8 +28,16 @@ namespace GalaxyRoyale.Sim.Systems
 
         /// <summary>The event live at <paramref name="tick"/> — GalaxyEvents.Quiet
         /// (instance -1) during a new galaxy's lead-in.</summary>
+        /// <summary>Debug only (DebugLaunch's GR_EVENT): make this event live from this
+        /// tick, for a look at it without waiting for the rotation. Never set in play.</summary>
+        public static (GalaxyEventKind Kind, int StartTick)? DebugForce;
+
         public static Live Current(int tick)
         {
+            if (DebugForce is { } force && tick >= force.StartTick)
+                foreach (var d in GalaxyEvents.Rotation)
+                    if (d.Kind == force.Kind && tick < force.StartTick + d.DurationSec)
+                        return new Live(d, 900_000 + (int)d.Kind, force.StartTick, force.StartTick + d.DurationSec);
             if (tick < GalaxyEvents.LeadInSec)
                 return new Live(GalaxyEvents.Quiet, -1, 0, GalaxyEvents.LeadInSec);
             int t = tick - GalaxyEvents.LeadInSec;
@@ -37,16 +45,16 @@ namespace GalaxyRoyale.Sim.Systems
             int into = t % CycleSec;
             int origin = GalaxyEvents.LeadInSec + cycle * CycleSec;
             int start = 0;
-            for (int i = 0; i < GalaxyEvents.Cycle.Count; i++)
+            for (int i = 0; i < GalaxyEvents.Rotation.Count; i++)
             {
-                var def = GalaxyEvents.Cycle[i];
+                var def = GalaxyEvents.Rotation[i];
                 if (into < start + def.DurationSec)
-                    return new Live(def, cycle * GalaxyEvents.Cycle.Count + i,
+                    return new Live(def, cycle * GalaxyEvents.Rotation.Count + i,
                         origin + start, origin + start + def.DurationSec);
                 start += def.DurationSec;
             }
-            var last = GalaxyEvents.Cycle[GalaxyEvents.Cycle.Count - 1];
-            return new Live(last, cycle * GalaxyEvents.Cycle.Count + GalaxyEvents.Cycle.Count - 1,
+            var last = GalaxyEvents.Rotation[GalaxyEvents.Rotation.Count - 1];
+            return new Live(last, cycle * GalaxyEvents.Rotation.Count + GalaxyEvents.Rotation.Count - 1,
                 origin + CycleSec - last.DurationSec, origin + CycleSec);
         }
 
@@ -55,7 +63,8 @@ namespace GalaxyRoyale.Sim.Systems
         /// <summary>The event after the current one (for "next up" in the panel).</summary>
         public static Live Next(int tick) => Current(Current(tick).EndTick);
 
-        static GalaxyEventKind KindAt(GameState state) => Current(state.Tick).Def.Kind;
+        public static GalaxyEventKind KindAt(GameState state) => Current(state.Tick).Def.Kind;
+        public static GalaxyEventKind KindAt(int tick) => Current(tick).Def.Kind;
 
         public static float ProductionMult(GameState state) =>
             KindAt(state) == GalaxyEventKind.GoldRush ? GalaxyEvents.GoldRushProduction : 1f;
@@ -76,13 +85,18 @@ namespace GalaxyRoyale.Sim.Systems
             GalaxyEventKind.ResearchSurge => state.Stats.ResearchDone,
             GalaxyEventKind.PirateArmada => state.Stats.CampsCleared,
             GalaxyEventKind.WarGames => state.Stats.BattlesWon,
+            GalaxyEventKind.CometPass => state.Stats.CometHauled,
+            GalaxyEventKind.TradeCaravan => state.Stats.CaravansDone,
+            GalaxyEventKind.IonStorm => state.Stats.StormCampsCleared,
+            GalaxyEventKind.Supernova => state.Stats.NovaHauled,
             _ => 0,
         };
 
         /// <summary>Per sim tick: when a new event begins, remember where its goal
         /// counter stands (and reset the claim).</summary>
-        public static void Tick(GameState state)
+        public static void Tick(GameState state, SimEventBus? events = null)
         {
+            EventSites.Tick(state, events);
             var live = Current(state.Tick);
             if (live.Instance < 0 || live.Instance == state.EventInstance) return;
             state.EventInstance = live.Instance;
@@ -125,7 +139,7 @@ namespace GalaxyRoyale.Sim.Systems
         static int SumDurations()
         {
             int sum = 0;
-            foreach (var e in GalaxyEvents.Cycle) sum += e.DurationSec;
+            foreach (var e in GalaxyEvents.Rotation) sum += e.DurationSec;
             return sum;
         }
     }

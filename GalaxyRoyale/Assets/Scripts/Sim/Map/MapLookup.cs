@@ -22,6 +22,16 @@ namespace GalaxyRoyale.Sim.Map
             return _cachedSector;
         }
 
+        /// <summary>Still on the map: not retired or cleared, and (camps and caravans
+        /// aside, which hold no stock) not drained.</summary>
+        public static bool IsLive(GameState state, MapNode node)
+        {
+            state.Map.NodeOverrides.TryGetValue(node.Id, out var ov);
+            if (ov != null && (ov.Retired || ov.Cleared)) return false;
+            if (node.Kind == NodeKind.Camp || node.Kind == NodeKind.Caravan) return true;
+            return (ov?.Remaining ?? node.Amount) > 0;
+        }
+
         /// <summary>A dynamically-respawned node sitting on this tile, if any.</summary>
         public static MapNode? DynamicNodeAt(GameState state, TileXY tile)
         {

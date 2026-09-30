@@ -6,8 +6,11 @@ small world, the Galactic Core is a sun with a clear zone around it.
                  gold moon), quartz nebula (a ringed crystal ice world), helium
                  cloud (a banded gas giant) / derelict (a dead moon in a broken
                  debris ring), pirate camp (a volcanic world in a warning halo),
-                 dark matter field (a glowing violet world, bright ring). The
-                 map's galaxy field draws every world from this one sheet.
+                 dark matter field (a glowing violet world, bright ring) /
+                 comet (an icy nucleus with a long glowing tail), trade
+                 caravan (three freighters in an escort ring) — the map events,
+                 2026-09-30. The map's galaxy field draws every world from this
+                 one sheet.
   map-badge-*    64 x 64 type badges shown beside a world when zoomed in.
   core-sun       1024 x 1024: the sun, its corona and the station ring.
   core-zone      1024 x 1024: the Core Zone's dashed boundary.
@@ -144,6 +147,56 @@ for i, (kind, rim, hi, mid, shade, deep) in enumerate(KINDS):
     d, b = world(i, kind, rim, hi, mid, shade, deep, col * 256 + 128, row * 256 + 128)
     defs_all.append(d)
     body_all.append(b)
+
+
+def comet(cx, cy):
+    """The Comet Pass's comet: a bright icy nucleus, its tail streaming up-right."""
+    d = ('<radialGradient id="cmN" cx="0.4" cy="0.38" r="0.7"><stop offset="0" stop-color="#FFFFFF"/>'
+         '<stop offset="0.4" stop-color="#CFF8FF"/><stop offset="1" stop-color="#2A7FA8"/></radialGradient>'
+         '<linearGradient id="cmT" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8FF4FF" stop-opacity="0.95"/>'
+         '<stop offset="1" stop-color="#8FF4FF" stop-opacity="0"/></linearGradient>'
+         '<radialGradient id="cmG"><stop offset="0.3" stop-color="#8FF4FF" stop-opacity="0.6"/>'
+         '<stop offset="1" stop-color="#8FF4FF" stop-opacity="0"/></radialGradient>')
+    x0, y0 = cx - 34, cy + 34
+    g = [f'<circle cx="{x0}" cy="{y0}" r="86" fill="url(#cmG)"/>',
+         f'<path d="M{x0 - 30},{y0 + 8} Q{cx + 20},{cy - 10} {cx + 120},{cy - 118} Q{cx + 10},{cy + 30} {x0 + 12},{y0 + 30} Z" fill="url(#cmT)"/>',
+         f'<path d="M{x0 - 10},{y0 - 20} Q{cx + 30},{cy - 60} {cx + 110},{cy - 122}" stroke="#E4FCFF" stroke-opacity="0.55" stroke-width="5" fill="none"/>',
+         f'<path d="M{x0 + 20},{y0 + 6} Q{cx + 60},{cy - 20} {cx + 122},{cy - 96}" stroke="#B388FF" stroke-opacity="0.5" stroke-width="4" fill="none"/>',
+         f'<circle cx="{x0}" cy="{y0}" r="40" fill="url(#cmN)"/>',
+         f'<circle cx="{x0 - 10}" cy="{y0 - 12}" r="9" fill="#FFFFFF" fill-opacity="0.8"/>']
+    rnd = random.Random(11)
+    for _ in range(14):
+        t = rnd.uniform(0.2, 1)
+        g.append(f'<circle cx="{f(x0 + t * 150 + rnd.uniform(-14, 14))}" cy="{f(y0 - t * 150 + rnd.uniform(-14, 14))}" '
+                 f'r="{f(rnd.uniform(1.5, 4))}" fill="#FFFFFF" fill-opacity="{f(0.9 - t * 0.6)}"/>')
+    return d, "".join(g)
+
+
+def caravan(cx, cy):
+    """The Trade Caravan: three gold freighters in line inside a dashed escort ring."""
+    d = ('<radialGradient id="cvG"><stop offset="0.35" stop-color="#FFC857" stop-opacity="0.55"/>'
+         '<stop offset="1" stop-color="#FFC857" stop-opacity="0"/></radialGradient>'
+         '<linearGradient id="cvH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE7A8"/>'
+         '<stop offset="1" stop-color="#B7791F"/></linearGradient>')
+    g = [f'<circle cx="{cx}" cy="{cy}" r="110" fill="url(#cvG)"/>',
+         f'<circle cx="{cx}" cy="{cy}" r="92" fill="none" stroke="#FFC857" stroke-width="5" stroke-dasharray="16 10" stroke-opacity="0.9"/>']
+    for k, (dx, dy, sc) in enumerate([(-40, 44, 0.72), (6, -4, 0.9), (48, -48, 0.72)]):
+        x, y = cx + dx, cy + dy
+        w, h = 58 * sc, 24 * sc
+        g.append(f'<g transform="rotate(-20 {f(x)} {f(y)})">'
+                 f'<rect x="{f(x - w / 2)}" y="{f(y - h / 2)}" width="{f(w)}" height="{f(h)}" rx="{f(6 * sc)}" '
+                 f'fill="url(#cvH)" stroke="#3A2606" stroke-width="3"/>'
+                 f'<rect x="{f(x - w * 0.3)}" y="{f(y - h * 0.3)}" width="{f(w * 0.18)}" height="{f(h * 0.6)}" fill="#3A2606" fill-opacity="0.5"/>'
+                 f'<rect x="{f(x - w * 0.05)}" y="{f(y - h * 0.3)}" width="{f(w * 0.18)}" height="{f(h * 0.6)}" fill="#3A2606" fill-opacity="0.5"/>'
+                 f'<path d="M{f(x + w / 2)},{f(y - h * 0.3)} l{f(12 * sc)},{f(h * 0.3)} l{f(-12 * sc)},{f(h * 0.3)} z" fill="#FFE7A8"/>'
+                 f'<circle cx="{f(x - w / 2 - 6 * sc)}" cy="{f(y)}" r="{f(6 * sc)}" fill="#7FEAFF" fill-opacity="0.9"/></g>')
+    return d, "".join(g)
+
+
+for fn, cell in ((comet, 6), (caravan, 7)):
+    d, b = fn((cell % 3) * 256 + 128, (cell // 3) * 256 + 128)
+    defs_all.append(d)
+    body_all.append(b)
 write("map-planets", 768, f'<defs>{"".join(defs_all)}</defs>{"".join(body_all)}')
 
 # ---------------------------------------------------------------- badges
@@ -155,8 +208,11 @@ GLYPHS = {
     "derelict": '<path d="M4 16l6-10h4l6 10-4 4H8z"/><path d="M9 12h6"/>',
     "camp": '<circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>',
     "dmfield": '<path d="M12 3l7 9-7 9-7-9z"/>',
+    "comet": '<circle cx="8" cy="16" r="4"/><path d="M11 13l9-9M12 17l8-5M7 12l6-8"/>',
+    "caravan": '<path d="M3 9h11l3 3-3 3H3z"/><path d="M8 17h9l3 2-3 2H8z"/><path d="M8 5h8"/>',
 }
-for kind, rim, *_ in KINDS:
+EVENT_BADGES = [("comet", "#8FF4FF"), ("caravan", "#FFC857")]
+for kind, rim in [(k[0], k[1]) for k in KINDS] + EVENT_BADGES:
     write(f"map-badge-{kind}", 64,
           f'<circle cx="32" cy="32" r="28" fill="#0D0820"/>'
           f'<circle cx="32" cy="32" r="27" fill="none" stroke="{rim}" stroke-width="3"/>'
