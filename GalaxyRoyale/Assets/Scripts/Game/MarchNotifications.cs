@@ -113,6 +113,54 @@ namespace GalaxyRoyale.Game
                 Schedule($"research-{o.TechId}", o.EndsAtTick - now,
                     $"{Techs.Defs[o.TechId].Name} research complete");
 
+            // The content-expansion systems (2026-09-30).
+            if (timers)
+            {
+                foreach (var e in state.Expeditions)
+                {
+                    string name = Expeditions.Def(e.Kind).Name;
+                    if (e.Choice < 0 && e.MidTick > now)
+                        Schedule($"expedition-call-{e.Id}", e.MidTick - now, $"Your {name} expedition needs your call — MORE › EXPLORE");
+                    Schedule($"expedition-home-{e.Id}", e.EndTick - now, $"Your {name} expedition is home — see how it went in MORE › EXPLORE");
+                }
+                // Supply crates: when the third lands and the Command Center is full.
+                if (state.SupplyCrates < Balance.SupplyDropMaxStored && state.NextSupplyDropTick > now)
+                {
+                    long full = state.NextSupplyDropTick - now
+                        + (long)(Balance.SupplyDropMaxStored - state.SupplyCrates - 1) * Balance.SupplyDropEverySec;
+                    Schedule("supply-full", full, "Three supply crates are waiting at your Command Center — no more will land until you open them");
+                }
+                if (state.Terraform.ProjectEndsTick > now)
+                    Schedule("terraform", state.Terraform.ProjectEndsTick - now,
+                        $"Terraforming: {TerraformSystem.Name(state.Terraform.Path)} stage {state.Terraform.Stage + 1} is complete");
+                if (state.CaptainWoundedUntilTick > now)
+                    Schedule("commander-recovered", state.CaptainWoundedUntilTick - now, "Your commander has recovered and can lead a fleet again");
+            }
+            if (raids)
+            {
+                if (SiloSystem.Level(state) > 0 && state.SiloReadyTick > now)
+                    Schedule("silo", state.SiloReadyTick - now, "Your Missile Silo is loaded again");
+                long protect = state.Buffs.ProtectionUntilTick - now;
+                if (protect > 3600)
+                    Schedule("protection", protect - 3600, "Your beginner protection ends in an hour — rivals will be able to raid you");
+                // The supernova: fleets still in the doomed sector an hour before it goes off.
+                if (EventSites.ZoneNow(state) is { Kind: GalaxyEventKind.Supernova } nova && nova.EndTick - now > 3600)
+                {
+                    int inside = 0;
+                    foreach (var m in state.Marches)
+                        if (m.Phase != MarchPhase.Returning && nova.Contains(m.Node)) inside++;
+                    if (inside > 0)
+                        Schedule("supernova", nova.EndTick - 3600 - now,
+                            $"The star explodes in an hour — {inside} of your fleets {(inside == 1 ? "is" : "are")} still in the doomed sector");
+                }
+            }
+            if (galaxyNews && CoreSystem.InTournament(now) && _ctx.Bots is { } tg && CoreSystem.PlayerHolds(tg))
+            {
+                int end = EventSystem.Current(now).EndTick;
+                if (end - now > 3600)
+                    Schedule("tournament", end - 3600 - now, "The Core Tournament ends in an hour — hold the Core to win it");
+            }
+
             // Hostiles ALREADY flying at the colony, announced exactly when the
             // Radar Station would warn in-game (lead = RadarLeadPerLevelSec × level,
             // detail per tier) — so the dodge / Aegis panic button works with the

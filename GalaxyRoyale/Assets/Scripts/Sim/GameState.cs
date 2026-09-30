@@ -56,6 +56,16 @@ namespace GalaxyRoyale.Sim
         public string ContractClient = "";
     }
 
+    /// <summary>The daily objectives' day: UTC date, counters, baselines, what's claimed.</summary>
+    public sealed class DailyState
+    {
+        public string Day = "";
+        public int Builds, Spies;
+        public long GatherWhole;
+        public int MarchesBase, BattlesBase, ShipsBase;
+        public HashSet<string> Claimed = new();
+    }
+
     /// <summary>Production building types that can have multiple instances.</summary>
     public enum MineType { GoldMine, QuartzExtractor, HeliumRefinery }
 
@@ -455,6 +465,8 @@ namespace GalaxyRoyale.Sim
         public int NextExpeditionId;
         /// <summary>Nemesis rivals (2026-09-30): your nemesis, and grudges building up.</summary>
         public Systems.NemesisState Nemesis = new();
+        /// <summary>Today's daily objectives (Game/DailyObjectives; in the save since 2026-09-30).</summary>
+        public DailyState Daily = new();
         public string EventSiteId = "";
         public int PendingNova = -1;
         /// <summary>Bounty Board (2026-09-30): the marked commander for event instance

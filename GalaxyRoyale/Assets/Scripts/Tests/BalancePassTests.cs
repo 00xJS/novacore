@@ -279,5 +279,24 @@ namespace GalaxyRoyale.Sim.Tests
             Assert.IsTrue(QuestSystem.IsComplete(s, Q(QuestGoal.SkillsLearned)));
             Assert.IsFalse(QuestSystem.IsComplete(s, Q(QuestGoal.MarketTrades)));
         }
+
+        // ---------- dailies in the save (2026-09-30) ----------
+
+        [Test]
+        public void TheDaysObjectives_SurviveTheSave()
+        {
+            var s = Fresh();
+            s.Daily.Day = "20260930";
+            s.Daily.Builds = 2;
+            s.Daily.GatherWhole = 40_000;
+            s.Daily.ShipsBase = 7;
+            s.Daily.Claimed.Add("spy");
+            var back = RoundTrip(s).Daily;
+            Assert.AreEqual("20260930", back.Day);
+            Assert.AreEqual(2, back.Builds);
+            Assert.AreEqual(40_000, back.GatherWhole);
+            Assert.AreEqual(7, back.ShipsBase);
+            CollectionAssert.Contains(back.Claimed, "spy");
+        }
     }
 }

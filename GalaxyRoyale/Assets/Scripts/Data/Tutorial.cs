@@ -186,14 +186,14 @@ namespace GalaxyRoyale.Data
             {
                 Id = "districts", Chapter = "GROWING STRONGER", Title = "THE REST OF YOUR PLANET",
                 Text = "These tabs turn the globe. MINES holds your extra mines, FRONTIER your advanced buildings and " +
-                       "PORT your docked fleet. The WILDS, in the south, hold deposits to survey and harvest.",
+                       "PORT your docked fleet. The WILDS, in the south, hold deposits to survey; the CITADEL crowns the north pole.",
                 Goal = TutorialGoal.Next,
             },
             new TutorialStepDef
             {
                 Id = "more", Chapter = "GROWING STRONGER", Title = "EVERYTHING ELSE",
-                Text = "The ••• button holds the rest: daily objectives, galaxy events, your clan, the Galactic Core, " +
-                       "the Pirate Dreadnought, the market and the rankings. Tap it to look, then tap it again to close it.",
+                Text = "The ••• button holds the rest: expeditions, daily objectives, galaxy events, your clan, the Core, " +
+                       "the Dreadnought, the market and the rankings. Tap it to look, then tap it again to close it.",
                 Goal = TutorialGoal.Seen, Seen = TutorialSeen.More,
             },
             new TutorialStepDef

@@ -1,8 +1,7 @@
-// Daily objectives — the retention loop: five tasks that reset at UTC
-// midnight, tracked from sim events + stat deltas, paying Dark Matter on
-// claim. Progress lives in PlayerPrefs (device-local v0 — an account-synced
-// version can ride the C.0 server later); claimed rewards credit the SAVE,
-// so they survive everywhere.
+// Daily objectives — the retention loop: tasks that reset at UTC midnight,
+// tracked from sim events + stat deltas, paying Dark Matter on claim. Since
+// 2026-09-30 the day's progress lives in the save (GameState.Daily), so it
+// survives an iCloud restore or a reinstall.
 using System;
 using System.Collections.Generic;
 using GalaxyRoyale.Sim;
@@ -37,20 +36,18 @@ namespace GalaxyRoyale.Game
         const string PrefsKey = "galaxyroyale.daily";
         static DailyObjectives? s_instance;
         GameContext _ctx = null!;
+        bool _migrated;
 
-        // Day-scoped counters. marches/battle derive from stat deltas against a
-        // snapshot taken at the first sight of each new UTC day.
-        string _day = "";
-        int _builds, _spies;
-        long _gatherWhole;
-        int _marchesBase = -1, _battlesBase = -1, _shipsBase = -1;
-        readonly HashSet<string> _claimed = new();
+        // The day's counters live in the save (GameState.Daily, 2026-09-30) so an
+        // iCloud restore or a reinstall keeps them; they used to be in PlayerPrefs.
+        // marches/battle/ships count stat deltas from baselines taken at the first
+        // sight of each new UTC day.
+        DailyState? D => _ctx.State?.Daily;
 
         void Awake()
         {
             s_instance = this;
             _ctx = GetComponent<GameContext>();
-            LoadPrefs();
         }
 
         void Start()
@@ -60,82 +57,99 @@ namespace GalaxyRoyale.Game
 
         void OnSimEvent(SimEvent e)
         {
+            var d = D;
+            if (d == null) return;
             EnsureToday();
             switch (e)
             {
-                case BuildingCompleted:
-                    _builds++;
-                    SavePrefs();
-                    break;
-                case SpyReportReceived:
-                    _spies++;
-                    SavePrefs();
-                    break;
-                case MarchReturned mr:
-                    _gatherWhole += (mr.Cargo.Gold + mr.Cargo.Quartz + mr.Cargo.Helium) / 1000;
-                    SavePrefs();
-                    break;
+                case BuildingCompleted: d.Builds++; break;
+                case SpyReportReceived: d.Spies++; break;
+                case MarchReturned mr: d.GatherWhole += (mr.Cargo.Gold + mr.Cargo.Quartz + mr.Cargo.Helium) / 1000; break;
             }
         }
 
         void EnsureToday()
         {
-            string today = DateTime.UtcNow.ToString("yyyyMMdd");
-            if (_day == today) return;
-            _day = today;
-            _builds = 0;
-            _spies = 0;
-            _gatherWhole = 0;
-            _claimed.Clear();
             var state = _ctx.State;
-            _marchesBase = state?.Stats.MarchesSent ?? 0;
-            _battlesBase = state?.Stats.BattlesWon ?? 0;
-            _shipsBase = state?.Stats.ShipsBuilt ?? 0;
-            SavePrefs();
+            if (state == null) return;
+            MigrateOnce(state);
+            var d = state.Daily;
+            string today = DateTime.UtcNow.ToString("yyyyMMdd");
+            if (d.Day == today) return;
+            d.Day = today;
+            d.Builds = 0;
+            d.Spies = 0;
+            d.GatherWhole = 0;
+            d.Claimed.Clear();
+            d.MarchesBase = state.Stats.MarchesSent;
+            d.BattlesBase = state.Stats.BattlesWon;
+            d.ShipsBase = state.Stats.ShipsBuilt;
+        }
+
+        /// <summary>Progress saved in PlayerPrefs by older builds moves into the save once.</summary>
+        void MigrateOnce(GameState state)
+        {
+            if (_migrated) return;
+            _migrated = true;
+            try
+            {
+                string raw = PlayerPrefs.GetString(PrefsKey, "");
+                PlayerPrefs.DeleteKey(PrefsKey);
+                if (raw.Length == 0 || state.Daily.Day.Length > 0) return;
+                if (Json.Parse(raw) is not Dictionary<string, object?> o) return;
+                var d = state.Daily;
+                d.Day = o.TryGetValue("day", out var day) && day is string ds ? ds : "";
+                d.Builds = I(o, "builds");
+                d.Spies = I(o, "spies");
+                d.GatherWhole = o.TryGetValue("gather", out var g) && g is long gl ? gl : 0;
+                d.MarchesBase = I(o, "marchesBase");
+                d.BattlesBase = I(o, "battlesBase");
+                d.ShipsBase = o.TryGetValue("shipsBase", out var sb) && sb is long sbl ? (int)sbl : state.Stats.ShipsBuilt;
+                if (o.TryGetValue("claimed", out var c) && c is List<object?> claimed)
+                    foreach (var id in claimed)
+                        if (id is string cs) d.Claimed.Add(cs);
+            }
+            catch (Exception) { }
+            static int I(Dictionary<string, object?> d, string k) =>
+                d.TryGetValue(k, out var v) && v is long l ? (int)l : 0;
         }
 
         // ---------- public API ----------
 
         public static int Progress(GameState state, ObjectiveDef def)
         {
-            var inst = s_instance;
-            if (inst == null) return 0;
-            inst.EnsureToday();
-            // Progress saved before the ships goal existed has no baseline: start it now.
-            if (inst._shipsBase < 0) { inst._shipsBase = state.Stats.ShipsBuilt; inst.SavePrefs(); }
+            s_instance?.EnsureToday();
+            var d = state.Daily;
             long p = def.Id switch
             {
-                "builds"  => inst._builds,
-                "marches" => Math.Max(0, state.Stats.MarchesSent - inst._marchesBase),
-                "gather"  => inst._gatherWhole,
-                "battle"  => Math.Max(0, state.Stats.BattlesWon - inst._battlesBase),
-                "spy"     => inst._spies,
-                "ships"   => Math.Max(0, state.Stats.ShipsBuilt - inst._shipsBase),
+                "builds"  => d.Builds,
+                "marches" => Math.Max(0, state.Stats.MarchesSent - d.MarchesBase),
+                "gather"  => d.GatherWhole,
+                "battle"  => Math.Max(0, state.Stats.BattlesWon - d.BattlesBase),
+                "spy"     => d.Spies,
+                "ships"   => Math.Max(0, state.Stats.ShipsBuilt - d.ShipsBase),
                 _ => 0,
             };
             return (int)Math.Min(def.Target, p);
         }
 
         public static bool IsClaimed(ObjectiveDef def) =>
-            s_instance != null && s_instance._claimed.Contains(def.Id);
+            s_instance?.D is { } d && d.Claimed.Contains(def.Id);
 
         public static bool Claim(GameState state, ObjectiveDef def)
         {
-            var inst = s_instance;
-            if (inst == null) return false;
-            inst.EnsureToday();
-            if (inst._claimed.Contains(def.Id)) return false;
+            s_instance?.EnsureToday();
+            var d = state.Daily;
+            if (d.Claimed.Contains(def.Id)) return false;
             if (Progress(state, def) < def.Target) return false;
             state.Premium.DarkMatter += def.RewardDM;
             state.Stats.DailiesClaimed++; // commander XP
-            inst._claimed.Add(def.Id);
-            inst.SavePrefs();
+            d.Claimed.Add(def.Id);
             return true;
         }
 
         public static bool AnyClaimable(GameState state)
         {
-            if (s_instance == null) return false;
             foreach (var def in Defs)
                 if (!IsClaimed(def) && Progress(state, def) >= def.Target) return true;
             return false;
@@ -143,67 +157,13 @@ namespace GalaxyRoyale.Game
 
         /// <summary>
         /// Start the day's objectives over for a NEW galaxy (NEW GAME / RESET
-        /// EMPIRE). Progress lives in PlayerPrefs, outside the save, so counters
-        /// and claims used to carry into the fresh empire — the stat baselines
-        /// then pointed at the old empire's totals and blocked "Send 5 fleets" /
-        /// "Win a battle" until midnight UTC.
+        /// EMPIRE). The new game's state starts with an empty day; this only
+        /// clears what older builds kept in PlayerPrefs.
         /// </summary>
         public static void ResetProgress()
         {
             PlayerPrefs.DeleteKey(PrefsKey);
-            var d = s_instance;
-            if (d == null) return;
-            d._day = "";
-            d._builds = 0;
-            d._spies = 0;
-            d._gatherWhole = 0;
-            d._marchesBase = -1;
-            d._battlesBase = -1;
-            d._shipsBase = -1;
-            d._claimed.Clear();
-        }
-
-        // ---------- persistence ----------
-
-        void LoadPrefs()
-        {
-            try
-            {
-                string raw = PlayerPrefs.GetString(PrefsKey, "");
-                if (raw.Length == 0) return;
-                if (Json.Parse(raw) is not Dictionary<string, object?> d) return;
-                _day = d["day"] as string ?? "";
-                _builds = I(d, "builds");
-                _spies = I(d, "spies");
-                _gatherWhole = d.TryGetValue("gather", out var g) && g is long gl ? gl : 0;
-                _marchesBase = I(d, "marchesBase");
-                _battlesBase = I(d, "battlesBase");
-                _shipsBase = d.TryGetValue("shipsBase", out var sb) && sb is long sbl ? (int)sbl : -1;
-                if (d.TryGetValue("claimed", out var c) && c is List<object?> claimed)
-                    foreach (var id in claimed)
-                        if (id is string s) _claimed.Add(s);
-            }
-            catch (Exception) { }
-            static int I(Dictionary<string, object?> d, string k) =>
-                d.TryGetValue(k, out var v) && v is long l ? (int)l : 0;
-        }
-
-        void SavePrefs()
-        {
-            var claimed = new List<object?>();
-            foreach (var id in _claimed) claimed.Add(id);
-            PlayerPrefs.SetString(PrefsKey, Json.Write(new Dictionary<string, object?>
-            {
-                ["day"] = _day,
-                ["builds"] = (long)_builds,
-                ["spies"] = (long)_spies,
-                ["gather"] = _gatherWhole,
-                ["marchesBase"] = (long)_marchesBase,
-                ["battlesBase"] = (long)_battlesBase,
-                ["shipsBase"] = (long)_shipsBase,
-                ["claimed"] = claimed,
-            }));
-            PlayerPrefs.Save();
+            if (s_instance != null) s_instance._migrated = true;
         }
     }
 }
