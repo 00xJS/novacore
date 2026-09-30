@@ -13,7 +13,7 @@ namespace GalaxyRoyale.Sim
     /// if it wins, garrison) the Galactic Core (CoreSystem). Boss: strike the
     /// Pirate Dreadnought (BossSystem). All four hold where they land (Phase
     /// Gathering, no due tick) until their system settles them.</summary>
-    public enum MarchMission { Gather, Attack, Spy, Intercept, Garrison, Core, Boss }
+    public enum MarchMission { Gather, Attack, Spy, Intercept, Garrison, Core, Boss, Trade }
 
     public sealed class March
     {
@@ -49,6 +49,11 @@ namespace GalaxyRoyale.Sim
         /// <summary>Garrison: the clanmate whose colony it guards. Core: -1 once the
         /// assault has won and the march stands as the core's garrison.</summary>
         public int GuardEmpireId;
+        /// <summary>Trade Consulate deliveries (2026-09-30): what the client pays on arrival,
+        /// its Dark Matter, and who they are. TargetFleetId holds the contract's code.</summary>
+        public ResourceBag? ContractPay;
+        public int ContractDm;
+        public string ContractClient = "";
     }
 
     /// <summary>Production building types that can have multiple instances.</summary>
@@ -341,6 +346,9 @@ namespace GalaxyRoyale.Sim
         // Rival events (2026-09-30).
         public int BountiesClaimed;
         public int TournamentsWon;
+        // The Citadel (2026-09-30).
+        public int MissileKills;
+        public int ContractsDone;
     }
 
     /// <summary>Your mark on the galactic market (MarketSystem): how far your own
@@ -426,6 +434,17 @@ namespace GalaxyRoyale.Sim
         public int NextSupplyDropTick;
         /// <summary>Map events (2026-09-30): the event node EventSites has on the map
         /// ("" = none), and a Supernova waiting to go off (its instance; -1 = none).</summary>
+        /// <summary>The Citadel (2026-09-30): relics brought home from the Wilds, by kind.</summary>
+        public Dictionary<RelicKind, int> Relics = new();
+        /// <summary>The Terraformer's path, stage and project under way.</summary>
+        public Systems.TerraformState Terraform = new();
+        /// <summary>The Academy: the fleet your commander leads (0 = none), and until when
+        /// they're recovering after a led fleet was destroyed.</summary>
+        public int CaptainMarchId, CaptainWoundedUntilTick;
+        /// <summary>The Missile Silo is loaded again at this tick.</summary>
+        public int SiloReadyTick;
+        /// <summary>Trade Consulate contracts already taken (their codes, recent boards only).</summary>
+        public HashSet<int> ContractsTaken = new();
         public string EventSiteId = "";
         public int PendingNova = -1;
         /// <summary>Bounty Board (2026-09-30): the marked commander for event instance

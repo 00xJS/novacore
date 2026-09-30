@@ -47,6 +47,9 @@ namespace GalaxyRoyale.Game.UI
             Bar.style.position = Position.Absolute;
             Bar.style.left = 66;
             Bar.style.right = 66;
+            // The hex buttons either side overlap the bar's ends: keep the tabs clear of them.
+            Bar.style.paddingLeft = 8;
+            Bar.style.paddingRight = 8;
             Bar.style.bottom = bottom;
             Bar.style.height = 46;
             Bar.style.flexDirection = FlexDirection.Row;
@@ -54,7 +57,7 @@ namespace GalaxyRoyale.Game.UI
             var tabs = new[]
             {
                 (BaseDistrict.Command, "COMMAND"), (BaseDistrict.MiningBelt, "MINES"), (BaseDistrict.Frontier, "FRONTIER"),
-                (BaseDistrict.Spaceport, "PORT"), (BaseDistrict.Wilds, "WILDS"),
+                (BaseDistrict.Spaceport, "PORT"), (BaseDistrict.Wilds, "WILDS"), (BaseDistrict.Citadel, "CITADEL"),
             };
             foreach (var (district, label) in tabs)
             {
@@ -76,8 +79,8 @@ namespace GalaxyRoyale.Game.UI
                 b.style.justifyContent = Justify.Center;
                 b.style.alignItems = Align.Center;
                 Holo.Frame(b, Color.clear, Color.clear, 0f, 0f, FrameShape.Plain);
-                // Five tabs share the bar: a smaller, tighter label than the old three.
-                tab.Name = Widgets.Heading(label, 8, Idle, 0.5f);
+                // Six tabs share the bar since the Citadel (2026-09-30): a smaller, tighter label.
+                tab.Name = Widgets.Heading(label, 7, Idle, 0.15f);
                 tab.Name.pickingMode = PickingMode.Ignore;
                 b.Add(tab.Name);
                 tab.Count = Widgets.Text("", 10, Idle, bold: true);
@@ -89,7 +92,7 @@ namespace GalaxyRoyale.Game.UI
                 tab.Dot.style.right = 3;
                 tab.Dot.style.display = DisplayStyle.None;
                 b.Add(tab.Dot);
-                if (district != BaseDistrict.Wilds)
+                if (district != BaseDistrict.Citadel)
                 {
                     b.style.borderRightWidth = 1;
                     b.style.borderRightColor = UiTheme.A(UiTheme.Accent, 0.2f);
@@ -185,6 +188,7 @@ namespace GalaxyRoyale.Game.UI
             var (c1, t1) = BaseLayout.Count(state, BaseDistrict.Command);
             var (c2, t2) = BaseLayout.Count(state, BaseDistrict.MiningBelt);
             var (c3, t3) = BaseLayout.Count(state, BaseDistrict.Frontier);
+            var (c4, t4) = BaseLayout.Count(state, BaseDistrict.Citadel);
             int open = BaseLayout.OpenPads(state, BaseDistrict.MiningBelt);
             int docked = 0;
             foreach (var n in state.Ships.Values) docked += Math.Max(0, n);
@@ -192,7 +196,7 @@ namespace GalaxyRoyale.Game.UI
             int finds = 0;
             foreach (var s in state.Wilds.Sectors.Values)
                 if (s.Find is WildsFind.Cache or WildsFind.Relic && !s.Claimed) finds++;
-            string key = $"{active}|{c1}/{t1}|{c2}/{t2}|{c3}/{t3}|{open}|{docked}|{charted}|{finds}";
+            string key = $"{active}|{c1}/{t1}|{c2}/{t2}|{c3}/{t3}|{c4}/{t4}|{open}|{docked}|{charted}|{finds}";
             if (key != _key)
             {
                 _key = key;
@@ -201,6 +205,7 @@ namespace GalaxyRoyale.Game.UI
                 Paint(BaseDistrict.Frontier, active, $"{c3}/{t3}", 0);
                 Paint(BaseDistrict.Spaceport, active, docked >= 10_000 ? $"{docked / 1000}K" : docked.ToString("N0"), 0);
                 Paint(BaseDistrict.Wilds, active, $"{charted}/{WildsLayout.Total}", finds);
+                Paint(BaseDistrict.Citadel, active, $"{c4}/{t4}", 0);
             }
 
             var (icon, caption) = globe == null || !globe.InOrbit

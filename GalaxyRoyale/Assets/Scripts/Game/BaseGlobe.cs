@@ -34,6 +34,11 @@ namespace GalaxyRoyale.Game
         [SerializeField] Vector3 wildsCamera = new(0f, -0.2f, -13.2f);
         [Tooltip("Tipped below this tilt the view counts as the Wilds (the Wilds HUD shows).")]
         [SerializeField] float southThreshold = -6f;
+        [Header("The Citadel (north pole)")]
+        [Tooltip("Looking down on the pole: the Citadel's ring of pads.")]
+        [SerializeField] float citadelTilt = 74f;
+        [Tooltip("Tipped above this tilt (and not in orbit) the view counts as the Citadel.")]
+        [SerializeField] float northThreshold = 66f;
         [Header("Orbit view")]
         [SerializeField] float orbitTilt = 62f;
         [SerializeField] Vector3 orbitCamera = new(0f, 0.1f, -22.4f);
@@ -53,6 +58,7 @@ namespace GalaxyRoyale.Game
         float _south, _southVel;
         bool _dragging;
         bool _wilds;
+        bool _citadel;
         /// <summary>A button is flying the camera to a set view; otherwise it stays put.</summary>
         bool _flying;
         /// <summary>Drag speed (deg/s) carried on after the finger lifts.</summary>
@@ -66,7 +72,7 @@ namespace GalaxyRoyale.Game
         /// <summary>True while the view is (or is settling) on the southern hemisphere.</summary>
         public bool South => _wilds;
         /// <summary>The district in front — the one the base screen names.</summary>
-        public BaseDistrict District => _wilds ? BaseDistrict.Wilds : Nearest(_yaw);
+        public BaseDistrict District => _wilds ? BaseDistrict.Wilds : _citadel ? BaseDistrict.Citadel : Nearest(_yaw);
 
         void Awake()
         {
@@ -132,6 +138,10 @@ namespace GalaxyRoyale.Game
             if (_flying) return; // FlyTo already chose
             if (!_wilds && _tilt < southThreshold - 2f) _wilds = true;
             else if (_wilds && _tilt > southThreshold + 2f) _wilds = false;
+            // The Citadel on the pole (2026-09-30): tipped far enough north, close in.
+            bool north = _zoomTarget < 0.5f && _tilt > northThreshold;
+            if (!_citadel && north && _tilt > northThreshold + 2f) _citadel = true;
+            else if (_citadel && (_zoomTarget >= 0.5f || _tilt < northThreshold - 2f)) _citadel = false;
         }
 
         void Apply(bool snap)
@@ -194,9 +204,10 @@ namespace GalaxyRoyale.Game
         public void FlyTo(BaseDistrict district)
         {
             _wilds = district == BaseDistrict.Wilds;
-            // The Wilds tab keeps the longitude you were at; the band's tabs face their district.
-            float yaw = _wilds ? _yaw : Lon(district);
-            Fly(yaw, ViewTilt(_wilds, false), 0f);
+            _citadel = district == BaseDistrict.Citadel;
+            // The Wilds and the Citadel keep the longitude you were at; the band's tabs face their district.
+            float yaw = _wilds || _citadel ? _yaw : Lon(district);
+            Fly(yaw, _citadel ? citadelTilt : ViewTilt(_wilds, false), 0f);
         }
 
         /// <summary>Over the Wilds, turn a longitude to the front (a sector, say).</summary>
@@ -213,6 +224,7 @@ namespace GalaxyRoyale.Game
         public void Land()
         {
             if (_wilds) { Fly(_yaw, ViewTilt(true, false), 0f); return; }
+            if (_tilt > northThreshold) { FlyTo(BaseDistrict.Citadel); return; }
             FlyTo(Nearest(_yaw));
         }
 
@@ -229,9 +241,10 @@ namespace GalaxyRoyale.Game
         public void Snap(BaseDistrict district, bool orbit = false, double? lon = null)
         {
             _wilds = district == BaseDistrict.Wilds;
-            _yawTarget = lon is double l ? (float)l : _wilds ? _yawTarget : Lon(district);
+            _citadel = district == BaseDistrict.Citadel && !orbit;
+            _yawTarget = lon is double l ? (float)l : _wilds || _citadel ? _yawTarget : Lon(district);
             _zoomTarget = orbit ? 1f : 0f;
-            _tiltTarget = ViewTilt(_wilds, orbit);
+            _tiltTarget = _citadel ? citadelTilt : ViewTilt(_wilds, orbit);
             Apply(snap: true);
         }
 

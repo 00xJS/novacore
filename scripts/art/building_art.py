@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """The Frontier's last four buildings (2026-09-29): the Repair Dock, the Jump
-Gate, the Clan Embassy and the Deep Space Observatory — isometric, lit, on the
+Gate, the Clan Embassy and the Deep Space Observatory — and the Citadel's five
+(2026-09-30): the Academy, the Relic Vault, the Missile Silo, the Trade
+Consulate and the Terraformer — isometric, lit, on the
 concrete plinth the other buildings stand on, in the base's dark metal with
 teal and orange light. 512 x 512 transparent SVGs; render_buildings.sh renders
 them to GalaxyRoyale/Assets/Resources/Buildings/<BuildingId>.png (the name the
@@ -300,3 +302,158 @@ jump_gate()
 repair_dock()
 clan_embassy()
 observatory()
+
+
+# ================================================================ the Citadel (2026-09-30)
+
+# ---------------------------------------------------------------- Academy
+
+def academy():
+    sc = Scene()
+    plinth(sc)
+    # a broad lecture hall with a colonnade, crowned by a spire and a star emblem
+    sc.box(-100, -80, 150, 160, 4, 56, M3, M4, M2)
+    sc.box(-90, -70, 130, 140, 60, 12, M4, M5, M3)
+    for k in range(6):
+        y = -70 + k * 28
+        sc.box(52, y, 8, 8, 4, 56, M5, "#A7B0C2", M4)
+    for k in range(5):
+        y = -60 + k * 28
+        sc.poly([(52.5, y, 12), (52.5, y + 16, 12), (52.5, y + 16, 48), (52.5, y, 48)], ORANGE, extra=' opacity="0.5"')
+    # the spire
+    sc.prism(octagon(26), 72, 150, M4, M5, M3)
+    sc.prism(octagon(16), 150, 200, M5, "#A7B0C2", M4)
+    tip = P(0, 0, 238)
+    b1, b2 = P(-14, 0, 200), P(0, 14, 200)
+    b3 = P(14, 0, 200)
+    sc.add(f'<polygon points="{f(b1[0])},{f(b1[1])} {f(tip[0])},{f(tip[1])} {f(b3[0])},{f(b3[1])} {f(b2[0])},{f(b2[1])}" '
+           f'fill="{M5}" stroke="#0B0D12" stroke-width="1.2"/>')
+    # the star emblem glowing over the hall
+    ex, ey = P(-10, -10, 250)
+    sc.add(f'<circle cx="{f(ex)}" cy="{f(ey)}" r="40" fill="{GOLD}" opacity="0.25" filter="url(#blur2)"/>')
+    star = []
+    for k in range(10):
+        r = 26 if k % 2 == 0 else 11
+        a = math.radians(-90 + 36 * k)
+        star.append(f"{f(ex + r * math.cos(a))},{f(ey + r * math.sin(a))}")
+    sc.add(f'<polygon points="{" ".join(star)}" fill="{GOLD}" stroke="#FFF1C8" stroke-width="2"/>')
+    # lit windows on the side face
+    for k in range(4):
+        x = -86 + k * 32
+        sc.poly([(x, 80.5, 16), (x + 18, 80.5, 16), (x + 18, 80.5, 44), (x, 80.5, 44)], TEAL, extra=' opacity="0.55"')
+    write("Academy", sc)
+
+
+# ---------------------------------------------------------------- Relic Vault
+
+def relic_vault():
+    sc = Scene()
+    plinth(sc)
+    # a stepped ziggurat vault
+    for k, (r, z0, h) in enumerate(((110, 4, 26), (86, 30, 26), (62, 56, 26))):
+        sc.box(-r, -r, 2 * r, 2 * r, z0, h, [M3, M4, M5][k], [M4, M5, "#A7B0C2"][k], [M2, M3, M4][k])
+    # glowing seams on each step
+    for (r, z) in ((110, 16), (86, 42), (62, 68)):
+        sc.glow_line((r, -r + 8, z), (r, r - 8, z), GOLD, 2)
+        sc.glow_line((-r + 8, r, z), (r - 8, r, z), GOLD, 2)
+    # the display case on top: a glass cube with a relic floating inside
+    sc.box(-30, -30, 60, 60, 82, 8, M2, M3, M1)
+    cx, cy = P(0, 0, 122)
+    sc.add(f'<circle cx="{f(cx)}" cy="{f(cy)}" r="58" fill="{MAGENTA}" opacity="0.22" filter="url(#blur2)"/>')
+    glass = [P(-26, -26, 90), P(26, -26, 90), P(26, 26, 90), P(-26, 26, 90)]
+    top = [P(-26, -26, 150), P(26, -26, 150), P(26, 26, 150), P(-26, 26, 150)]
+    sc.add(f'<polygon points="{pts([glass[1], glass[2], top[2], top[1]])}" fill="#9FF3FF" opacity="0.16" stroke="#B7F6FF" stroke-width="1.5"/>')
+    sc.add(f'<polygon points="{pts([glass[2], glass[3], top[3], top[2]])}" fill="#9FF3FF" opacity="0.1" stroke="#B7F6FF" stroke-width="1.5"/>')
+    # the relic: a faceted violet crystal
+    k1, k2, k3, k4 = P(0, 0, 146), P(-12, 0, 120), P(0, 12, 102), P(12, 0, 120)
+    k5 = P(0, -12, 120)
+    sc.add(f'<polygon points="{pts([k1, k2, k3])}" fill="#D9A8FF" stroke="#2A0E4A" stroke-width="1"/>')
+    sc.add(f'<polygon points="{pts([k1, k4, k3])}" fill="#8A4DE0" stroke="#2A0E4A" stroke-width="1"/>')
+    sc.add(f'<polygon points="{pts([k1, k5, k2])}" fill="#F1DCFF" stroke="#2A0E4A" stroke-width="1" opacity="0.9"/>')
+    sc.add(f'<polygon points="{pts([top[0], top[1], top[2], top[3]])}" fill="#9FF3FF" opacity="0.12" stroke="#B7F6FF" stroke-width="1.5"/>')
+    write("RelicVault", sc)
+
+
+# ---------------------------------------------------------------- Missile Silo
+
+def missile_silo():
+    sc = Scene()
+    plinth(sc)
+    # a low armoured bunker with three silo hatches; two missiles raised
+    sc.box(-110, -90, 200, 180, 4, 24, M2, M3, M1)
+    sc.box(-100, -80, 180, 160, 28, 6, M3, M4, M2)
+    for (x, y, open_) in ((-60, -45, True), (10, -45, False), (-25, 40, True)):
+        cx, cy = P(x, y, 34.5)
+        sc.add(f'<ellipse cx="{f(cx)}" cy="{f(cy)}" rx="40" ry="20" fill="#0E1118" stroke="{ORANGE if open_ else M4}" stroke-width="3"/>')
+        if not open_:
+            sc.add(f'<ellipse cx="{f(cx)}" cy="{f(cy)}" rx="34" ry="17" fill="{M4}" stroke="#0B0D12"/>')
+            sc.add(f'<path d="M{f(cx - 34)},{f(cy)} L{f(cx + 34)},{f(cy)}" stroke="#0B0D12" stroke-width="2"/>')
+            continue
+        # the missile, standing out of its hatch
+        bx, by = P(x, y, 34)
+        tx, ty = P(x, y, 190)
+        sc.add(f'<rect x="{f(bx - 13)}" y="{f(ty + 26)}" width="26" height="{f(by - ty - 26)}" fill="#D7DCE6" stroke="#0B0D12" stroke-width="1.5"/>')
+        sc.add(f'<rect x="{f(bx - 13)}" y="{f(ty + 70)}" width="26" height="10" fill="{ORANGE}"/>')
+        sc.add(f'<path d="M{f(bx - 13)},{f(ty + 27)} Q{f(bx)},{f(ty - 10)} {f(bx + 13)},{f(ty + 27)} Z" fill="#FF4D6A" stroke="#0B0D12" stroke-width="1.5"/>')
+        for s in (-1, 1):
+            sc.add(f'<path d="M{f(bx + s * 13)},{f(by - 40)} l{f(s * 14)},20 l0,16 l{f(-s * 14)},-8 z" fill="{M4}" stroke="#0B0D12" stroke-width="1"/>')
+    # warning lights on the bunker's corners
+    for (x, y) in ((90, -90), (90, 90), (-110, 90)):
+        lx, ly = P(x, y, 30)
+        sc.add(f'<circle cx="{f(lx)}" cy="{f(ly)}" r="9" fill="#FF4D6A" opacity="0.6" filter="url(#blur)"/>')
+        sc.add(f'<circle cx="{f(lx)}" cy="{f(ly)}" r="4" fill="#FFD2D9"/>')
+    write("MissileSilo", sc)
+
+
+# ---------------------------------------------------------------- Trade Consulate
+
+def trade_consulate():
+    sc = Scene()
+    plinth(sc)
+    # a landing pad for the traders' ships
+    lx, ly = P(20, 70, 4.5)
+    sc.add(f'<ellipse cx="{f(lx)}" cy="{f(ly)}" rx="62" ry="31" fill="#23303C" stroke="{GOLD}" stroke-width="3"/>')
+    sc.add(f'<ellipse cx="{f(lx)}" cy="{f(ly)}" rx="40" ry="20" fill="none" stroke="{GOLD}" stroke-width="2" stroke-dasharray="8 6"/>')
+    # the consulate tower: a slim hexagonal tower with a gold crown and a trade-beacon ring
+    tower = [(24 * math.cos(math.radians(30 + 60 * k)) - 50, 24 * math.sin(math.radians(30 + 60 * k)) - 50) for k in range(6)][::-1]
+    sc.prism(tower, 4, 150, M3, M4, M2)
+    crown = [(34 * math.cos(math.radians(30 + 60 * k)) - 50, 34 * math.sin(math.radians(30 + 60 * k)) - 50) for k in range(6)][::-1]
+    sc.prism(crown, 150, 170, GOLD, "#FFE39A", "#B7791F")
+    for z in (50, 90, 130):
+        sc.glow_line((-26, -60, z), (-26, -40, z), GOLD, 2)
+    rx, ry = P(-50, -50, 195)
+    sc.add(f'<ellipse cx="{f(rx)}" cy="{f(ry)}" rx="46" ry="16" fill="none" stroke="{GOLD}" stroke-width="5" opacity="0.4" filter="url(#blur)"/>')
+    sc.add(f'<ellipse cx="{f(rx)}" cy="{f(ry)}" rx="46" ry="16" fill="none" stroke="#FFE7A8" stroke-width="3"/>')
+    sc.add(f'<circle cx="{f(rx)}" cy="{f(ry - 4)}" r="9" fill="#FFF3C4"/>')
+    # cargo crates stacked by the pad (drawn last: they stand in front)
+    for (x, y, z, col) in ((70, -30, 4, GOLD), (100, -30, 4, ORANGE), (70, 0, 4, TEAL), (85, -15, 30, GOLD)):
+        sc.box(x - 14, y - 14, 28, 28, z, 26, col, M4, M2)
+    write("TradeConsulate", sc)
+
+
+# ---------------------------------------------------------------- Terraformer
+
+def terraformer():
+    sc = Scene()
+    plinth(sc)
+    # four intake pylons around a tall atmospheric processor venting green-teal mist
+    for (x, y) in ((-90, -20), (-20, -90), (60, 0), (0, 60)):
+        sc.box(x - 10, y - 10, 20, 20, 4, 70, M3, M4, M2)
+        sc.glow_line((x, y + 10, 20), (x, y + 10, 64), "#4DFFA6", 2)
+    sc.cyl(0, 0, 62, 4, 50, M3, M2)
+    sc.cyl(0, 0, 44, 50, 140, M4, M3)
+    for z in (72, 98, 124):
+        sc.cyl(0, 0, 50, z, z + 6, "#4DFFA6", "#1C8C58")
+    sc.cyl(0, 0, 30, 140, 164, M5, M4)
+    mx, my = P(0, 0, 164)
+    for k, (dx, dy, r, op) in enumerate(((0, -34, 40, 0.45), (-26, -66, 34, 0.3), (22, -88, 30, 0.25), (-6, -112, 26, 0.18))):
+        sc.add(f'<circle cx="{f(mx + dx)}" cy="{f(my + dy)}" r="{r}" fill="#9FFFD0" opacity="{op}" filter="url(#blur2)"/>')
+    sc.add(f'<ellipse cx="{f(mx)}" cy="{f(my)}" rx="{f(30 * math.sqrt(2))}" ry="{f(15 * math.sqrt(2))}" fill="#4DFFA6" opacity="0.8"/>')
+    write("Terraformer", sc)
+
+
+academy()
+relic_vault()
+missile_silo()
+trade_consulate()
+terraformer()

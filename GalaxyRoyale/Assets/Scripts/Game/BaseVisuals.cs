@@ -180,6 +180,10 @@ namespace GalaxyRoyale.Game
             Deck("Mining Belt Deck", 58, 122);
             Deck("Frontier Deck", -121, -59);
             Deck("Spaceport Deck", 150, 210);
+            // The Citadel (2026-09-30): a ring round the north pole, spokes to the Terraformer.
+            Line(decks, "Citadel Deck", Parallel(BaseLayout.CitadelRing - 9, 0, 360, r * 1.0005f, 3), UiTheme.A(accent, 0.55f), thin * 2f);
+            Line(decks, "Citadel Ring", Parallel(BaseLayout.CitadelRing, 0, 360, r * 1.001f, 3), UiTheme.A(accent, 0.3f),
+                thin * 1.6f, dashed: true);
 
             var conduits = new GameObject("Conduits").transform;
             conduits.SetParent(root, false);
@@ -197,6 +201,11 @@ namespace GalaxyRoyale.Game
             foreach (var p in BaseLayout.Pads)
                 if (p.District == BaseDistrict.Frontier && p != hub)
                     Line(conduits, $"To {p.Key}", Arc(hub.Lat, hub.Lon, p.Lat, p.Lon, r * 1.001f), UiTheme.A(accent, 0.25f),
+                        thin * 1.6f, dashed: true);
+
+            foreach (var p in BaseLayout.Pads)
+                if (p.District == BaseDistrict.Citadel && p.Building != BuildingId.Terraformer)
+                    Line(conduits, $"To {p.Key}", Arc(89.5, p.Lon, p.Lat, p.Lon, r * 1.001f), UiTheme.A(accent, 0.25f),
                         thin * 1.6f, dashed: true);
 
             // The roads round the back to the Spaceport, from the Mining Belt and the Frontier.

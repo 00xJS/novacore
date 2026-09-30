@@ -125,7 +125,9 @@ namespace GalaxyRoyale.Sim.Systems
                 if (def.Effect != kind || def.HullScope != null) continue;
                 sum += TechLevel(state, id) * def.PerLevel;
             }
-            return sum + CommanderSystem.EffectTotal(state, kind);
+            // The Citadel (2026-09-30): relics on display and the Terraformer's path.
+            return sum + CommanderSystem.EffectTotal(state, kind) + RelicSystem.EffectTotal(state, kind)
+                + TerraformSystem.EffectTotal(state, kind);
         }
 
         /// <summary>Summed magnitude of techs whose effect is scoped to one hull.</summary>
@@ -199,6 +201,22 @@ namespace GalaxyRoyale.Sim.Systems
             }
             return new Combat.FleetMods(AtkMult(state), HpMult(state), atkByHull, hpByHull,
                 ShieldMult(state));
+        }
+
+        /// <summary>A fleet's combat mods: CombatMods, stronger when your commander leads it
+        /// (the Academy, 2026-09-30).</summary>
+        public static Combat.FleetMods CombatModsFor(GameState state, int marchId)
+        {
+            if (!AcademySystem.Leads(state, marchId)) return CombatMods(state);
+            float k = 1f + AcademySystem.CaptainBonus(state);
+            var atkByHull = new Dictionary<HullId, float>();
+            var hpByHull = new Dictionary<HullId, float>();
+            foreach (var hull in Ships.All)
+            {
+                atkByHull[hull] = AtkMultFor(state, hull) * k;
+                hpByHull[hull] = HpMultFor(state, hull) * k;
+            }
+            return new Combat.FleetMods(AtkMult(state) * k, HpMult(state) * k, atkByHull, hpByHull, ShieldMult(state));
         }
 
         static float Reduce(GameState state, TechEffectKind kind) =>

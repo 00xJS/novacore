@@ -16,7 +16,7 @@ using GalaxyRoyale.Data;
 
 namespace GalaxyRoyale.Sim
 {
-    public enum BaseDistrict { Command, MiningBelt, Frontier, Spaceport, Wilds }
+    public enum BaseDistrict { Command, MiningBelt, Frontier, Spaceport, Wilds, Citadel }
 
     public enum PadKind
     {
@@ -76,6 +76,7 @@ namespace GalaxyRoyale.Sim
             BaseDistrict.Frontier => "Frontier",
             BaseDistrict.Spaceport => "Spaceport",
             BaseDistrict.Wilds => "The Wilds",
+            BaseDistrict.Citadel => "The Citadel",
             _ => "Command District",
         };
 
@@ -84,6 +85,10 @@ namespace GalaxyRoyale.Sim
         {
             BaseDistrict.Command, BaseDistrict.MiningBelt, BaseDistrict.Frontier, BaseDistrict.Spaceport,
         };
+
+        /// <summary>The Citadel (2026-09-30) crowns the north pole: four pads on a ring at
+        /// this latitude, and the Terraformer on the pole itself.</summary>
+        public const double CitadelRing = 71;
 
         /// <summary>The Spaceport's landing field: its centre and half its span (degrees).</summary>
         public const double PortLat = MiddleRow, PortLon = 180, PortSpan = 21;
@@ -153,6 +158,18 @@ namespace GalaxyRoyale.Sim
             Frontier(BuildingId.ClanEmbassy, MiddleRow, -112);
             Frontier(BuildingId.Observatory, MiddleRow, -90);
             Frontier(BuildingId.RepairDock, MiddleRow, -69); // in from the screen's edge
+
+            void Citadel(BuildingId id, double lat, double lon) => pads.Add(new BasePad
+            {
+                Key = id.ToString(), Kind = PadKind.Building, District = BaseDistrict.Citadel,
+                Lat = lat, Lon = lon, Building = id, Name = Buildings.Defs[id].ShortName ?? Buildings.Defs[id].Name,
+                UnlockCc = Buildings.Defs[id].UnlockCc,
+            });
+            Citadel(BuildingId.Academy, CitadelRing, 0);
+            Citadel(BuildingId.RelicVault, CitadelRing, 90);
+            Citadel(BuildingId.TradeConsulate, CitadelRing, 180);
+            Citadel(BuildingId.MissileSilo, CitadelRing, -90);
+            Citadel(BuildingId.Terraformer, 89.5, 0);
             return pads;
         }
 

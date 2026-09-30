@@ -42,6 +42,7 @@ namespace GalaxyRoyale.Game
             var tile = new TileXY(target.HomeX, target.HomeY);
             var res = MarchSystem.SendRaidMarch(state, ships, tile, out int marchId);
             if (!res.Ok) return (false, res.Reason ?? "Cannot launch");
+            CaptainToggle.Apply(state, marchId); // the Academy (2026-09-30)
 
             // Aggression drops your own Aegis Shield (user rule) — attack OR defend, not both.
             bool protectionEnded = ProtectionSystem.Active(state);

@@ -25,6 +25,12 @@ namespace GalaxyRoyale.Data
         JumpGate,
         ClanEmbassy,
         Observatory,
+        // The Citadel (2026-09-30), the new district on the north pole — appended.
+        RelicVault,
+        Academy,
+        MissileSilo,
+        TradeConsulate,
+        Terraformer,
     }
 
     public enum BuildingKind
@@ -43,6 +49,12 @@ namespace GalaxyRoyale.Data
         Gate,       // jump gate (faster, cheaper flights; a free jump every 24 h)
         Embassy,    // clan embassy (more wings, supply runs, clan tribute)
         Observatory, // deep space observatory (surveys, radar lead, dreadnought forecast)
+        // The Citadel (2026-09-30):
+        Vault,       // relic vault (Wilds relics on display, each a small permanent bonus)
+        Academy,     // academy (commander XP, cheaper respecs, the commander leads a fleet)
+        Silo,        // missile silo (fire on an inbound raid the radar has seen)
+        Consulate,   // trade consulate (delivery contracts from other commanders)
+        Terraform,   // terraformer (reshape the planet down one of four paths)
     }
 
     public sealed class BuildingDef
@@ -97,6 +109,11 @@ namespace GalaxyRoyale.Data
             BuildingId.JumpGate,
             BuildingId.ClanEmbassy,
             BuildingId.Observatory,
+            BuildingId.RelicVault,
+            BuildingId.Academy,
+            BuildingId.MissileSilo,
+            BuildingId.TradeConsulate,
+            BuildingId.Terraformer,
         };
 
         /// <summary>The nine buildings every colony starts with room for (the Command district).</summary>
@@ -108,7 +125,11 @@ namespace GalaxyRoyale.Data
         };
 
         /// <summary>Frontier buildings open later (UnlockCc) and sit in the Frontier district.</summary>
-        public static bool IsFrontier(BuildingId id) => Defs[id].UnlockCc > 0;
+        public static bool IsFrontier(BuildingId id) => Defs[id].UnlockCc > 0 && !IsCitadel(id);
+
+        /// <summary>The Citadel's five (2026-09-30), on the north pole.</summary>
+        public static bool IsCitadel(BuildingId id) => id is BuildingId.RelicVault or BuildingId.Academy
+            or BuildingId.MissileSilo or BuildingId.TradeConsulate or BuildingId.Terraformer;
 
         public static readonly IReadOnlyDictionary<BuildingId, BuildingDef> Defs =
             new Dictionary<BuildingId, BuildingDef>
@@ -299,6 +320,74 @@ namespace GalaxyRoyale.Data
                 BaseTimeSec = 360,
                 MaxLevel = 30,
                 UnlockCc = 11,
+                BotsBuild = false,
+            },
+            // ---- the Citadel (2026-09-30), on the north pole ----
+            [BuildingId.Academy] = new BuildingDef
+            {
+                Name = "Academy",
+                Desc = "Where your commander trains: more commander XP, cheaper skill resets, and your commander " +
+                       "can lead a fleet into battle for a bonus that grows with their level.",
+                Kind = BuildingKind.Academy,
+                BaseEnergyUse = 15,
+                BaseCost = new ResourceBag(700, 700, 200),
+                BaseTimeSec = 300,
+                MaxLevel = 30,
+                UnlockCc = 4,
+                BotsBuild = false,
+            },
+            [BuildingId.RelicVault] = new BuildingDef
+            {
+                Name = "Relic Vault",
+                Desc = "Puts the relics you find in the Wilds on display. Each kind gives a small permanent bonus " +
+                       "for every copy you own, up to the vault's level.",
+                Kind = BuildingKind.Vault,
+                BaseEnergyUse = 15,
+                BaseCost = new ResourceBag(800, 600, 200),
+                BaseTimeSec = 300,
+                MaxLevel = 30,
+                UnlockCc = 5,
+                BotsBuild = false,
+            },
+            [BuildingId.TradeConsulate] = new BuildingDef
+            {
+                Name = "Trade Consulate",
+                ShortName = "Consulate",
+                Desc = "Other commanders post delivery contracts here: load Haulers with what they need, fly it " +
+                       "to them, and come home with more than you sent.",
+                Kind = BuildingKind.Consulate,
+                BaseEnergyUse = 15,
+                BaseCost = new ResourceBag(900, 600, 300),
+                BaseTimeSec = 330,
+                MaxLevel = 30,
+                UnlockCc = 6,
+                BotsBuild = false,
+            },
+            [BuildingId.MissileSilo] = new BuildingDef
+            {
+                Name = "Missile Silo",
+                ShortName = "Silo",
+                Desc = "When your radar sees a raid coming, FIRE: a missile salvo destroys part of the raiding " +
+                       "fleet before it lands. It reloads, faster at higher levels.",
+                Kind = BuildingKind.Silo,
+                BaseEnergyUse = 30,
+                BaseCost = new ResourceBag(1000, 700, 500),
+                BaseTimeSec = 360,
+                MaxLevel = 30,
+                UnlockCc = 7,
+                BotsBuild = false,
+            },
+            [BuildingId.Terraformer] = new BuildingDef
+            {
+                Name = "Terraformer",
+                Desc = "Reshapes your planet down one of four paths — Oceanic (helium), Crystalline (quartz), " +
+                       "Metallic (gold) or Temperate (faster builds, more energy) — a stage at a time.",
+                Kind = BuildingKind.Terraform,
+                BaseEnergyUse = 40,
+                BaseCost = new ResourceBag(1500, 1200, 600),
+                BaseTimeSec = 480,
+                MaxLevel = 30,
+                UnlockCc = 9,
                 BotsBuild = false,
             },
         };

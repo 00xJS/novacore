@@ -484,6 +484,22 @@ namespace GalaxyRoyale.Game.UI
                         extras = $"{JumpGateSystem.ReloadLeft(s)}:{s.Marches.Count}";
                     else if (id == BuildingId.Observatory && ctx.Bots != null)
                         extras = $"{(ctx.Bots.Boss.NextVisitTick - s.Tick) / 60}:{ctx.Bots.Boss.Active}";
+                    // The Citadel (2026-09-30).
+                    else if (id == BuildingId.RelicVault)
+                    {
+                        int relics = 0;
+                        foreach (var n in s.Relics.Values) relics += n;
+                        extras = relics.ToString();
+                    }
+                    else if (id == BuildingId.Academy)
+                        extras = $"{s.CaptainMarchId}:{AcademySystem.Wounded(s)}:{s.Commander.Level}";
+                    else if (id == BuildingId.MissileSilo && ctx.Bots != null)
+                        extras = $"{SiloSystem.ReloadLeft(s) / 60}:{SiloSystem.Targets(s, ctx.Bots).Count}:{s.Tick / 30}";
+                    else if (id == BuildingId.TradeConsulate)
+                        extras = $"{ConsulateSystem.Window(s.Tick)}:{s.ContractsTaken.Count}:{s.Marches.Count}:" +
+                                 $"{s.Ships.GetValueOrDefault(HullId.Hauler)}";
+                    else if (id == BuildingId.Terraformer)
+                        extras = $"{s.Terraform.Path}:{s.Terraform.Stage}:{(s.Terraform.ProjectEndsTick - s.Tick) / 60}";
                     key = $"{level}|{idx}|{running}|{check.Ok}|{check.Reason}|" +
                           $"{s.Resources.Gold >= cost.Gold}{s.Resources.Quartz >= cost.Quartz}{s.Resources.Helium >= cost.Helium}|{extras}";
                 }
@@ -630,6 +646,142 @@ namespace GalaxyRoyale.Game.UI
                     if (s.ClanId == 0) Stat("", "Join a clan to put these to work", UiTheme.Energy);
                     return;
                 }
+                case BuildingId.RelicVault:
+                {
+                    Head("ON DISPLAY");
+                    Stat("Copies shown of each kind", $"up to {level}");
+                    foreach (var def in Relics.All)
+                    {
+                        int have = RelicSystem.Count(s, def.Kind), shown = RelicSystem.OnDisplay(s, def.Kind);
+                        Stat($"{def.Name} ×{have}", shown > 0 ? $"+{Math.Round(def.PerCopy * shown * 100)}% {def.Desc}" : "none yet",
+                            shown > 0 ? UiTheme.Good : UiTheme.Dim);
+                    }
+                    Stat("", "Relics come from relic finds in the Wilds.", UiTheme.Dim);
+                    return;
+                }
+                case BuildingId.Academy:
+                {
+                    Head("YOUR COMMANDER");
+                    Stat("Commander XP", $"+{Math.Round(AcademySystem.XpBonus(s) * 100)}%");
+                    Stat("Skill resets", $"{Math.Round(AcademySystem.RespecMult(s) * 100)}% of the price");
+                    Stat("Leading a fleet", $"+{Math.Round(AcademySystem.CaptainBonus(s) * 100)}% attack and durability");
+                    string status = s.CaptainMarchId != 0 ? "out leading a fleet"
+                        : AcademySystem.Wounded(s) ? $"recovering · {UiTheme.FmtDuration(s.CaptainWoundedUntilTick - s.Tick)}"
+                        : "ready — tick COMMANDER LEADS when you launch a fleet";
+                    Stat("Status", status, s.CaptainMarchId != 0 ? UiTheme.Energy : AcademySystem.Wounded(s) ? UiTheme.Bad : UiTheme.Good);
+                    return;
+                }
+                case BuildingId.MissileSilo:
+                {
+                    Head("THE SILO");
+                    Stat("A salvo destroys", $"{Math.Round(SiloSystem.Share(level) * 100)}% of a raiding fleet");
+                    Stat("Reload", UiTheme.FmtDuration(SiloSystem.ReloadSec(level)));
+                    int left = SiloSystem.ReloadLeft(s);
+                    Stat("Status", left > 0 ? $"reloading · {UiTheme.FmtDuration(left)}" : "LOADED", left > 0 ? UiTheme.Dim : UiTheme.Good);
+                    if (ctx.Bots == null) return;
+                    var targets = SiloSystem.Targets(s, ctx.Bots);
+                    if (targets.Count == 0)
+                    {
+                        Stat("Raids on radar", "none — when your radar picks one up, fire from here", UiTheme.Dim);
+                        return;
+                    }
+                    foreach (var atk in targets)
+                    {
+                        int n = 0;
+                        foreach (var v in atk.Ships.Values) n += v;
+                        string who = ctx.Bots.Find(atk.BotId)?.Name ?? "Raiders";
+                        var fire = Action(Widgets.Primary(Widgets.IconButton(Icon.Target,
+                            $"FIRE AT {who.ToUpperInvariant()} · {n:N0} SHIPS · {UiTheme.FmtDuration(atk.ArrivesAtTick - s.Tick)}", () =>
+                        {
+                            var res = SiloSystem.Fire(ctx.State!, ctx.Bots!, atk.Id, ctx.Events, out int killed);
+                            if (res.Ok) { GameAudio.Feedback(Sfx.Launch, Haptic.Heavy); LocalBootstrap.RequestSync(); }
+                            else ui.Toast(res.Reason ?? "Can't fire", Icon.Warning, UiTheme.Bad);
+                        }, 11)));
+                        Widgets.SetButtonEnabled(fire, left == 0);
+                    }
+                    return;
+                }
+                case BuildingId.TradeConsulate:
+                {
+                    Head("CONTRACTS");
+                    Stat("Clients pay", $"{ConsulateSystem.Rate(level):0.00}× what you bring");
+                    Stat("New board in", UiTheme.FmtDuration(ConsulateSystem.BoardLeftSec(s)));
+                    foreach (var m in s.Marches)
+                        if (m.Mission == MarchMission.Trade)
+                            Stat($"Delivery to {m.ContractClient}", m.Phase == MarchPhase.Returning ? "paid, flying home"
+                                : $"arrives in {UiTheme.FmtDuration(Math.Max(0, m.ArrivesAtTick - s.Tick))}", UiTheme.Energy);
+                    if (ctx.Bots == null) return;
+                    var board = ConsulateSystem.Board(s, ctx.Bots);
+                    if (board.Count == 0) { Stat("", "No clients within reach", UiTheme.Dim); return; }
+                    string R(ResourceId r) => r switch { ResourceId.Gold => "gold", ResourceId.Quartz => "quartz", _ => "helium" };
+                    foreach (var c in board)
+                    {
+                        var card = Widgets.Row();
+                        card.style.marginTop = 8;
+                        card.Add(Widgets.Text(c.ClientName, 12, UiTheme.Text, bold: true));
+                        var line = Widgets.Text($"Wants {UiTheme.FmtAmount(c.GiveMilli)} {R(c.Give)} · pays " +
+                            $"{UiTheme.FmtAmount(c.GetMilli)} {R(c.Get)} + {c.DarkMatter} DM · " +
+                            $"{ConsulateSystem.HaulersNeeded(s, c)} Haulers", 11, UiTheme.Dim);
+                        line.style.whiteSpace = WhiteSpace.Normal;
+                        card.Add(line);
+                        bool taken = ConsulateSystem.Taken(s, c.Code);
+                        var can = ConsulateSystem.CanAccept(s, c);
+                        var accept = Widgets.TextButton(taken ? "TAKEN" : can.Ok ? "ACCEPT" : can.Reason ?? "—", () =>
+                        {
+                            var res = ConsulateSystem.Accept(ctx.State!, c, out _);
+                            if (res.Ok)
+                            {
+                                GameAudio.Feedback(Sfx.Launch, Haptic.Medium);
+                                ui.Toast($"Haulers away to {c.ClientName} — payment on the way home", Icon.Crate, UiTheme.Good);
+                                LocalBootstrap.RequestSync();
+                            }
+                            else ui.Toast(res.Reason ?? "Can't accept", Icon.Warning, UiTheme.Bad);
+                        }, 10);
+                        accept.style.marginTop = 6;
+                        accept.style.height = 34;
+                        Widgets.SetButtonEnabled(accept, !taken && can.Ok);
+                        card.Add(accept);
+                        body.Add(card);
+                    }
+                    return;
+                }
+                case BuildingId.Terraformer:
+                {
+                    Head("THE PLANET");
+                    var t = s.Terraform;
+                    Stat("Path", t.Path == TerraformPath.None ? "none chosen yet" : $"{TerraformSystem.Name(t.Path)} · stage {t.Stage}/{TerraformSystem.MaxStages}");
+                    Stat("Bonus", TerraformSystem.Bonus(t.Path, t.Stage), t.Stage > 0 ? UiTheme.Good : UiTheme.Dim);
+                    Stat("Stages this level allows", TerraformSystem.MaxStage(level).ToString());
+                    if (t.ProjectEndsTick > 0)
+                    {
+                        Stat("Stage under way", $"done in {UiTheme.FmtDuration(t.ProjectEndsTick - s.Tick)}", UiTheme.Energy);
+                        return;
+                    }
+                    foreach (var path in new[] { TerraformPath.Oceanic, TerraformPath.Crystalline, TerraformPath.Metallic, TerraformPath.Temperate })
+                    {
+                        int stage = t.Path == path ? t.Stage : 0;
+                        var cost = TerraformSystem.ProjectCost(s, stage + 1);
+                        var check = TerraformSystem.Check(s, path);
+                        string label = $"{TerraformSystem.Name(path).ToUpperInvariant()} · STAGE {stage + 1} · " +
+                            $"{UiTheme.FmtAmount(cost.Total)} · {UiTheme.FmtDuration(TerraformSystem.ProjectSeconds(stage + 1))}";
+                        var p = path;
+                        var go = Action(Widgets.TextButton(check.Ok ? label : $"{TerraformSystem.Name(path).ToUpperInvariant()} · {check.Reason}", () =>
+                        {
+                            void Start()
+                            {
+                                var res = TerraformSystem.Start(ctx.State!, p);
+                                if (res.Ok) { GameAudio.Feedback(Sfx.Confirm, Haptic.Success); LocalBootstrap.RequestSync(); }
+                                else ui.Toast(res.Reason ?? "Can't start", Icon.Warning, UiTheme.Bad);
+                            }
+                            if (t.Path != TerraformPath.None && t.Path != p && t.Stage > 0)
+                                ConfirmPanel.Open($"Switch to the {TerraformSystem.Name(p)} path? Your {t.Stage} {TerraformSystem.Name(t.Path)} " +
+                                    "stages are undone.", "SWITCH", () => { Start(); ui.CloseModal(); }, () => ui.CloseModal());
+                            else Start();
+                        }, 10));
+                        Widgets.SetButtonEnabled(go, check.Ok);
+                    }
+                    return;
+                }
                 case BuildingId.Observatory:
                 {
                     Head("THE TELESCOPES");
@@ -708,6 +860,21 @@ namespace GalaxyRoyale.Game.UI
                     return $"surveys −{Math.Round(1.5 * Math.Min(level, 30))}% → −{Math.Round(1.5 * Math.Min(next, 30))}% time · " +
                            $"radar warning +{3 * Math.Min(level, 30)}% → +{3 * Math.Min(next, 30)}%" +
                            (next == ObservatorySystem.ForecastLevel ? " · forecasts the Pirate Dreadnought" : "");
+                // The Citadel (2026-09-30).
+                case BuildingKind.Vault:
+                    return $"shows up to {level} → {next} copies of each relic kind";
+                case BuildingKind.Academy:
+                    return $"commander XP +{Math.Round(AcademySystem.XpPerLevel * level * 100)}% → +{Math.Round(AcademySystem.XpPerLevel * next * 100)}% · " +
+                           $"skill resets {Math.Round(Math.Max(AcademySystem.RespecFloor, 1 - AcademySystem.RespecCutPerLevel * level) * 100)}% → " +
+                           $"{Math.Round(Math.Max(AcademySystem.RespecFloor, 1 - AcademySystem.RespecCutPerLevel * next) * 100)}% of the price";
+                case BuildingKind.Silo:
+                    return $"salvo {Math.Round(SiloSystem.Share(level) * 100)}% → {Math.Round(SiloSystem.Share(next) * 100)}% of a raid · " +
+                           $"reload {UiTheme.FmtDuration(SiloSystem.ReloadSec(Math.Max(1, level)))} → {UiTheme.FmtDuration(SiloSystem.ReloadSec(next))}";
+                case BuildingKind.Consulate:
+                    return $"clients pay {ConsulateSystem.Rate(level):0.00}× → {ConsulateSystem.Rate(next):0.00}× · " +
+                           $"{Math.Min(4, 2 + level / 10)} → {Math.Min(4, 2 + next / 10)} contracts a board";
+                case BuildingKind.Terraform:
+                    return $"stages allowed {TerraformSystem.MaxStage(level)} → {TerraformSystem.MaxStage(next)}";
                 case BuildingKind.Radar:
                 {
                     string lead(int l) => l < 1 ? "no warning"

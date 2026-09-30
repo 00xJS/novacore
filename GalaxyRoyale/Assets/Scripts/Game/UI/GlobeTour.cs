@@ -39,6 +39,8 @@ namespace GalaxyRoyale.Game.UI
                 "Your docked fleet parks here. Tap the field to build ships and send them out."),
             new(BaseDistrict.Wilds, false, "THE WILDS",
                 "Pull the planet up to tip it south. Survey the fog for deposits your drones harvest, supply caches and relics."),
+            new(BaseDistrict.Citadel, false, "THE CITADEL",
+                "Tip it north for the Citadel on the pole: the Academy, the Relic Vault, the Trade Consulate, the Missile Silo and the Terraformer."),
             new(BaseDistrict.Command, true, "YOUR GALAXY",
                 "249 rival commanders are out there, and they don't wait for you. Tap MAP to find them. Good luck, Commander."),
         };

@@ -479,6 +479,7 @@ namespace GalaxyRoyale.Sim.Systems
                     if (back > 0) state.Ships[hull] += back;
                 }
                 ResourceSystem.Add(state, march.Cargo);
+                AcademySystem.OnReturned(state, march.Id); // the commander is home
                 if (march.Mission == MarchMission.Gather) state.Stats.GatheredMilli += march.Cargo.Total;
                 if (march.CargoDm > 0)
                     state.Premium.DarkMatter += (int)(march.CargoDm / 1000); // milli → whole DM
@@ -580,7 +581,8 @@ namespace GalaxyRoyale.Sim.Systems
             // colony, CoreSystem the core — even when the spot happens to be a
             // resource node or a camp.
             if (march.Mission == MarchMission.Intercept || march.Mission == MarchMission.Garrison
-                || march.Mission == MarchMission.Core || march.Mission == MarchMission.Boss)
+                || march.Mission == MarchMission.Core || march.Mission == MarchMission.Boss
+                || march.Mission == MarchMission.Trade) // ConsulateSystem settles deliveries
             {
                 Hold(state, march);
                 events.Emit(new MarchPhaseChanged(march.Id, march.Phase));
@@ -635,7 +637,7 @@ namespace GalaxyRoyale.Sim.Systems
                 var report = CombatResolver.Resolve(
                     march.Ships,
                     CampGarrison(node),
-                    ResearchSystem.CombatMods(state));
+                    ResearchSystem.CombatModsFor(state, march.Id));
                 report.Location = march.Node;
                 report.DefenderName = $"Pirate camp Lv{node.CampLevel}";
                 march.Ships = report.AttackerSurvivors;
@@ -821,7 +823,7 @@ namespace GalaxyRoyale.Sim.Systems
                 events.Emit(new MarchPhaseChanged(march.Id, march.Phase));
                 return;
             }
-            var report = CombatResolver.Resolve(march.Ships, EventSites.CaravanEscort(node), ResearchSystem.CombatMods(state));
+            var report = CombatResolver.Resolve(march.Ships, EventSites.CaravanEscort(node), ResearchSystem.CombatModsFor(state, march.Id));
             report.Location = march.Node;
             report.DefenderName = "Trade caravan";
             march.Ships = report.AttackerSurvivors;

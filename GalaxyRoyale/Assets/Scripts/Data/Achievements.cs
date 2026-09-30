@@ -51,7 +51,7 @@ namespace GalaxyRoyale.Data
             A("fortress", "Fortress", "Complete 10 defense research levels", AchievementGoal.DefenseResearchLevels, 10, 150, "Fortress Keeper"),
             A("pathfinder", "Pathfinder", "Finish the first act of the Commander's Path", AchievementGoal.QuestsDone, 11, 150, "Pathfinder"),
             // Act II of the Path (balance pass 2026-09-30).
-            A("trailblazer", "Trailblazer", "Finish both acts of the Commander's Path", AchievementGoal.QuestsDone, 34, 300, "Trailblazer"),
+            A("trailblazer", "Trailblazer", "Finish both acts of the Commander's Path", AchievementGoal.QuestsDone, 35, 300, "Trailblazer"),
             A("diplomat", "Diplomat", "Join or found a clan", AchievementGoal.ClanJoined, 1, 50, "Diplomat"),
             A("full-ranks", "Full Ranks", "Be in a clan of 15 commanders", AchievementGoal.ClanSize, 15, 200, "Clan Captain"),
             A("warmaster", "Warmaster", "Win 3 clan wars", AchievementGoal.ClanWarsWon, 3, 300, "Warmaster"),

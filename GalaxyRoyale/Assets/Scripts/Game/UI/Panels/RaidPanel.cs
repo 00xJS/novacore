@@ -269,6 +269,7 @@ namespace GalaxyRoyale.Game.UI
             content.Add(preview);
             content.Add(status);
             content.Add(forecast.Root);
+            if (CaptainToggle.Build(state) is { } lead) content.Add(lead); // the Academy (2026-09-30)
 
             Dictionary<HullId, int> Fleet()
             {

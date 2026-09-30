@@ -408,7 +408,7 @@ namespace GalaxyRoyale.Sim.Systems
             var defence = DefenceOf(player, galaxy);
 
             var report = CombatResolver.Resolve(ClanSystem.Combine(atkLines), ClanSystem.Combine(defence.Lines),
-                ResearchSystem.CombatMods(player), defence.Mods);
+                ResearchSystem.CombatModsFor(player, march.Id), defence.Mods);
             report.Location = CoreTile;
             report.DefenderName = holderId == GuardiansId ? "Core Guardians" : holderName;
             bool won = report.Winner == BattleWinner.Attacker;

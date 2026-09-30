@@ -146,6 +146,19 @@ namespace GalaxyRoyale.Data
             },
             new HandbookTopic
             {
+                Title = "The Citadel", Summary = "The five buildings on the north pole",
+                Paragraphs = new[]
+                {
+                    "Tip your planet north (or tap CITADEL) for the Citadel: four buildings in a ring round the Terraformer, opening from Command Center 4 to 9.",
+                    "Academy: more commander XP, cheaper skill resets, and your commander can lead a fleet. Tick COMMANDER LEADS when you launch it and that fleet fights harder; if it's destroyed, your commander needs 6 hours to recover.",
+                    "Relic Vault: relics you claim in the Wilds come home as one of six kinds. Each copy adds a small permanent bonus, up to as many copies of a kind as the vault has levels.",
+                    "Trade Consulate: commanders nearby post contracts. Accept one and Haulers fly the goods out and come home with more, plus Dark Matter. A new board goes up every 8 hours.",
+                    "Missile Silo: when your radar sees a raid coming, open the silo and FIRE to destroy part of the raiding fleet before it lands. Then it reloads.",
+                    "Terraformer: pick a path — Oceanic (helium), Crystalline (quartz), Metallic (gold) or Temperate (faster builds, more energy) — and reshape the planet a stage at a time. Switching paths starts over.",
+                },
+            },
+            new HandbookTopic
+            {
                 Title = "Clans", Summary = "Allies, strikes and supplies",
                 Paragraphs = new[]
                 {

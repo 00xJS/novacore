@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Regenerate the Frontier's late buildings (the Repair Dock, the Jump Gate, the
+# Regenerate the Frontier's late buildings and the Citadel's (the Repair Dock, the Jump Gate, the
 # Clan Embassy, the Deep Space Observatory): building_art.py writes the SVGs,
 # render_svgs.sh renders them and png_trim.swift crops each to its visible
 # extent in the game's Resources/Buildings. Needs python3, Chrome and swift.

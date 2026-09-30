@@ -93,6 +93,7 @@ namespace GalaxyRoyale.Game
                         MarchMission.Core => CoreSystem.PlayerGarrison(state) != null ? "Reinforcements have joined your core garrison"
                             : "Your fleet has reached the Galactic Core — assault underway",
                         MarchMission.Boss => "Your fleet has reached the Pirate Dreadnought — strike underway",
+                        MarchMission.Trade => "Your delivery has reached its client — payment on the way home",
                         _ => "Your fleet has arrived and started gathering",
                     },
                     MarchPhase.Gathering => "Gathering complete — your fleet is heading home",

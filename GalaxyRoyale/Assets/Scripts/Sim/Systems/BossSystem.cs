@@ -332,7 +332,7 @@ namespace GalaxyRoyale.Sim.Systems
 
             var fleet = new Dictionary<HullId, int>(march.Ships);
             long before = boss.Hp;
-            var result = BossCombat.Strike(fleet, ResearchSystem.CombatMods(player), boss.Hp, boss.MaxHp, boss.Cannon);
+            var result = BossCombat.Strike(fleet, ResearchSystem.CombatModsFor(player, march.Id), boss.Hp, boss.MaxHp, boss.Cannon);
             boss.Hp = Math.Max(0, boss.Hp - result.Damage);
             boss.Damage[0] = (boss.Damage.TryGetValue(0, out var d) ? d : 0) + result.Damage;
             var salvage = Salvage(result.Damage, result.Survivors);

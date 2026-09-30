@@ -54,6 +54,7 @@ namespace GalaxyRoyale.Sim.Systems
 
             if (state.Buffs.EnergyBoostUntilTick > state.Tick)
                 supply = (int)Math.Floor(supply * Balance.EnergyBoostFactor);
+            supply = (int)Math.Floor(supply * TerraformSystem.EnergyMult(state)); // the Temperate path
 
             float factor = demand <= supply ? 1f : (float)supply / demand;
             return new EnergyBalance(supply, demand, factor);
@@ -83,6 +84,10 @@ namespace GalaxyRoyale.Sim.Systems
 
             foreach (var id in Buildings.All) AddProd(id, state.Buildings[id].Level);
             foreach (var mine in state.ExtraMines) AddProd(MineTypes.ToBuildingId(mine.Type), mine.Level);
+            // The Terraformer's path (the Citadel, 2026-09-30).
+            if (state.Terraform.Stage > 0)
+                foreach (var res in Resources.All)
+                    rates.Set(res, (long)(rates.Get(res) * (double)TerraformSystem.ResourceMult(state, res)));
             return rates;
         }
 

@@ -185,6 +185,13 @@ namespace GalaxyRoyale.Data
             },
             new QuestDef
             {
+                Title = "The Citadel",
+                Detail = "Tip your planet north (or tap CITADEL) and build the Academy. Your commander can lead a fleet from there.",
+                Goal = QuestGoal.BuildingLevel, Building = BuildingId.Academy, Target = 1,
+                Reward = new ResourceBag(2200, 1600, 900),
+            },
+            new QuestDef
+            {
                 Title = "Sharpen Your Skills",
                 Detail = "Open your profile (top left) and learn a commander skill. Every level earns a skill point.",
                 Goal = QuestGoal.SkillsLearned, Target = 1,

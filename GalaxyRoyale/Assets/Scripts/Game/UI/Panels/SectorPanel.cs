@@ -237,9 +237,11 @@ namespace GalaxyRoyale.Game.UI
                 var s = ctx.State!;
                 var reward = sector.Reward.Clone();
                 int dm = sector.RewardDM;
-                if (!WildsSystem.Claim(s, index).Ok) return;
+                if (!WildsSystem.Claim(s, index, out var found).Ok) return;
                 GameAudio.Feedback(Sfx.Coins, Haptic.Success);
-                ui.Toast(dm > 0 ? $"Relic claimed: +{dm} Dark Matter" : $"Cache claimed: +{UiTheme.FmtAmount(reward.Total)}",
+                // The Citadel (2026-09-30): the relic itself comes home for the Relic Vault.
+                string piece = found is { } k ? $" and a {Relics.Def(k).Name} for your Relic Vault" : "";
+                ui.Toast(dm > 0 ? $"Relic claimed: +{dm} Dark Matter{piece}" : $"Cache claimed: +{UiTheme.FmtAmount(reward.Total)}",
                     relic ? Icon.Star : Icon.Crate, UiTheme.Good);
             }, 12)));
         }
