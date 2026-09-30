@@ -508,6 +508,12 @@ namespace GalaxyRoyale.Sim.Save
                 ids.Sort(StringComparer.Ordinal);
                 root["achievements"] = Arr(ids, x => (object?)x);
             }
+            if (s.RedeemedCodes.Count > 0)
+            {
+                var used = new List<string>(s.RedeemedCodes);
+                used.Sort(StringComparer.Ordinal);
+                root["redeemed"] = Arr(used, x => (object?)x);
+            }
             if (s.Title != null) root["title"] = s.Title;
             if (s.EventInstance >= 0)
                 root["event"] = new Dictionary<string, object?>
@@ -741,6 +747,9 @@ namespace GalaxyRoyale.Sim.Save
             if (d.TryGetValue("achievements", out var ach) && ach != null)
                 foreach (var raw in AsArr(ach, "achievements"))
                     if (raw is string id) s.Achievements.Add(id);
+            if (d.TryGetValue("redeemed", out var red) && red != null)
+                foreach (var raw in AsArr(red, "redeemed"))
+                    if (raw is string hash) s.RedeemedCodes.Add(hash);
             s.Title = d.TryGetValue("title", out var tt) ? tt as string : null;
             if (d.TryGetValue("event", out var ev) && ev != null)
             {

@@ -103,7 +103,7 @@ namespace GalaxyRoyale.Game
                         ui.SwitchView(UI.ViewId.Map);
                         ctx.GetComponent<MapView>()?.Frame(Sim.Systems.CoreSystem.CoreTile, 520f);
                         break;
-                    // The whole galaxy, zoomed all the way out on the Core.
+                    // Zoomed all the way out on the Core (Frame clamps to the camera's limit).
                     case "mapall":
                         ui.CloseModal();
                         ui.SwitchView(UI.ViewId.Map);

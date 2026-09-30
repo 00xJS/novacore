@@ -374,6 +374,8 @@ namespace GalaxyRoyale.Sim
         public int QuestStep;
         /// <summary>Unlocked achievement ids (Data/Achievements).</summary>
         public HashSet<string> Achievements = new();
+        /// <summary>Fingerprints of the redeem codes used in this game (RedeemSystem).</summary>
+        public HashSet<string> RedeemedCodes = new();
         /// <summary>Equipped commander title — an unlocked achievement's id (null = none).</summary>
         public string? Title;
         /// <summary>Galaxy event being tracked (EventSystem): its instance number,

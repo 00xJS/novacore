@@ -38,16 +38,16 @@ namespace GalaxyRoyale.Game
         // little dots on the overview). The player's own planet keeps its
         // zoom-scaled prominence.
         // Map redesign (2026-09-29): every world stays visible at every zoom (the
-        // GalaxyField draws them all). Past mid zoom they grow with the square root
-        // of the view, so on screen they shrink slowly as you pull out (user: at a
-        // fixed screen size they looked too big fully zoomed out).
-        static float NodeMarkerScale(float size, bool lodDot) => Mathf.Max(5f, 5f * Mathf.Sqrt(size / 600f));
+        // GalaxyField draws them all). Past mid zoom they barely grow, so on screen
+        // they shrink as you pull out (user: too big fully zoomed out, and hard to
+        // tell from colonies — the colonies below grow faster and stand out).
+        static float NodeMarkerScale(float size, bool lodDot) => Mathf.Max(5f, 5f * Mathf.Pow(size / 600f, 0.25f));
         static float PlayerMarkerScale(float size) =>
-            Mathf.Min(Mathf.Max(7f, 7f * Mathf.Sqrt(size / 18f)), Mathf.Max(12f, 12f * Mathf.Sqrt(size / 600f)));
-        /// <summary>Rival colonies: about twice a world's size at any zoom — zoomed out
-        /// they were smothering the galaxy (and the Core Zone) in big planets.</summary>
+            Mathf.Min(Mathf.Max(14f, 7f * Mathf.Sqrt(size / 18f)), Mathf.Max(16f, 16f * Mathf.Sqrt(size / 600f)));
+        /// <summary>Rival colonies: well over twice a world's size close in, about three
+        /// times it fully zoomed out, so colonies stand out from the resource worlds.</summary>
         static float RivalMarkerScale(float size) =>
-            Mathf.Min(PlayerMarkerScale(size), Mathf.Max(10f, 10f * Mathf.Sqrt(size / 770f)));
+            Mathf.Min(PlayerMarkerScale(size), Mathf.Max(12f, 12f * Mathf.Sqrt(size / 600f)));
 
         static readonly Color[] TierTint =
         {
@@ -345,6 +345,8 @@ namespace GalaxyRoyale.Game
             _camCtl.OnTap = OnMapTap;
 
             _coreWorld = TileToWorld(sector.Core.X, sector.Core.Y);
+            _camCtl.GalaxyCentre = new Vector2(_coreWorld.x, _coreWorld.y);
+            _camCtl.GalaxyRadius = sector.Size * 0.5f;
 
             BuildStarfield();
             BuildNebulae(state, sector.Size);

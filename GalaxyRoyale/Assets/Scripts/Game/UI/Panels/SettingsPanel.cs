@@ -138,6 +138,45 @@ namespace GalaxyRoyale.Game.UI
             }, "Posts your might to the Game Center leaderboard and unlocks your achievements there. " +
                "It signs in to Game Center when you turn it on."));
 
+            // ---- redeem a code ----
+            content.Add(Header("REDEEM A CODE", 14));
+            content.Add(Note("Got a code from the developer? Each code works once per game.", 2));
+            var redeemRow = Widgets.HBox();
+            redeemRow.style.marginTop = 6;
+            var codeField = new TextField { maxLength = 32 };
+            codeField.style.flexGrow = 1;
+            codeField.style.marginRight = 8;
+            codeField.style.marginLeft = 0;
+            redeemRow.Add(codeField);
+            var redeemStatus = Note("", 4);
+            var redeem = Widgets.TextButton("REDEEM", () =>
+            {
+                var res = Sim.Systems.RedeemSystem.Redeem(ctx.State!, codeField.value ?? "", out var paid);
+                if (!res.Ok)
+                {
+                    redeemStatus.text = res.Reason ?? "";
+                    redeemStatus.style.color = UiTheme.Bad;
+                    GameAudio.Feedback(Sfx.Error, Haptic.Error);
+                    return;
+                }
+                var r = paid!.Resources;
+                var parts = new System.Collections.Generic.List<string>();
+                if (r.Gold > 0) parts.Add($"{UiTheme.FmtAmount(r.Gold * 1000)} gold");
+                if (r.Quartz > 0) parts.Add($"{UiTheme.FmtAmount(r.Quartz * 1000)} quartz");
+                if (r.Helium > 0) parts.Add($"{UiTheme.FmtAmount(r.Helium * 1000)} helium");
+                if (paid.DarkMatter > 0) parts.Add($"{paid.DarkMatter} Dark Matter");
+                string got = string.Join(" · ", parts);
+                redeemStatus.text = $"{paid.Title} redeemed: {got}";
+                redeemStatus.style.color = UiTheme.Good;
+                codeField.value = "";
+                GameAudio.Feedback(Sfx.Confirm, Haptic.Success);
+                LocalBootstrap.RequestSync(); // save it right away
+                ui.Toast($"{paid.Title}: {got}", Icon.Crate, UiTheme.Good);
+            }, 11);
+            redeemRow.Add(redeem);
+            content.Add(redeemRow);
+            content.Add(redeemStatus);
+
             // ---- help ----
             content.Add(Header("HELP", 14));
             var tour = Widgets.IconButton(Icon.Compass, "REPLAY THE TOUR", () => GlobeTour.Start(), 11);
