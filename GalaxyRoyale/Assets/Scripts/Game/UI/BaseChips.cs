@@ -31,6 +31,12 @@ namespace GalaxyRoyale.Game.UI
             public Label? Main;
             public Label? Badge;
             public ProgressRing? Ring;
+            /// <summary>Where Place put the chip this frame (its top-centre, panel points).</summary>
+            public Vector2 At;
+            /// <summary>This frame's fade (low for pads turning over the globe's horizon).</summary>
+            public float Alpha = 1f;
+            /// <summary>The sideways nudge the declutter pass gave the label (px).</summary>
+            public float Dx;
         }
 
         readonly VisualElement _layer;
@@ -75,6 +81,7 @@ namespace GalaxyRoyale.Game.UI
         {
             foreach (var c in _chips.Values)
                 if (!c.Used && c.Shown) { c.Shown = false; c.Anchor.style.display = DisplayStyle.None; }
+            Declutter();
             foreach (var b in _bubbles.Values)
                 if (!b.Used && b.Shown) { b.Shown = false; b.Anchor.style.display = DisplayStyle.None; }
         }
@@ -130,6 +137,8 @@ namespace GalaxyRoyale.Game.UI
             if (_ringRect is { } rr && c.Anchor.childCount > 0 && c.Anchor[0].worldBound.Overlaps(rr))
                 alpha *= 0.2f;
             c.Anchor.style.opacity = alpha;
+            c.At = chipAt;
+            c.Alpha = alpha;
             c.Anchor.style.translate = new Translate(chipAt.x, chipAt.y);
             if (c.Mark != null && markAt is { } m)
                 c.Mark.style.translate = new Translate(m.x - chipAt.x, m.y - chipAt.y);
@@ -268,6 +277,72 @@ namespace GalaxyRoyale.Game.UI
         }
 
         /// <summary>Milli-units as a short amount: 656, 3.3K, 1.2M.</summary>
+        /// <summary>Labels that overlap side by side are pushed apart, and any that would
+        /// cross the screen's edge are pulled back in (user 2026-09-29: names ran into
+        /// each other in the Command district and the Frontier). Works from last
+        /// frame's label widths, so it settles within a frame of a label changing;
+        /// each frame starts again from the pads' own positions, so nothing drifts.</summary>
+        void Declutter()
+        {
+            _declutter.Clear();
+            foreach (var c in _chips.Values)
+            {
+                if (!c.Used || !c.Shown || c.Kind == Kind.Fog) continue;
+                // Pads over the horizon (faded) or off the screen keep their own place:
+                // pulling them in would drag half-hidden labels into view.
+                if (c.Alpha < 0.6f) { Reset(c); continue; }
+                var size = c.Body.layout;
+                if (float.IsNaN(size.width) || size.width <= 0f) continue;
+                _declutter.Add((c, c.At.x, size.width, size.height));
+            }
+            int n = _declutter.Count;
+            if (n == 0) return;
+            var x = new float[n];
+            for (int i = 0; i < n; i++) x[i] = _declutter[i].x;
+            const float Gap = 4f;
+            for (int pass = 0; pass < 6; pass++)
+            {
+                bool moved = false;
+                for (int i = 0; i < n; i++)
+                    for (int j = i + 1; j < n; j++)
+                    {
+                        var a = _declutter[i];
+                        var b = _declutter[j];
+                        // Only labels sharing a line: their heights overlap.
+                        if (a.c.At.y >= b.c.At.y + b.h || b.c.At.y >= a.c.At.y + a.h) continue;
+                        bool aLeft = x[i] <= x[j];
+                        float need = (a.w + b.w) * 0.5f + Gap - Mathf.Abs(x[j] - x[i]);
+                        if (need <= 0f) continue;
+                        float half = need * 0.5f;
+                        x[i] += aLeft ? -half : half;
+                        x[j] += aLeft ? half : -half;
+                        moved = true;
+                    }
+                if (!moved) break;
+            }
+            float width = _layer.layout.width > 0 ? _layer.layout.width : UiTheme.W;
+            for (int i = 0; i < n; i++)
+            {
+                var (c, x0, w, _) = _declutter[i];
+                float half = w * 0.5f;
+                bool onScreen = x0 >= 0f && x0 <= width;
+                float cx = onScreen ? Mathf.Clamp(x[i], half + Edge, Mathf.Max(half + Edge, width - half - Edge)) : x[i];
+                float dx = Mathf.Round(cx - x0);
+                if (Mathf.Abs(dx - c.Dx) < 0.5f) continue;
+                c.Dx = dx;
+                c.Body.style.left = dx;
+            }
+        }
+
+        readonly List<(Chip c, float x, float w, float h)> _declutter = new();
+
+        static void Reset(Chip c)
+        {
+            if (c.Dx == 0f) return;
+            c.Dx = 0f;
+            c.Body.style.left = 0;
+        }
+
         static string Compact(long milli)
         {
             long whole = milli / 1000;
