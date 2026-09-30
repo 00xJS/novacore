@@ -48,6 +48,9 @@ namespace GalaxyRoyale.Data
     public sealed class BuildingDef
     {
         public string Name = "";
+        /// <summary>A shorter name for the building's label on the globe, where a long
+        /// one collides with its neighbours' (null = Name).</summary>
+        public string? ShortName;
         /// <summary>One-line flavor/utility blurb shown in the building panel (v1 desc).</summary>
         public string Desc = "";
         public BuildingKind Kind;
@@ -273,6 +276,7 @@ namespace GalaxyRoyale.Data
             [BuildingId.ClanEmbassy] = new BuildingDef
             {
                 Name = "Clan Embassy",
+                ShortName = "Embassy",
                 Desc = "Your clan's hall on the colony: more clanmates fly with your strikes, supply runs " +
                        "come more often, and your share of the core's clan tribute grows.",
                 Kind = BuildingKind.Embassy,
@@ -286,6 +290,7 @@ namespace GalaxyRoyale.Data
             [BuildingId.Observatory] = new BuildingDef
             {
                 Name = "Deep Space Observatory",
+                ShortName = "Observatory",
                 Desc = "Long-range telescopes: Wilds surveys finish sooner, your radar hears raiders earlier, " +
                        "and from level 10 it predicts where and when the next Pirate Dreadnought drops.",
                 Kind = BuildingKind.Observatory,
