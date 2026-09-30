@@ -145,12 +145,14 @@ namespace GalaxyRoyale.Game.UI
                     var row = Widgets.Row();
                     var box = Widgets.HBox(Justify.SpaceBetween);
                     box.Add(Widgets.Text($"{item.Name}  ×{count}", 12, UiTheme.Text));
-                    box.Add(Widgets.TextButton(isFinisher ? "FINISH" : "USE", () =>
+                    var use = Widgets.TextButton(isFinisher ? "FINISH" : "USE", () =>
                     {
                         if (!ShopSystem.ConsumeItem(ctx.State!, item.Id).Ok) return;
                         apply(isFinisher ? long.MaxValue : item.SpeedupSec ?? 0);
                         cache = "";
-                    }, 10));
+                    }, 10);
+                    use.name = $"tut-use-{item.Id}";
+                    box.Add(use);
                     row.Add(box);
                     list.Add(row);
                 }

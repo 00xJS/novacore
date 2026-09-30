@@ -34,7 +34,7 @@ namespace GalaxyRoyale.Game.UI
             new(BaseDistrict.MiningBelt, false, "THE MINING BELT",
                 "A pad for every extra mine. More of them open each time the Command Center levels up."),
             new(BaseDistrict.Frontier, false, "THE FRONTIER",
-                "Buildings for later: the Bastion's railguns, the Salvage Yard and the Drone Factory. The Exchange Terminal is your market."),
+                "Advanced buildings that open as the Command Center rises: the market, railguns, salvage, drones, repairs, a jump gate, an embassy and an observatory."),
             new(BaseDistrict.Spaceport, false, "THE SPACEPORT",
                 "Your docked fleet parks here. Tap the field to build ships and send them out."),
             new(BaseDistrict.Wilds, false, "THE WILDS",

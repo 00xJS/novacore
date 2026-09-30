@@ -85,9 +85,12 @@ namespace GalaxyRoyale.Game.UI
 
             var buttons = Widgets.HBox(Justify.SpaceAround);
             buttons.style.marginTop = 8;
+            if (isCamp) ui.Notice(TutorialSeen.Camp);
+
             void Action(string label, Action act, float widthPct)
             {
                 var b = Widgets.TextButton(label, act, 14);
+                b.name = $"tut-{label.ToLowerInvariant()}"; // tut-attack, tut-spy, tut-gather
                 b.style.width = Length.Percent(widthPct);
                 b.style.height = 40;
                 buttons.Add(b);
@@ -128,6 +131,9 @@ namespace GalaxyRoyale.Game.UI
 
     public static class NodeComposer
     {
+        /// <summary>Ships picked in the open composer (the training reads it).</summary>
+        public static int SelectedCount { get; private set; }
+
         public static void Open(GameContext ctx, MapNode node)
         {
             var ui = UIController.Instance!;
@@ -237,15 +243,19 @@ namespace GalaxyRoyale.Game.UI
 
             var quick = Widgets.HBox(Justify.SpaceAround);
             quick.style.marginTop = 4;
+            SelectedCount = 0;
+            // Every docked ship except spy probes: they carry nothing and can't fight
+            // (0 attack), so sent along they'd only be lost — the same rule as FleetPicker.
             var maxBtn = Widgets.TextButton("ALL DOCKED", () =>
             {
                 foreach (var kv in picks)
                 {
-                    int docked = state.Ships.TryGetValue(kv.Key, out var d) ? d : 0;
+                    int docked = kv.Key == HullId.Probe ? 0 : state.Ships.TryGetValue(kv.Key, out var d) ? d : 0;
                     kv.Value.SetValueWithoutNotify(docked);
                 }
                 Refresh();
             }, 10);
+            maxBtn.name = "tut-all-docked";
             maxBtn.style.width = Length.Percent(47f);
             var clearBtn = Widgets.TextButton("CLEAR", () =>
             {
@@ -276,6 +286,7 @@ namespace GalaxyRoyale.Game.UI
             {
                 foreach (var r in refreshers) r();
                 var fleet = Fleet();
+                SelectedCount = MarchSystem.FleetCount(fleet);
                 var p = MarchSystem.PreviewMarch(state, fleet, node.Tile);
                 if (!p.Ok)
                 {
@@ -328,6 +339,7 @@ namespace GalaxyRoyale.Game.UI
 
             launchBtn = Widgets.TextButton(isCamp ? "ATTACK" : isDerelict ? "SALVAGE" : "GATHER",
                 () => Launch(isCamp ? MarchMission.Attack : MarchMission.Gather), 14);
+            launchBtn.name = "tut-launch";
             launchBtn.style.width = Length.Percent(60f);
             launchBtn.style.height = 42;
             launchRow.Add(launchBtn);

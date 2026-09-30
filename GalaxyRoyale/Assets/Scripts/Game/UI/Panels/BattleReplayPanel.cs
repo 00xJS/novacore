@@ -178,6 +178,7 @@ namespace GalaxyRoyale.Game.UI
                 var again = Widgets.IconButton(Icon.Rotate, "REPLAY", () => Open(ctx, mail, onDone), 11);
                 again.style.width = Length.Percent(31f);
                 var report = Widgets.TextButton("REPORT", () => MailboxPanel.OpenReport(ctx, mail), 11);
+                report.name = "tut-replay-report";
                 report.style.width = Length.Percent(31f);
                 var close = Widgets.TextButton("DONE", done, 11);
                 close.style.width = Length.Percent(31f);

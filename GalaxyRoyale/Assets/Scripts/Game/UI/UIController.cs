@@ -174,6 +174,7 @@ namespace GalaxyRoyale.Game.UI
                 return fab;
             }
             _searchFab = LeftFab(Icon.Search, "FIND", () => SearchPanel.Open(_ctx), 56f);
+            _searchFab.name = "tut-find-fab";
             _favoritesFab = LeftFab(Icon.Star, null, () => FavoritesPanel.Open(_ctx), 112f);
             BuildMapFilter();
 
@@ -225,19 +226,12 @@ namespace GalaxyRoyale.Game.UI
             });
 
             _ctx.Events!.Subscribe(OnSimEvent);
+
+            // The new-commander training's coach, over everything (2026-09-30).
+            _coach = new TutorialCoach(_root, _ctx);
         }
 
-        /// <summary>Fresh-commander orientation — LocalBootstrap fires this after
-        /// NEW GAME (not at UI build time, which would toast over the title screen).</summary>
-        public void ShowRookieHints()
-        {
-            EnsureBuilt();
-            _root.schedule.Execute(() =>
-                Toast("Follow the Commander's Path — your first quest is top left", Icon.Star, UiTheme.Energy))
-                .ExecuteLater(2500);
-            _root.schedule.Execute(() =>
-                Toast("Upgrade the Command Center to raise all building caps")).ExecuteLater(6500);
-        }
+        TutorialCoach? _coach;
 
         // ---------- header (v1 ResourceBar) ----------
 
@@ -339,6 +333,7 @@ namespace GalaxyRoyale.Game.UI
 
             // Row 3 — resource strip: GOLD / QUARTZ / HELIUM / ENERGY / D.MATTER.
             var resRow = Widgets.HBox(Justify.SpaceAround, Align.Center);
+            resRow.name = "tut-resources";
             resRow.style.height = 50;
             resRow.style.borderTopWidth = 1;
             resRow.style.borderTopColor = UiTheme.Stroke;
@@ -384,7 +379,7 @@ namespace GalaxyRoyale.Game.UI
             // Icon-over-label tabs; the active one lights up orange (HighlightNav).
             Button NavButton(Icon icon, string label, Action onTap)
             {
-                var b = new Button(onTap) { text = "" };
+                var b = new Button(onTap) { text = "", name = $"tut-nav-{label}" };
                 b.clicked += GameAudio.Tap;
                 b.style.width = Length.Percent(20f);
                 b.style.height = UiTheme.NavH;
@@ -487,6 +482,7 @@ namespace GalaxyRoyale.Game.UI
         void BuildMoreMenu()
         {
             _moreFab = Widgets.Fab(Icon.More, null, ToggleMoreMenu);
+            _moreFab.name = "tut-more-fab";
             _moreFab.style.position = Position.Absolute;
             _moreFab.style.right = 12;
             _moreFab.style.bottom = UiTheme.NavH + TickerH + 16; // search/favorites moved LEFT
@@ -537,6 +533,8 @@ namespace GalaxyRoyale.Game.UI
             _root.Add(_moreMenu);
         }
 
+        public bool MoreOpen => _moreOpen;
+
         public void CloseMoreMenu()
         {
             if (_moreOpen) ToggleMoreMenu();
@@ -545,6 +543,9 @@ namespace GalaxyRoyale.Game.UI
         void ToggleMoreMenu()
         {
             _moreOpen = !_moreOpen;
+            // The training's MORE step passes once the menu has been seen and closed again
+            // (its next card would otherwise sit over the open menu).
+            if (!_moreOpen) Notice(GalaxyRoyale.Data.TutorialSeen.More);
             // A selected building's quick actions draw over the HUD; clear them first.
             if (_moreOpen) GetComponent<BuildingMarkers>()?.Deselect();
             _moreMenu.style.display = _moreOpen ? DisplayStyle.Flex : DisplayStyle.None;
@@ -594,6 +595,7 @@ namespace GalaxyRoyale.Game.UI
         void BuildQueuesFab()
         {
             _queuesFab = Widgets.Fab(Icon.Menu, null, OpenQueues);
+            _queuesFab.name = "tut-queues-fab";
             _queuesFab.style.position = Position.Absolute;
             _queuesFab.style.left = 12;
             _queuesFab.style.bottom = UiTheme.NavH + TickerH + 16;
@@ -612,6 +614,9 @@ namespace GalaxyRoyale.Game.UI
         public void SwitchView(ViewId view)
         {
             if (view != View) GameAudio.Feedback(Sfx.Toggle, Haptic.Selection);
+            // A building's quick actions don't outlive a change of screen (they sat,
+            // stale, over the base when the player came back).
+            if (view != View) GetComponent<BuildingMarkers>()?.Deselect();
             CloseModal();
             CloseNodeCallout();
             var mapView = GetComponent<MapView>();
@@ -634,6 +639,7 @@ namespace GalaxyRoyale.Game.UI
                 View = ViewId.Fleet;
                 HighlightNav();
                 OpenModal(FleetPanel.Build(_ctx, out var refresh), refresh);
+                Notice(GalaxyRoyale.Data.TutorialSeen.Fleet);
                 return;
             }
 
@@ -641,6 +647,7 @@ namespace GalaxyRoyale.Game.UI
             {
                 if (mapView == null) mapView = gameObject.AddComponent<MapView>();
                 if (!mapView.IsActive) mapView.EnterMap();
+                Notice(GalaxyRoyale.Data.TutorialSeen.Map);
             }
             else if (mapView != null && mapView.IsActive)
             {
@@ -817,7 +824,27 @@ namespace GalaxyRoyale.Game.UI
         public void OpenNews() => OpenModal(NewsPanel.Build(_ctx, out var r), r);
         public void OpenDaily() => OpenModal(DailyPanel.Build(_ctx, out var r), r);
         public void OpenResearch() => OpenModal(ResearchPanel.Build(_ctx, out var r), r);
-        public void OpenQueues() => OpenModal(QueuesPanel.Build(_ctx, out var r), r);
+        public void OpenQueues()
+        {
+            OpenModal(QueuesPanel.Build(_ctx, out var r), r);
+            Notice(GalaxyRoyale.Data.TutorialSeen.Queues);
+        }
+
+        /// <summary>Tell the training a screen was opened (TutorialSystem.Notice).</summary>
+        public void Notice(string seen)
+        {
+            if (_ctx.State != null) GalaxyRoyale.Sim.Systems.TutorialSystem.Notice(_ctx.State, seen);
+        }
+
+        /// <summary>Screen pixels (y up) to panel points.</summary>
+        public Vector2? ScreenToPanel(Vector3 screenPx)
+        {
+            if (_doc?.rootVisualElement?.panel is not IPanel panel) return null;
+            return RuntimePanelUtils.ScreenToPanel(panel, new Vector2(screenPx.x, Screen.height - screenPx.y));
+        }
+
+        /// <summary>The open modal panel, if any (the training coach looks inside it).</summary>
+        public VisualElement? CurrentModal => _modal;
         public void OpenShop() => OpenModal(ShopPanel.Build(_ctx, out var r), r);
         public void OpenMailbox() => OpenModal(MailboxPanel.Build(_ctx, out var r), r);
 
@@ -1196,7 +1223,7 @@ namespace GalaxyRoyale.Game.UI
 
         void BuildQuestTracker()
         {
-            var t = _questTracker = new VisualElement();
+            var t = _questTracker = new VisualElement { name = "tut-quest" };
             t.style.maxWidth = 300; // up to the SPIN button
             t.style.flexDirection = FlexDirection.Row;
             t.style.alignItems = Align.Center;

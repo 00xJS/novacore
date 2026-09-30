@@ -179,6 +179,32 @@ namespace GalaxyRoyale.Game.UI
 
             // ---- help ----
             content.Add(Header("HELP", 14));
+            var handbook = Widgets.IconButton(Icon.Info, "COMMANDER'S HANDBOOK", () => HandbookPanel.Open(ctx), 11);
+            handbook.name = "tut-handbook";
+            handbook.style.marginTop = 6;
+            content.Add(handbook);
+            content.Add(Note("Every system in the game, a topic at a time.", 4));
+            bool training = ctx.State != null && Sim.Systems.TutorialSystem.Active(ctx.State);
+            var train = Widgets.IconButton(Icon.Star, training ? "LEAVE THE TRAINING" : "START THE TRAINING", () =>
+            {
+                if (ctx.State == null) return;
+                if (Sim.Systems.TutorialSystem.Active(ctx.State))
+                {
+                    Sim.Systems.TutorialSystem.Skip(ctx.State);
+                    ui.Toast("Training closed — start it again here whenever you like");
+                }
+                else
+                {
+                    Sim.Systems.TutorialSystem.Restart(ctx.State);
+                    ui.Toast("Training started: follow the card at the bottom", Icon.Star, UiTheme.Energy);
+                }
+                LocalBootstrap.RequestSync();
+                ui.CloseModal();
+            }, 11);
+            train.style.marginTop = 6;
+            content.Add(train);
+            content.Add(Note("A guided run through the controls, one step at a time. Steps you've already done " +
+                "pass by themselves.", 4));
             var tour = Widgets.IconButton(Icon.Compass, "REPLAY THE TOUR", () => GlobeTour.Start(), 11);
             tour.style.marginTop = 6;
             content.Add(tour);

@@ -384,6 +384,9 @@ namespace GalaxyRoyale.Game.UI
             _upgrade = RingButton(Icon.ArrowUp, "UPGRADE", 2f, 14f, () => _onUpgrade?.Invoke(), out _upgradeCaption);
             _info = RingButton(Icon.Info, "INFO", RingW * 0.5f - 29f, 0f, () => _onInfo?.Invoke(), out _);
             _boost = RingButton(Icon.Bolt, "BOOST", RingW - 60f, 14f, () => _onBoost?.Invoke(), out _);
+            _upgrade.name = "tut-ring-upgrade";
+            _info.name = "tut-ring-info";
+            _boost.name = "tut-ring-boost";
             _ring.style.display = DisplayStyle.None;
             (_front ?? _layer).Add(_ring);
 

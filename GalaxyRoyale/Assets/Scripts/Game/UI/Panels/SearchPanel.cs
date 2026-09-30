@@ -9,8 +9,12 @@ namespace GalaxyRoyale.Game.UI
 {
     public static class SearchPanel
     {
+        /// <summary>The kind picked in the open panel (the training reads it).</summary>
+        public static NodeKind Picked { get; private set; } = NodeKind.Asteroid;
+
         public static void Open(GameContext ctx)
         {
+            Picked = NodeKind.Asteroid;
             var ui = UIController.Instance!;
             var (blocker, content) = Widgets.ModalPanel("FIND NEAREST", ui.CloseModal, 0f); // compact
 
@@ -24,7 +28,8 @@ namespace GalaxyRoyale.Game.UI
             foreach (var k in Nodes.All)
             {
                 var kk = k;
-                var b = Widgets.TextButton(Nodes.Defs[kk].Name, () => { kind = kk; Highlight(); }, 11);
+                var b = Widgets.TextButton(Nodes.Defs[kk].Name, () => { kind = kk; Picked = kk; Highlight(); }, 11);
+                b.name = $"tut-search-{kk}";
                 b.style.marginTop = 4;
                 kindButtons[kk] = b;
                 kindList.Add(b);
@@ -51,6 +56,7 @@ namespace GalaxyRoyale.Game.UI
                 if (mapView == null || !mapView.SearchNearest(kind, level))
                     ui.Toast(level > 0 ? $"No Lv{level} found nearby" : "None of that found nearby");
             }, 14);
+            find.name = "tut-search-find";
             find.style.marginTop = 12;
             find.style.height = 40;
             content.Add(find);

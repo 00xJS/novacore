@@ -143,13 +143,10 @@ namespace GalaxyRoyale.Game
             _pendingLoad = null;
             StartFreshGalaxy(testMode, difficulty);
             FinishBoot();
-            var ui = UI.UIController.Instance;
-            string level = difficulty == Difficulty.Standard ? "" : $" · {Difficulties.Name(difficulty)}";
-            ui?.Toast(testMode
-                ? $"TESTING galaxy founded{level} — {BotSystem.BotCount} rivals, a full war chest"
-                : $"Welcome to the galaxy, Commander{level} — {BotSystem.BotCount} rivals await");
-            // Half a minute round the new colony first, then the rookie hints.
-            UI.GlobeTour.Start(() => ui?.ShowRookieHints());
+            // The new-commander training starts by itself (GameState.TutorialStep = 0);
+            // its coach takes it from here (UI/TutorialCoach). A TESTING galaxy says so.
+            if (testMode)
+                UI.UIController.Instance?.Toast($"TESTING galaxy founded — {BotSystem.BotCount} rivals, a full war chest");
         }
 
         void FinishBoot()

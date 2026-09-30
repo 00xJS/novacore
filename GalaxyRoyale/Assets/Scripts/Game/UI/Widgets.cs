@@ -347,6 +347,7 @@ namespace GalaxyRoyale.Game.UI
             titleBar.Add(titleLabel);
 
             var close = TextButton("×", onClose, 14);
+            close.name = "tut-close"; // the training points here when the player is off track
             close.style.width = 34;
             close.style.height = 32;
             close.style.flexShrink = 0f; // the close button NEVER leaves the screen

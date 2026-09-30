@@ -66,8 +66,8 @@ namespace GalaxyRoyale.Game.UI
                 new[]
                 {
                     $"{start.Gold} gold · {start.Quartz} quartz · {start.Helium} helium",
-                    "No Dark Matter, no free speed-ups",
-                    "Quest rewards carry you through the early game",
+                    "No Dark Matter to start: earn it as you play",
+                    "A guided training and quest rewards carry you through the early game",
                 },
                 "START STANDARD", () => onStart(false, difficulty)));
 

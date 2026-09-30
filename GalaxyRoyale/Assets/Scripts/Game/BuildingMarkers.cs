@@ -416,6 +416,18 @@ namespace GalaxyRoyale.Game
             }
         }
 
+        /// <summary>Where each building's pad stood on screen last frame (panel points),
+        /// for the training's spotlight.</summary>
+        static readonly Dictionary<BuildingId, (Vector2 at, float when)> s_padPoints = new();
+
+        /// <summary>The building's pad on screen right now (null when it's round the
+        /// back of the globe, off the base view, or zoomed out).</summary>
+        public static Vector2? PadPoint(BuildingId id) =>
+            s_padPoints.TryGetValue(id, out var v) && Time.unscaledTime - v.when < 0.4f ? v.at : null;
+
+        /// <summary>The building whose quick actions are up (null = none, or a mine).</summary>
+        public static BuildingId? Selected { get; private set; }
+
         void PlaceChips()
         {
             if (_ctx?.State == null || _planet == null) return;
@@ -452,6 +464,7 @@ namespace GalaxyRoyale.Game
                 if (at is not { } p) continue;
                 float fade = alpha * Mathf.Clamp01((facing - chipFacing) / 0.15f);
                 var below = new Vector2(p.x, p.y + 7f);
+                if (pad.Kind == PadKind.Building && fade > 0.5f) s_padPoints[pad.Building] = (p, Time.unscaledTime);
                 Vector2? top = null;
                 if (view.ArtQuad != null)
                 {
@@ -779,6 +792,7 @@ namespace GalaxyRoyale.Game
             if (_selected == id) { RingInfo(BaseLayout.BuildingPad(id), null); return; }
             _selected = id;
             _selectedMine = null;
+            Selected = id;
             UIController.Instance?.CloseMoreMenu(); // the ring draws over the HUD
             GameAudio.Play(Sfx.Toggle);
             RefreshAll(_ctx.State);
@@ -797,6 +811,7 @@ namespace GalaxyRoyale.Game
             }
             _selected = null;
             _selectedMine = mineId;
+            Selected = null;
             UIController.Instance?.CloseMoreMenu();
             GameAudio.Play(Sfx.Toggle);
             RefreshAll(state);
@@ -804,6 +819,7 @@ namespace GalaxyRoyale.Game
 
         public void Deselect()
         {
+            Selected = null;
             if (_selected == null && _selectedMine == null) return;
             _selected = null;
             _selectedMine = null;
