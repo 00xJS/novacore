@@ -135,11 +135,13 @@ namespace GalaxyRoyale.Sim
                 Key = b.ToString(), Kind = PadKind.Planned, District = BaseDistrict.Frontier,
                 Lat = lat, Lon = lon, Planned = b, UnlockCc = cc, Name = name,
             });
-            Plan(PlannedBuilding.ExchangeTerminal, "Exchange Terminal", TopRow, -114, 5); // top row spread for the Jump Gate
+            // Labelled "Exchange" on the globe (its MARKET tag says the rest): the full
+            // name ran into the Jump Gate's label. The top row is spread for the gate too.
+            Plan(PlannedBuilding.ExchangeTerminal, "Exchange", TopRow, -114, 5);
             void Frontier(BuildingId id, double lat, double lon) => pads.Add(new BasePad
             {
                 Key = id.ToString(), Kind = PadKind.Building, District = BaseDistrict.Frontier,
-                Lat = lat, Lon = lon, Building = id, Name = Buildings.Defs[id].Name,
+                Lat = lat, Lon = lon, Building = id, Name = Buildings.Defs[id].ShortName ?? Buildings.Defs[id].Name,
                 UnlockCc = Buildings.Defs[id].UnlockCc,
             });
             Frontier(BuildingId.CommandBastion, TopRow, -66);
@@ -150,7 +152,7 @@ namespace GalaxyRoyale.Sim
             Frontier(BuildingId.JumpGate, TopRow, -90);
             Frontier(BuildingId.ClanEmbassy, MiddleRow, -112);
             Frontier(BuildingId.Observatory, MiddleRow, -90);
-            Frontier(BuildingId.RepairDock, MiddleRow, -68);
+            Frontier(BuildingId.RepairDock, MiddleRow, -69); // in from the screen's edge
             return pads;
         }
 
