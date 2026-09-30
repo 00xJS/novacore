@@ -41,6 +41,7 @@ namespace GalaxyRoyale.Sim.Systems
                 AchievementGoal.BossDamage => state.Stats.BossDamage,
                 AchievementGoal.BossFinalBlows => state.Stats.BossFinalBlows,
                 AchievementGoal.MarketTrades => state.Stats.MarketTrades,
+                AchievementGoal.NemesesDefeated => state.Stats.NemesesDefeated,
                 _ => 0,
             };
             return (Math.Min(have, a.Target), a.Target);

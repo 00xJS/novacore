@@ -615,6 +615,30 @@ namespace GalaxyRoyale.Sim.Save
                 }
                 root["expeditions"] = ex;
             }
+            // Nemesis rivals (2026-09-30).
+            var nm = s.Nemesis;
+            if (nm.BotId != 0 || nm.Grudges.Count > 0 || nm.Humbled.Count > 0)
+            {
+                Dictionary<string, object?> IntMap(Dictionary<int, int> m)
+                {
+                    var o = new Dictionary<string, object?>();
+                    foreach (var kv in m) o[kv.Key.ToString(System.Globalization.CultureInfo.InvariantCulture)] = (long)kv.Value;
+                    return o;
+                }
+                root["nemesis"] = new Dictionary<string, object?>
+                {
+                    ["bot"] = (long)nm.BotId,
+                    ["name"] = nm.Name,
+                    ["tier"] = (long)nm.Tier,
+                    ["since"] = (long)nm.SinceTick,
+                    ["clash"] = (long)nm.LastClashTick,
+                    ["taunt"] = (long)nm.NextTauntTick,
+                    ["yours"] = (long)nm.YourWins,
+                    ["theirs"] = (long)nm.TheirWins,
+                    ["grudges"] = IntMap(nm.Grudges),
+                    ["humbled"] = IntMap(nm.Humbled),
+                };
+            }
             if (s.EventSiteId.Length > 0) root["eventSite"] = s.EventSiteId;
             if (s.PendingNova >= 0) root["pendingNova"] = (long)s.PendingNova;
             if (s.BountyInstance >= 0)
@@ -893,6 +917,7 @@ namespace GalaxyRoyale.Sim.Save
                 MissileKills = Opt("missileKills"),
                 ContractsDone = Opt("contracts"),
                 ExpeditionsDone = Opt("expeditions"),
+                NemesesDefeated = Opt("nemeses"),
             };
 
             if (d.TryGetValue("achievements", out var ach) && ach != null)
@@ -965,6 +990,28 @@ namespace GalaxyRoyale.Sim.Save
                 if (ex.TryGetValue("taken", out var tk) && tk != null)
                     foreach (var raw in AsArr(tk, "expeditions.taken"))
                         if (raw != null) s.ExpeditionsTaken.Add(ToI32(raw));
+            }
+            if (d.TryGetValue("nemesis", out var nmo) && nmo is Dictionary<string, object?> nem)
+            {
+                var n = s.Nemesis;
+                n.BotId = I32(nem, "bot");
+                n.Name = Str(nem, "name");
+                n.Tier = I32(nem, "tier");
+                n.SinceTick = I32(nem, "since");
+                n.LastClashTick = I32(nem, "clash");
+                n.NextTauntTick = I32(nem, "taunt");
+                n.YourWins = I32(nem, "yours");
+                n.TheirWins = I32(nem, "theirs");
+                void ReadMap(string key, Dictionary<int, int> into)
+                {
+                    if (!nem.TryGetValue(key, out var raw) || raw is not Dictionary<string, object?> m) return;
+                    foreach (var kv in m)
+                        if (kv.Value != null && int.TryParse(kv.Key, System.Globalization.NumberStyles.Integer,
+                                System.Globalization.CultureInfo.InvariantCulture, out int id))
+                            into[id] = ToI32(kv.Value);
+                }
+                ReadMap("grudges", n.Grudges);
+                ReadMap("humbled", n.Humbled);
             }
             s.EventSiteId = d.TryGetValue("eventSite", out var es) && es is string esId ? esId : "";
             s.PendingNova = d.TryGetValue("pendingNova", out var pn) && pn != null ? ToI32(pn) : -1;
@@ -1409,6 +1456,7 @@ namespace GalaxyRoyale.Sim.Save
             Opt("missileKills", st.MissileKills);
             Opt("contracts", st.ContractsDone);
             Opt("expeditions", st.ExpeditionsDone);
+            Opt("nemeses", st.NemesesDefeated);
             return d;
         }
 

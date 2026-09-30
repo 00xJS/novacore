@@ -1312,6 +1312,7 @@ namespace GalaxyRoyale.Sim.Bots
                     player.Stats.DefensesWon++;
                 }
                 ClanSystem.RecordBattle(player, galaxy, bot.Id, 0, playerLost);
+                NemesisSystem.OnRaidedYou(player, galaxy, bot, playerLost, atk.ArrivesAtTick); // 2026-09-30
 
                 InsertMail(player, new BattleMailReport
                 {
@@ -1602,7 +1603,11 @@ namespace GalaxyRoyale.Sim.Bots
             bot.State.Resources.Quartz = Math.Max(0, bot.State.Resources.Quartz - lootMilli.Quartz);
             bot.State.Resources.Helium = Math.Max(0, bot.State.Resources.Helium - lootMilli.Helium);
             bool playerWon = report.Winner == BattleWinner.Attacker;
-            if (player != null) ClanSystem.RecordBattle(player, galaxy, 0, bot.Id, playerWon);
+            if (player != null)
+            {
+                ClanSystem.RecordBattle(player, galaxy, 0, bot.Id, playerWon);
+                NemesisSystem.OnYouRaided(player, galaxy, bot, playerWon, bot.State.Tick); // 2026-09-30
+            }
             if (playerWon)
             {
                 bot.State.Stats.BattlesLost++;

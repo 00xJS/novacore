@@ -90,6 +90,8 @@ namespace GalaxyRoyale.Sim
     /// and one came home.</summary>
     public sealed record ExpeditionMoment(int Id, ExpeditionKind Kind) : SimEvent;
     public sealed record ExpeditionReturned(Systems.ExpeditionLog Log) : SimEvent;
+    /// <summary>Nemesis rivals (2026-09-30): something your nemesis did or said.</summary>
+    public sealed record NemesisEvent(Systems.NemesisNews News) : SimEvent;
 
     public sealed class SimEventBus
     {

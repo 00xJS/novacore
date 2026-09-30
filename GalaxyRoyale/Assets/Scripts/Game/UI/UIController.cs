@@ -195,6 +195,7 @@ namespace GalaxyRoyale.Game.UI
             BuildEventChip();
             BuildCoreChip();
             BuildBossChip();
+            BuildNemesisChip();
 
             _calloutLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             _calloutLayer.style.position = Position.Absolute;
@@ -1078,6 +1079,30 @@ namespace GalaxyRoyale.Game.UI
                     Toast($"First Lv {first.CampLevel} camp beaten: bonus +{UiTheme.FmtAmount(first.BonusMilli.Total)} " +
                           $"sent home · +{first.DarkMatter} DM", Icon.Trophy, UiTheme.Energy);
                     break;
+                // Nemesis rivals (2026-09-30).
+                case NemesisEvent nemesis:
+                {
+                    var n = nemesis.News;
+                    switch (n.Kind)
+                    {
+                        case "sworn":
+                            Toast($"{n.Name} is now your NEMESIS: \"{n.Line}\"", Icon.Swords, UiTheme.Bad);
+                            GameAudio.Feedback(Sfx.Alert, Haptic.Warning);
+                            break;
+                        case "broken":
+                            Toast($"You broke {n.Name}! +{UiTheme.FmtAmount(n.Reward?.Total ?? 0)} · +{n.DarkMatter} DM — \"{n.Line}\"",
+                                Icon.Trophy, UiTheme.Good);
+                            GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                            break;
+                        case "escalate":
+                            Toast($"{n.Name} escalates to tier {NemesisSystem.TierName(n.Tier)}: \"{n.Line}\"", Icon.Swords, UiTheme.Energy);
+                            break;
+                        default:
+                            Toast($"{n.Name}: \"{n.Line}\"", Icon.Swords, UiTheme.Bad);
+                            break;
+                    }
+                    break;
+                }
                 // Expeditions (2026-09-30).
                 case ExpeditionMoment moment:
                     Toast($"Your {Expeditions.Def(moment.Kind).Name} expedition needs your call. MORE › EXPLORE",
@@ -1530,6 +1555,59 @@ namespace GalaxyRoyale.Game.UI
             Widgets.SetBorder(_coreChip, underAttack ? UiTheme.Bad : UiTheme.Good, 1.2f);
         }
 
+        // ---------- Nemesis chip (base view, 2026-09-30) ----------
+        // Shown while you have a nemesis: who, the tier, and how close you are to breaking them.
+
+        VisualElement _nemesisChip = null!;
+        Label _nemesisTitle = null!, _nemesisInfo = null!;
+        string _nemesisKey = "";
+
+        void BuildNemesisChip()
+        {
+            var c = _nemesisChip = new VisualElement();
+            c.style.maxWidth = 300;
+            c.style.marginTop = 6;
+            c.style.flexDirection = FlexDirection.Row;
+            c.style.alignItems = Align.Center;
+            c.style.paddingLeft = 10;
+            c.style.paddingRight = 14;
+            c.style.paddingTop = 5;
+            c.style.paddingBottom = 5;
+            Holo.Frame(c, UiTheme.A(UiTheme.Bg, 0.9f), UiTheme.Bad, 9f, 1.2f);
+            var icon = Icons.Make(Icon.Swords, 14f, UiTheme.Bad);
+            icon.style.marginRight = 7;
+            c.Add(icon);
+            var col = new VisualElement { pickingMode = PickingMode.Ignore };
+            col.style.flexShrink = 1f;
+            _nemesisTitle = Widgets.Heading("", 10, UiTheme.Bad, 0.8f);
+            _nemesisTitle.pickingMode = PickingMode.Ignore;
+            _nemesisInfo = Widgets.Text("", 9, UiTheme.Dim);
+            _nemesisInfo.pickingMode = PickingMode.Ignore;
+            col.Add(_nemesisTitle);
+            col.Add(_nemesisInfo);
+            c.Add(col);
+            c.style.display = DisplayStyle.None;
+            c.RegisterCallback<ClickEvent>(_ =>
+            {
+                var s = _ctx.State;
+                if (s != null && NemesisSystem.Active(s)) PlayerProfilePanel.Open(_ctx, s.Nemesis.BotId, s.Nemesis.Name);
+            });
+            _leftStack.Add(c);
+        }
+
+        void RefreshNemesisChip(GameState state)
+        {
+            var n = state.Nemesis;
+            string key = $"{n.BotId}|{n.Tier}|{n.YourWins}|{n.TheirWins}";
+            if (key == _nemesisKey) return;
+            _nemesisKey = key;
+            bool on = NemesisSystem.Active(state);
+            _nemesisChip.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!on) return;
+            _nemesisTitle.text = $"NEMESIS · {n.Name.ToUpperInvariant()} · {NemesisSystem.TierName(n.Tier)}";
+            _nemesisInfo.text = $"Beaten {n.YourWins}/{NemesisSystem.BeatsToDefeat} · they've won {n.TheirWins}";
+        }
+
         // ---------- Pirate Dreadnought chip (base view) ----------
         // Shown while a dreadnought is in the galaxy: its hull and time left.
 
@@ -1598,6 +1676,7 @@ namespace GalaxyRoyale.Game.UI
             RefreshEventChip(state);
             RefreshCoreChip(state);
             RefreshBossChip(state);
+            RefreshNemesisChip(state);
             for (int i = 0; i < 3; i++)
             {
                 var res = Resources_All[i];
