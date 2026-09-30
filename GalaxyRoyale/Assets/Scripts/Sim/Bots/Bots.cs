@@ -560,6 +560,7 @@ namespace GalaxyRoyale.Sim.Bots
 
             state.Tick = toTick;
             CompleteOrders(state);
+            BotCareer.CompleteProjects(state); // a terraform stage (2026-09-30)
 
             if (IsAwake(bot, personality, toTick, galaxySeed))
                 Decide(bot, personality, galaxySeed);
@@ -624,6 +625,7 @@ namespace GalaxyRoyale.Sim.Bots
                     int elapsed = state.Tick - o.NextDoneAtTick;
                     int done = Math.Min(o.Remaining, 1 + elapsed / buildTime);
                     state.Ships[o.Hull] = (state.Ships.TryGetValue(o.Hull, out var n) ? n : 0) + done;
+                    state.Stats.ShipsBuilt += done; // the Path and the commander's record read it
                     o.Remaining -= done;
                     if (o.Remaining <= 0) { state.ShipQueue.RemoveAt(i); removed = true; }
                     else o.NextDoneAtTick += done * buildTime;
@@ -651,9 +653,14 @@ namespace GalaxyRoyale.Sim.Bots
             var rng = Rng.Mulberry32(unchecked((uint)galaxySeed
                 ^ (uint)(bot.Id * 0x85EBCA6B) ^ (uint)state.Tick));
 
+            // The career first (2026-09-30): the market, the commander, the Path, the
+            // Terraformer, expeditions and pirate hunting — once per window.
+            if (AtKeyboard(galaxySeed, bot.Id, state.Tick, 4)) BotCareer.Decide(bot, personality, rng);
             if (AtKeyboard(galaxySeed, bot.Id, state.Tick, 1)) DecideBuild(state, personality, rng);
-            if (AtKeyboard(galaxySeed, bot.Id, state.Tick, 2)) DecideResearch(state, personality, rng);
-            if (AtKeyboard(galaxySeed, bot.Id, state.Tick, 3)) DecideShips(state, personality, rng);
+            // Saving for the Command Center: no new ships or research eating into it.
+            bool saving = BotCareer.SavingForCommand(state);
+            if (!saving && AtKeyboard(galaxySeed, bot.Id, state.Tick, 2)) DecideResearch(state, personality, rng);
+            if (!saving && AtKeyboard(galaxySeed, bot.Id, state.Tick, 3)) DecideShips(state, personality, rng);
         }
 
         static void DecideBuild(GameState state, BotPersonality personality, Func<double> rng)
@@ -668,6 +675,30 @@ namespace GalaxyRoyale.Sim.Bots
                 && BuildingSystem.CheckUpgrade(state, BuildingId.PowerPlant).Ok)
             {
                 BuildingSystem.StartUpgrade(state, BuildingId.PowerPlant);
+                return;
+            }
+            // The Power Plant at the Command Center's cap and still short (2026-09-30):
+            // only a higher Command Center lifts it. Build that, or save for it — more
+            // mines would only deepen the shortage.
+            bool starved = energy.Factor < 1f
+                && state.Buildings[BuildingId.PowerPlant].Level >= state.Buildings[BuildingId.CommandCenter].Level;
+            if (starved && BuildingSystem.CheckUpgrade(state, BuildingId.CommandCenter).Ok)
+            {
+                BuildingSystem.StartUpgrade(state, BuildingId.CommandCenter);
+                return;
+            }
+            if (BotCareer.SavingForCommand(state))
+            {
+                if (BuildingSystem.CheckUpgrade(state, BuildingId.CommandCenter).Ok)
+                    BuildingSystem.StartUpgrade(state, BuildingId.CommandCenter);
+                return;
+            }
+            // The Frontier and the Citadel (2026-09-30): now and then, a building the
+            // Command Center has opened, or the next level of one a little behind it —
+            // when there's power to spare for it.
+            if (rng() < 0.2 && LateBuilding(state, rng, energy) is { } late)
+            {
+                BuildingSystem.StartUpgrade(state, late);
                 return;
             }
 
@@ -720,9 +751,32 @@ namespace GalaxyRoyale.Sim.Bots
                 BuildingSystem.StartUpgrade(state, BuildingId.CommandCenter);
         }
 
+        /// <summary>An affordable Frontier or Citadel building below the Command Center's
+        /// level (unbuilt ones first), picked at random among the candidates.</summary>
+        static BuildingId? LateBuilding(GameState state, Func<double> rng, EnergyBalance energy)
+        {
+            if (energy.Factor < 1f) return null;
+            int cc = state.Buildings[BuildingId.CommandCenter].Level;
+            var fresh = new List<BuildingId>();
+            var behind = new List<BuildingId>();
+            foreach (var id in Buildings.All)
+            {
+                if (Array.IndexOf(CoreIds, id) >= 0) continue;
+                int level = state.Buildings[id].Level;
+                if (level >= cc - 2 && level > 0) continue;
+                if (!BuildingSystem.CheckUpgrade(state, id).Ok) continue;
+                if (energy.Supply - energy.Demand < Buildings.Defs[id].BaseEnergyUse * 2) continue;
+                (level == 0 ? fresh : behind).Add(id);
+            }
+            var pool = fresh.Count > 0 ? fresh : behind;
+            return pool.Count == 0 ? null : pool[(int)(rng() * pool.Count) % pool.Count];
+        }
+
+        static readonly BuildingId[] CoreIds = System.Linq.Enumerable.ToArray(Buildings.Core);
+
         static int NextFreePlot(GameState state)
         {
-            for (int plot = 0; plot < 9; plot++)
+            for (int plot = 0; plot < 64; plot++)
             {
                 bool used = false;
                 foreach (var m in state.ExtraMines) if (m.Plot == plot) { used = true; break; }
