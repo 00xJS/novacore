@@ -37,6 +37,9 @@ namespace GalaxyRoyale.Sim.Systems
                 foreach (var kv in march.Ships)
                     fleetCounts[kv.Key] = (fleetCounts.TryGetValue(kv.Key, out var n) ? n : 0) + kv.Value;
             }
+            foreach (var exp in state.Expeditions) // out beyond the map (2026-09-30)
+                foreach (var kv in exp.Ships)
+                    fleetCounts[kv.Key] = (fleetCounts.TryGetValue(kv.Key, out var n) ? n : 0) + kv.Value;
             foreach (var hull in Ships.All)
             {
                 if (fleetCounts.TryGetValue(hull, out var count))

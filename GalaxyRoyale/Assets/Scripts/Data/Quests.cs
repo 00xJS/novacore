@@ -35,6 +35,7 @@ namespace GalaxyRoyale.Data
         ItemsUsed,      // items used from the inventory
         ClanJoined,     // in a clan (joined or founded)
         MarketTrades,   // trades on the galactic market
+        Expeditions,    // expeditions come home (2026-09-30)
     }
 
     public sealed class QuestDef
@@ -238,6 +239,13 @@ namespace GalaxyRoyale.Data
                 Detail = "Trade one resource for another on the market (MORE › MARKET, or the Exchange Terminal).",
                 Goal = QuestGoal.MarketTrades, Target = 1,
                 Reward = new ResourceBag(4000, 3000, 1500),
+            },
+            new QuestDef
+            {
+                Title = "Beyond the Map",
+                Detail = "Open MORE › EXPLORE and send a fleet on an expedition. Halfway there, you'll make the call.",
+                Goal = QuestGoal.Expeditions, Target = 1,
+                Reward = new ResourceBag(5000, 3500, 1800),
             },
             new QuestDef
             {

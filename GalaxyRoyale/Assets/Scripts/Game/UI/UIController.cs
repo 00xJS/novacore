@@ -525,6 +525,7 @@ namespace GalaxyRoyale.Game.UI
             MiniFab(Icon.Warning, "BOSS", OpenBoss);
             _clanFab = MiniFab(Icon.Pact, "CLAN", OpenClan);
             MiniFab(Icon.Rotate, "MARKET", OpenMarket);
+            _exploreFab = MiniFab(Icon.Compass, "EXPLORE", () => ExpeditionsPanel.Open(_ctx)); // expeditions (2026-09-30)
             // QUESTS took AWARDS' place (user 2026-09-29); awards stay under Profile › TITLES & AWARDS.
             MiniFab(Icon.Star, "QUESTS", () => QuestPanel.Open(_ctx));
             _eventsFab = MiniFab(Icon.Bolt, "EVENTS", () => OpenEvents());
@@ -532,6 +533,8 @@ namespace GalaxyRoyale.Game.UI
             MiniFab(Icon.Chart, "RANK", () => OpenRankings());
             _root.Add(_moreMenu);
         }
+
+        Button? _exploreFab;
 
         public bool MoreOpen => _moreOpen;
 
@@ -1075,6 +1078,21 @@ namespace GalaxyRoyale.Game.UI
                     Toast($"First Lv {first.CampLevel} camp beaten: bonus +{UiTheme.FmtAmount(first.BonusMilli.Total)} " +
                           $"sent home · +{first.DarkMatter} DM", Icon.Trophy, UiTheme.Energy);
                     break;
+                // Expeditions (2026-09-30).
+                case ExpeditionMoment moment:
+                    Toast($"Your {Expeditions.Def(moment.Kind).Name} expedition needs your call. MORE › EXPLORE",
+                        Icon.Compass, UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Alert, Haptic.Light);
+                    break;
+                case ExpeditionReturned back:
+                {
+                    var log = back.Log;
+                    string relic = log.Relic is { } r ? $" · a {Relics.Def(r).Name}" : "";
+                    Toast($"{Expeditions.Def(log.Kind).Name}: home with +{UiTheme.FmtAmount(log.LootMilli.Total)} · +{log.DarkMatter} DM{relic}" +
+                          (log.ShipsLost > 0 ? $" · {log.ShipsLost:N0} ships lost" : ""), Icon.Compass,
+                        log.ShipsLost > 0 ? UiTheme.Energy : UiTheme.Good);
+                    break;
+                }
                 // The Citadel (2026-09-30).
                 case TerraformStageDone done:
                     Toast($"Terraforming: {TerraformSystem.Name(done.Path)} stage {done.Stage} complete · " +
@@ -1273,7 +1291,9 @@ namespace GalaxyRoyale.Game.UI
                 bool daily = DailyObjectives.AnyClaimable(state);
                 bool eventReady = EventSystem.CanClaim(state);
                 bool supplies = state.ClanSupplyRuns > 0 || state.ClanInviteId != 0;
-                Widgets.SetBorder(_moreFab, daily || eventReady || supplies ? UiTheme.Good : UiTheme.Accent, 2f);
+                bool call = state.Expeditions.Exists(e => e.Choice < 0 && state.Tick >= e.MidTick);
+                Widgets.SetBorder(_moreFab, daily || eventReady || supplies || call ? UiTheme.Good : UiTheme.Accent, 2f);
+                if (_exploreFab != null) Widgets.SetBorder(_exploreFab, call ? UiTheme.Good : UiTheme.Stroke, 2f);
                 Widgets.SetBorder(_dailyFab, daily ? UiTheme.Good : UiTheme.Stroke, 2f);
                 Widgets.SetBorder(_eventsFab, eventReady ? UiTheme.Good : UiTheme.Stroke, 2f);
                 Widgets.SetBorder(_clanFab, supplies ? UiTheme.Good : UiTheme.Stroke, 2f);

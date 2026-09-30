@@ -349,6 +349,7 @@ namespace GalaxyRoyale.Sim
         // The Citadel (2026-09-30).
         public int MissileKills;
         public int ContractsDone;
+        public int ExpeditionsDone;
     }
 
     /// <summary>Your mark on the galactic market (MarketSystem): how far your own
@@ -445,6 +446,12 @@ namespace GalaxyRoyale.Sim
         public int SiloReadyTick;
         /// <summary>Trade Consulate contracts already taken (their codes, recent boards only).</summary>
         public HashSet<int> ContractsTaken = new();
+        /// <summary>Expeditions (2026-09-30): out now, the recent results, the boards' taken
+        /// destinations, and the id counter.</summary>
+        public List<Systems.Expedition> Expeditions = new();
+        public List<Systems.ExpeditionLog> ExpeditionLog = new();
+        public HashSet<int> ExpeditionsTaken = new();
+        public int NextExpeditionId;
         public string EventSiteId = "";
         public int PendingNova = -1;
         /// <summary>Bounty Board (2026-09-30): the marked commander for event instance

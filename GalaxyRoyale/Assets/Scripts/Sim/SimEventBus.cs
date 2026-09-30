@@ -86,6 +86,10 @@ namespace GalaxyRoyale.Sim
     public sealed record SiloFired(int Destroyed, string Attacker) : SimEvent;
     /// <summary>A Trade Consulate delivery landed: its payout rides home (milli + DM).</summary>
     public sealed record ContractDelivered(string Client, ResourceBag PayMilli, int DarkMatter) : SimEvent;
+    /// <summary>Expeditions (2026-09-30): one reached its halfway moment (a choice waits),
+    /// and one came home.</summary>
+    public sealed record ExpeditionMoment(int Id, ExpeditionKind Kind) : SimEvent;
+    public sealed record ExpeditionReturned(Systems.ExpeditionLog Log) : SimEvent;
 
     public sealed class SimEventBus
     {

@@ -111,6 +111,7 @@ namespace GalaxyRoyale.Game
                     case "daily": ui.OpenDaily(); break;
                     case "queues": ui.OpenQueues(); break;
                     case "shop": ui.OpenShop(); break;
+                    case "explore": UI.ExpeditionsPanel.Open(ctx); break;
                     case "darkmatter": ui.OpenDarkMatterShop(); break;
                     case "research": ui.OpenResearch(); break;
                     case "profile": ui.OpenProfile(); break;
