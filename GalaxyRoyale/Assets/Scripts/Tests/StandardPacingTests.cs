@@ -5,7 +5,10 @@
 // keep both build queues busy (energy first, then production, then the rest,
 // with the Command Center when it caps them), research, keep haulers
 // gathering from the nearest fields, and scout + raid pirate camps the
-// forecast says they can beat. The timeline (PACE lines in the test output)
+// forecast says they can beat. Since the 2026-09-30 balance pass they also
+// open supply drops, survey the Wilds, bring Haulers on raids, keep a Home
+// Guard docked and follow Act II of the Commander's Path.
+// The timeline (PACE lines in the test output)
 // shows when each milestone lands and how long the queues sat waiting on
 // resources — the dead zones a balance pass looks for.
 using System;
@@ -36,7 +39,8 @@ namespace GalaxyRoyale.Sim.Tests
             public int LongestStarvedStreakSec, StarvedStreakSec;
             public int CampsRaided, GatherTrips;
             // Where the week's resources came from and went (whole units, per day).
-            public readonly long[] MinedByDay = new long[8], GatheredByDay = new long[8], LootedByDay = new long[8];
+            public readonly long[] MinedByDay = new long[8], GatheredByDay = new long[8], LootedByDay = new long[8],
+                SupplyByDay = new long[8];
             public readonly long[] BuildSpendByDay = new long[8], ResearchSpendByDay = new long[8], ShipSpendByDay = new long[8];
             public readonly Dictionary<int, MarchMission> MissionOf = new();
             /// <summary>Why the quest's first battle couldn't launch, first time seen (debug).</summary>
@@ -90,7 +94,8 @@ namespace GalaxyRoyale.Sim.Tests
             TestContext.Out.WriteLine("PACE starved check-ins by day: " + string.Join("  ",
                 Enumerable.Range(0, 7).Select(d => $"d{d}:{pace.StarvedChecksByDay[d]}/{pace.ChecksByDay[d]}")));
             string Days(long[] v) => string.Join(" ", v.Take(7).Select(x => UiK(x)));
-            TestContext.Out.WriteLine($"PACE income/day  mined [{Days(pace.MinedByDay)}]  gathered [{Days(pace.GatheredByDay)}]  looted [{Days(pace.LootedByDay)}]");
+            TestContext.Out.WriteLine($"PACE income/day  mined [{Days(pace.MinedByDay)}]  gathered [{Days(pace.GatheredByDay)}]  looted [{Days(pace.LootedByDay)}]  supply [{Days(pace.SupplyByDay)}]");
+            TestContext.Out.WriteLine($"PACE home guard at the end: +{ResourceSystem.HomeGuardBonus(s) * 100:0}% production · wilds surveys {Surveys(s)} · camp levels first-cleared {string.Join(",", s.CampFirstClears)}");
             TestContext.Out.WriteLine($"PACE spend/day  buildings [{Days(pace.BuildSpendByDay)}]  research [{Days(pace.ResearchSpendByDay)}]  ships [{Days(pace.ShipSpendByDay)}]");
             if (pace.QuestFightBlocks.Count > 0)
                 TestContext.Out.WriteLine($"PACE first-blood blocked: {string.Join(" | ", pace.QuestFightBlocks)}");
@@ -102,8 +107,8 @@ namespace GalaxyRoyale.Sim.Tests
             // (First Blood had been grounded for two days by helium), CC 9 by
             // day 5, 17 camps raided, and mid-game saving stretches of up to ~7 h
             // (a CC 8-9 upgrade costs 3-4 h of income) while gathering continues.
-            Assert.AreEqual(Quests.Chain.Count, s.QuestStep, "the Commander's Path gets finished");
-            Assert.Less(pace.QuestsAt.Last().tick, Day, "…on the first day — no quest may stall on the honest start");
+            Assert.AreEqual(Quests.Chain.Count, s.QuestStep, "both acts of the Commander's Path get finished in the week");
+            Assert.Less(pace.QuestsAt[Quests.ActOneSteps - 1].tick, Day, "Act I on the first day — no quest may stall on the honest start");
             Assert.GreaterOrEqual(s.Buildings[BuildingId.CommandCenter].Level, 8, "a diligent week reaches CC 8+");
             Assert.Less(pace.LongestStarvedStreakSec, 8 * Hour,
                 "no awake stretch of a full working day with nothing affordable to build");
@@ -122,6 +127,8 @@ namespace GalaxyRoyale.Sim.Tests
             while (QuestSystem.Current(s) != null && QuestSystem.Claim(s).Ok)
                 pace.QuestsAt.Add((s.QuestStep - 1, s.Tick));
             EventSystem.Claim(s);
+            Chores(s);
+            if (SupplySystem.Collect(s) is { } crate) pace.SupplyByDay[day] += crate.Total / 1000;
 
             long before = s.Resources.Total;
             while (s.BuildQueue.Count < BuildingSystem.BuildSlots(s))
@@ -139,6 +146,7 @@ namespace GalaxyRoyale.Sim.Tests
             before = s.Resources.Total;
             Research(s);
             pace.ResearchSpendByDay[day] += (before - s.Resources.Total) / 1000;
+            Survey(s);
             before = s.Resources.Total;
             Shipyard(s);
             pace.ShipSpendByDay[day] += (before - s.Resources.Total) / 1000;
@@ -217,8 +225,39 @@ namespace GalaxyRoyale.Sim.Tests
             if (haulers < 2 + cc) { FleetSystem.QueueShips(s, HullId.Hauler, 1); return; }
             int fighters = Count(s, HullId.Fighter) + InFlight(s, HullId.Fighter);
             // Enough warships to take the rim's camps (their loot pays for them).
-            if (fighters < 10 + 4 * cc) FleetSystem.QueueShips(s, HullId.Fighter, 5);
+            if (fighters < 10 + 4 * cc) { FleetSystem.QueueShips(s, HullId.Fighter, 5); return; }
+            // With both build queues busy, grow the Home Guard toward its full bonus
+            // (the Path's ship goals ride on it).
+            if (s.BuildQueue.Count < BuildingSystem.BuildSlots(s)) return;
+            if (ResourceSystem.HomeGuardMight(s) < Balance.HomeGuardFullMight(cc))
+                FleetSystem.QueueShips(s, HullId.Fighter, 10);
         }
+
+        /// <summary>The Path's teaching steps, the way a player does them: one daily
+        /// objective a day (dailies live in the Unity layer, so the claim is counted
+        /// here), skill points spent, a speed-up used, a clan, a market trade.</summary>
+        static void Chores(GameState s)
+        {
+            if (s.Stats.DailiesClaimed <= s.Tick / Day && s.Stats.BattlesWon > 0) s.Stats.DailiesClaimed++;
+            foreach (var skill in CommanderSkills.All)
+                while (CommanderSystem.Learn(s, skill.Id).Ok) { }
+            var speed = s.Inventory.FirstOrDefault(e => Shop.ById.TryGetValue(e.ItemId, out var d) && d.Effect == ShopEffect.Speedup);
+            if (speed != null && s.BuildQueue.Count > 0 && ShopSystem.ConsumeItem(s, speed.ItemId).Ok)
+                s.BuildQueue[0].EndsAtTick = Math.Max(s.Tick, s.BuildQueue[0].EndsAtTick - 300);
+            if (s.ClanId == 0 && s.Buildings[BuildingId.CommandCenter].Level >= 5) s.ClanId = 1; // joins (no rivals here)
+            if (s.Stats.MarketTrades == 0 && s.Buildings[BuildingId.CommandCenter].Level >= 5)
+                MarketSystem.Trade(s, ResourceId.Gold, ResourceId.Helium, 500);
+        }
+
+        /// <summary>Chart the Wilds while both build queues are busy.</summary>
+        static void Survey(GameState s)
+        {
+            if (s.BuildQueue.Count < BuildingSystem.BuildSlots(s)) return;
+            int next = WildsSystem.NextSurvey(s, 0);
+            if (next >= 0) WildsSystem.StartSurvey(s, next);
+        }
+
+        static int Surveys(GameState s) => s.Wilds.Sectors.Values.Sum(x => x.Surveys);
 
         static void Scout(GameState s)
         {
@@ -236,15 +275,31 @@ namespace GalaxyRoyale.Sim.Tests
             var fleet = new Dictionary<HullId, int>();
             foreach (var kv in s.Ships)
                 if (kv.Key != HullId.Hauler && kv.Key != HullId.Probe && kv.Value > 0) fleet[kv.Key] = kv.Value;
+            // The raiding squad; the rest stays docked as the Home Guard.
+            int cc = s.Buildings[BuildingId.CommandCenter].Level;
+            if (fleet.TryGetValue(HullId.Fighter, out var nf)) fleet[HullId.Fighter] = Math.Min(nf, 10 + 4 * cc);
             if (fleet.Count == 0) return;
+            // A few Haulers fly along to carry the stockpile home (+50% hold on raids).
+            int haulers = Count(s, HullId.Hauler);
             foreach (var camp in Nearby(s).Where(n => n.Kind == NodeKind.Camp && !Cleared(s, n)).Take(6))
             {
                 var odds = BattleForecast.Predict(fleet, MarchSystem.CampGarrison(camp), ResearchSystem.CombatMods(s));
                 if (odds.Winner != BattleWinner.Attacker) continue;
                 long lossCost = odds.YourLossesByHull.Sum(kv => (long)Ships.Defs[kv.Key].Cost.Total * kv.Value);
                 bool questFight = QuestSystem.Current(s) is { Goal: QuestGoal.BattlesWon };
-                if (!questFight && MarchSystem.CampLoot(camp).Total / 1000 <= lossCost) continue;
+                if (!questFight && MarchSystem.CampLoot(s, camp).Total / 1000 <= lossCost) continue;
+                // Enough Haulers to carry the camp's stockpile home.
+                long perHauler = (long)(MarchSystem.EffCargoCap(s, new Dictionary<HullId, int> { [HullId.Hauler] = 1 })
+                    * (1 + Balance.RaidHaulerCargoBonus));
+                haulers = (int)Math.Min(haulers, MarchSystem.CampLoot(s, camp).Total / perHauler + 1);
+                if (haulers > 0) fleet[HullId.Hauler] = haulers;
                 var sent = MarchSystem.SendMarch(s, fleet, camp.Tile, MarchMission.Attack, out int id);
+                if (!sent.Ok && haulers > 0)
+                {
+                    // Short of helium for the Haulers too: the squad alone.
+                    fleet.Remove(HullId.Hauler);
+                    sent = MarchSystem.SendMarch(s, fleet, camp.Tile, MarchMission.Attack, out id);
+                }
                 if (sent.Ok)
                 {
                     pace.CampsRaided++;

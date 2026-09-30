@@ -41,6 +41,7 @@ namespace GalaxyRoyale.Sim.Systems
             if (slot == null || slot.Count < 1) return SimResult.Fail("None in inventory");
             slot.Count--;
             if (slot.Count == 0) state.Inventory.Remove(slot);
+            state.Stats.ItemsUsed++;
             return SimResult.Success;
         }
 
@@ -53,6 +54,7 @@ namespace GalaxyRoyale.Sim.Systems
             if (!applied.Ok) return applied;
             slot.Count--;
             if (slot.Count == 0) state.Inventory.Remove(slot);
+            state.Stats.ItemsUsed++;
             return SimResult.Success;
         }
 

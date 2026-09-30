@@ -51,6 +51,12 @@ namespace GalaxyRoyale.Data
         PointDefenseGrid,
         OrbitalBatteries,
         PlanetaryDeflectors,
+        // Tier 3, past Research Lab 10 (balance pass 2026-09-30): research ran dry
+        // mid-game, and levels stalled with it.
+        DeepSpaceMining,
+        SubspaceNavigation,
+        AdaptiveShielding,
+        CommandDoctrine,
     }
 
     public enum TechCategory { Economy, Logistics, Military, Industry, Defense }
@@ -74,6 +80,7 @@ namespace GalaxyRoyale.Data
         DefHpMult,         // +% durability of ships defending the home colony
         DefShieldMult,     // +% shields of ships defending the home colony
         OrbitalBattery,    // planetary guns: Balance.BatteryDamagePerLevel per level, every round
+        XpMult,            // +% commander XP earned
     }
 
     public readonly struct TechRequirement
@@ -125,6 +132,7 @@ namespace GalaxyRoyale.Data
             TechId.OrbitalAssembly,
             TechId.BastionHangars, TechId.PointDefenseGrid,
             TechId.OrbitalBatteries, TechId.PlanetaryDeflectors,
+            TechId.DeepSpaceMining, TechId.SubspaceNavigation, TechId.AdaptiveShielding, TechId.CommandDoctrine,
         };
 
         public static readonly IReadOnlyList<TechCategory> Categories = new[]
@@ -550,6 +558,62 @@ namespace GalaxyRoyale.Data
                 TimeGrowth = 1.5f,
                 LabLevelReq = 5,
                 Requires = new TechRequirement(TechId.BastionHangars, 5),
+            },
+            // ---- tier 3: Research Lab 10+ ----
+            [TechId.DeepSpaceMining] = new TechDef
+            {
+                Name = "Deep-Space Mining",
+                Category = TechCategory.Economy,
+                Effect = TechEffectKind.ProdMultiplier,
+                PerLevel = 0.05f,
+                MaxLevel = 10,
+                BaseCost = new ResourceBag(3000, 2200, 800),
+                CostGrowth = 1.6f,
+                BaseTimeSec = 1800,
+                TimeGrowth = 1.5f,
+                LabLevelReq = 10,
+                Requires = new TechRequirement(TechId.DeepCoreDrilling, 5),
+            },
+            [TechId.SubspaceNavigation] = new TechDef
+            {
+                Name = "Subspace Navigation",
+                Category = TechCategory.Logistics,
+                Effect = TechEffectKind.MarchSpeedMult,
+                PerLevel = 0.04f,
+                MaxLevel = 10,
+                BaseCost = new ResourceBag(2500, 2500, 1200),
+                CostGrowth = 1.6f,
+                BaseTimeSec = 1800,
+                TimeGrowth = 1.5f,
+                LabLevelReq = 11,
+                Requires = new TechRequirement(TechId.IonThrusters, 10),
+            },
+            [TechId.AdaptiveShielding] = new TechDef
+            {
+                Name = "Adaptive Shielding",
+                Category = TechCategory.Military,
+                Effect = TechEffectKind.ShieldMult,
+                PerLevel = 0.05f,
+                MaxLevel = 10,
+                BaseCost = new ResourceBag(3500, 3000, 1200),
+                CostGrowth = 1.6f,
+                BaseTimeSec = 2100,
+                TimeGrowth = 1.5f,
+                LabLevelReq = 12,
+                Requires = new TechRequirement(TechId.DeflectorArray, 5),
+            },
+            [TechId.CommandDoctrine] = new TechDef
+            {
+                Name = "Command Doctrine",
+                Category = TechCategory.Industry,
+                Effect = TechEffectKind.XpMult,
+                PerLevel = 0.05f,
+                MaxLevel = 10,
+                BaseCost = new ResourceBag(2000, 2000, 600),
+                CostGrowth = 1.55f,
+                BaseTimeSec = 1500,
+                TimeGrowth = 1.5f,
+                LabLevelReq = 10,
             },
         };
     }

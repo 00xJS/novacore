@@ -44,6 +44,7 @@ namespace GalaxyRoyale.Game
             if (!res.Ok) return (false, res.Reason ?? "Cannot launch");
 
             // Aggression drops your own Aegis Shield (user rule) — attack OR defend, not both.
+            bool protectionEnded = ProtectionSystem.Active(state);
             bool shieldBroke = BotSystem.BreakShieldForAggression(state);
 
             var march = state.Marches.Find(m => m.Id == marchId)!;
@@ -68,7 +69,8 @@ namespace GalaxyRoyale.Game
             return (true,
                 $"Fleet away — battle on arrival in {UiTheme.FmtDuration(arrivesInSec)}"
                 + (wings > 0 ? $" · {wings} clanmate{(wings == 1 ? "" : "s")} flying with you" : "")
-                + (shieldBroke ? " · your Aegis Shield dropped" : ""));
+                + (shieldBroke ? " · your Aegis Shield dropped" : "")
+                + (protectionEnded ? " · your beginner protection ended" : ""));
         }
 
         /// <summary>

@@ -912,7 +912,7 @@ namespace GalaxyRoyale.Sim.Bots
                 && !ClanSystem.SameClanAsPlayer(player, bot) // clanmates never raid clanmates
                 && playerMight >= Difficulties.ShieldMight(difficulty)
                 && playerMight <= reachCap
-                && player.Buffs.ShieldUntilTick <= rollTick // Aegis Shield: untargetable
+                && !ProtectionSystem.Untargetable(player, rollTick) // Aegis Shield / beginner protection
                 && myPower >= (long)(EstimateDefensePower(player) * Difficulties.BeatabilityEdge(difficulty));
             if (playerEligible)
             {
@@ -1029,7 +1029,7 @@ namespace GalaxyRoyale.Sim.Bots
                 if (playerMight > reachCap) return false;  // not big enough yet — another day
                 if (playerMight < Difficulties.ShieldMight(difficulty)) { bot.FocusTargetId = -1; return false; }
                 if (rollTick < galaxy.NextInboundWindowTick) return true; // wait for a slot
-                if (player.Buffs.ShieldUntilTick > rollTick) return true; // wait out the Aegis
+                if (ProtectionSystem.Untargetable(player, rollTick)) return true; // wait out the Aegis / protection
                 // Revenge is patient: it waits until the fight is winnable.
                 if (myPower < (long)(EstimateDefensePower(player) * Difficulties.BeatabilityEdge(difficulty)))
                     return false;
@@ -1204,7 +1204,7 @@ namespace GalaxyRoyale.Sim.Bots
                 // Judged at the ARRIVAL tick: during offline catch-up player.Tick is
                 // already the END of the window, so a shield that covered the impact
                 // but lapsed before you reopened the app used to be ignored.
-                if (player.Buffs.ShieldUntilTick > atk.ArrivesAtTick)
+                if (player.Buffs.ShieldUntilTick > atk.ArrivesAtTick) // (protection can't start mid-flight)
                 {
                     foreach (var kv in atk.Ships)
                         bot.State.Ships[kv.Key] =
@@ -1621,6 +1621,9 @@ namespace GalaxyRoyale.Sim.Bots
         /// </summary>
         public static bool BreakShieldForAggression(GameState state)
         {
+            // Beginner protection ends too (balance pass 2026-09-30); the launch
+            // message is about the Aegis, so only a broken Aegis reports true.
+            ProtectionSystem.Break(state, null);
             if (state.Buffs.ShieldUntilTick <= state.Tick) return false;
             state.Buffs.ShieldUntilTick = 0;
             return true;

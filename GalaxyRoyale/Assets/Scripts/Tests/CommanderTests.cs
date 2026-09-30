@@ -237,6 +237,7 @@ namespace GalaxyRoyale.Sim.Tests
             {
                 var galaxy = BotSystem.CreateGalaxy(Spawn.GalaxySeed, Balance.HomeTile, 60);
                 var player = Fresh(difficulty);
+                player.Buffs.ProtectionUntilTick = 0; // an established colony
                 foreach (var id in Buildings.All) player.Buildings[id].Level = 4;
                 player.Resources = new ResourceBag(5_000_000, 5_000_000, 5_000_000).Milli();
                 var bus = new SimEventBus();

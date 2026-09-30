@@ -1067,6 +1067,19 @@ namespace GalaxyRoyale.Game.UI
                     GameAudio.Feedback(Sfx.Quest, Haptic.Success);
                     break;
                 }
+                // Balance pass 2026-09-30.
+                case CampFirstClear first:
+                    Toast($"First Lv {first.CampLevel} camp beaten: bonus +{UiTheme.FmtAmount(first.BonusMilli.Total)} " +
+                          $"sent home · +{first.DarkMatter} DM", Icon.Trophy, UiTheme.Energy);
+                    break;
+                case ProtectionEnded ended:
+                    Toast(ended.Reason switch
+                    {
+                        "cc" => "Beginner protection ended at Command Center 5: rivals can raid you now",
+                        "raid" => "Beginner protection ended: you raided another commander",
+                        _ => "Beginner protection ended: rivals can raid you now",
+                    }, Icon.Shield, UiTheme.Energy);
+                    break;
                 case AchievementUnlocked unlocked:
                 {
                     var a = unlocked.Achievement;
@@ -1559,8 +1572,12 @@ namespace GalaxyRoyale.Game.UI
 
             // Aegis Shield countdown — ticks down live next to the HQ coords.
             // (Plain text label: the runtime font tofu-boxes non-BMP emoji.)
+            // Beginner protection shows the same way (balance pass 2026-09-30).
             long shieldLeft = state.Buffs.ShieldUntilTick - state.Tick;
-            string shield = shieldLeft > 0 ? $"SHIELD {UiTheme.FmtDuration(shieldLeft)}" : "";
+            long protectLeft = ProtectionSystem.SecondsLeft(state);
+            string shield = shieldLeft > 0 ? $"SHIELD {UiTheme.FmtDuration(shieldLeft)}"
+                : protectLeft > 0 ? $"PROTECTED {UiTheme.FmtDuration(protectLeft)}" : "";
+            shieldLeft = Math.Max(shieldLeft, protectLeft);
             if (shield != _shieldCache)
             {
                 _shieldCache = shield;

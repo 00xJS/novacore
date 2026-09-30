@@ -74,9 +74,10 @@ namespace GalaxyRoyale.Sim.Tests
         [Test]
         public void HonestStart_EveryStepIsAffordable()
         {
-            // Walk the whole chain on a STANDARD wallet with zero production:
-            // pay each step's real cost, then collect its reward. The chain must
-            // never strand a new commander waiting on the mines.
+            // Walk Act I on a STANDARD wallet with zero production: pay each
+            // step's real cost, then collect its reward. It must never strand a
+            // new commander waiting on the mines. (Act II assumes a working
+            // colony; StandardPacingTests plays it.)
             var s = GameState.CreateNewGame(42, testMode: false);
             void Pay(ResourceBag milli, string what)
             {
@@ -86,7 +87,7 @@ namespace GalaxyRoyale.Sim.Tests
                 Assert.IsTrue(ResourceSystem.Spend(s, milli).Ok);
             }
 
-            while (QuestSystem.Current(s) is QuestDef quest)
+            while (s.QuestStep < Quests.ActOneSteps && QuestSystem.Current(s) is QuestDef quest)
             {
                 switch (quest.Goal)
                 {
@@ -123,8 +124,7 @@ namespace GalaxyRoyale.Sim.Tests
                 }
                 Assert.IsTrue(QuestSystem.Claim(s).Ok, quest.Title);
             }
-            Assert.AreEqual(Quests.Chain.Count, s.QuestStep);
-            Assert.IsNull(QuestSystem.Current(s));
+            Assert.AreEqual(Quests.ActOneSteps, s.QuestStep);
         }
 
         [Test]

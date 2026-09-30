@@ -206,8 +206,9 @@ namespace GalaxyRoyale.Data
             new TutorialStepDef
             {
                 Id = "done", Chapter = "TRAINING COMPLETE", Title = "YOU'RE READY",
-                Text = "Keep following the Commander's Path. The Commander's Handbook, in Settings under Help, explains " +
-                       "every system. Here's a parting gift: 1,500 gold, 1,000 quartz, 600 helium and 50 Dark Matter.",
+                Text = "Keep following the Commander's Path: its second act teaches the rest, from gathering and " +
+                       "the Wilds to clans and the market. Settings › Help has the Handbook. A parting gift: " +
+                       "1,500 gold, 1,000 quartz, 600 helium and 50 Dark Matter.",
                 Goal = TutorialGoal.Next,
             },
         };

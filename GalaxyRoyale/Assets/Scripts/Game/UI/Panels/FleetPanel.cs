@@ -40,6 +40,24 @@ namespace GalaxyRoyale.Game.UI
 
             var refreshers = new List<Action>();
 
+            // Home Guard (balance pass 2026-09-30): what the docked warships add.
+            var guard = Widgets.Text("", 11, UiTheme.Accent, bold: true);
+            guard.style.whiteSpace = WhiteSpace.Normal;
+            guard.style.marginTop = 6;
+            content.Add(guard);
+            string guardCache = "";
+            refreshers.Add(() =>
+            {
+                var s = ctx.State!;
+                long have = ResourceSystem.HomeGuardMight(s);
+                long full = Balance.HomeGuardFullMight(s.Buildings[BuildingId.CommandCenter].Level);
+                string text = $"HOME GUARD +{ResourceSystem.HomeGuardBonus(s) * 100:0.#}% production · " +
+                              (have >= full ? "full strength" : $"{have:N0} / {full:N0} might of warships docked");
+                if (text == guardCache) return;
+                guardCache = text;
+                guard.text = text;
+            });
+
             // ---- hangar rows: COLLAPSIBLE tier sections (user feedback: 23 hulls
             // was one long list). Ships.All is ordered so each ShipDef.Class is
             // contiguous; each class becomes a tap-to-toggle group. Tiers with no

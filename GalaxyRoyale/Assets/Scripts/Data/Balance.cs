@@ -17,7 +17,39 @@ namespace GalaxyRoyale.Data
         public const float TimeGrowth = 1.5f;   // time(L) = ceil(baseTime * 1.5^(L-1)) seconds
 
         public static int ProdPerHour(int baseVal, int L) =>
-            L < 1 ? 0 : (int)Math.Floor(baseVal * (double)L * Math.Pow(1.1, L - 1));
+            L < 1 ? 0 : (int)Math.Floor(baseVal * (double)L * Math.Pow(1.1, L - 1) * MineOutputMult(L));
+
+        /// <summary>Mines worth upgrading (balance pass 2026-09-30): in the pacing run
+        /// mines made a quarter of what gathering did, so an upgrade barely showed.
+        /// Output climbs to 2× the old curve by level 6 and stays there; level 1 is
+        /// unchanged. (2.5× overshot: mines out-earned gathering two to one.) The
+        /// players who check in least lean on mines the most.</summary>
+        public static double MineOutputMult(int L) => 1.0 + 1.0 * Math.Clamp((L - 1) / 5.0, 0.0, 1.0);
+
+        // Beginner protection (balance pass 2026-09-30): a new colony is off every
+        // rival's target list for its first two days, or until the Command Center
+        // reaches level 5, or until it raids another commander, whichever comes first.
+        public const int BeginnerProtectionSec = 48 * 3600;
+        public const int BeginnerProtectionEndsAtCc = 5;
+
+        // Supply drops (balance pass 2026-09-30): fleet command sends a crate every
+        // few hours for the Command Center to collect, a few stacking up while you're
+        // away. Each holds a spell of the colony's own mine output, so it keeps pace.
+        public const int SupplyDropEverySec = 4 * 3600;
+        public const int SupplyDropMaxStored = 3;
+        public const double SupplyDropHoursOfOutput = 0.6;
+        public const int SupplyDropFloor = 400;
+
+        // Home Guard (balance pass 2026-09-30): warships docked at home keep the
+        // colony safe enough to work harder — up to +15% production, full at
+        // 25 × CC² might of warships at home (CC 3 ≈ 55 fighters, CC 8 ≈ 16K of hulls).
+        public const float HomeGuardMaxBonus = 0.15f;
+        public static long HomeGuardFullMight(int ccLevel) => 25L * Math.Max(1, ccLevel) * Math.Max(1, ccLevel);
+
+        // Raids pay (balance pass 2026-09-30): Haulers flying with an attack carry
+        // this much more, and the first win over each camp level pays a bonus.
+        public const float RaidHaulerCargoBonus = 0.5f;
+        public static int CampFirstClearDarkMatter(int campLevel) => 25 * Math.Max(1, campLevel);
 
         public static int StorageBonus(int baseVal, int L) =>
             L < 1 ? 0 : (int)Math.Floor(baseVal * Math.Pow(1.8, L - 1));

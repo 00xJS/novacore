@@ -448,6 +448,7 @@ namespace GalaxyRoyale.Sim.Save
                     ["energyBoostUntilTick"] = (long)s.Buffs.EnergyBoostUntilTick,
                     ["extraResearchSlotUntilTick"] = (long)s.Buffs.ExtraResearchSlotUntilTick,
                     ["shieldUntilTick"] = (long)s.Buffs.ShieldUntilTick,
+                    ["protectionUntilTick"] = (long)s.Buffs.ProtectionUntilTick,
                 },
                 ["mailbox"] = Arr(s.Mailbox, EncodeMail),
                 ["nextReportId"] = (long)s.NextReportId,
@@ -530,6 +531,18 @@ namespace GalaxyRoyale.Sim.Save
                 txs.Sort(StringComparer.Ordinal);
                 root["purchases"] = Arr(txs, x => (object?)x);
             }
+            // Balance pass 2026-09-30: first camp clears and supply drops.
+            if (s.CampFirstClears.Count > 0)
+            {
+                var levels = new List<int>(s.CampFirstClears);
+                levels.Sort();
+                root["campFirstClears"] = Arr(levels, x => (object?)(long)x);
+            }
+            root["supply"] = new Dictionary<string, object?>
+            {
+                ["crates"] = (long)s.SupplyCrates,
+                ["nextTick"] = (long)s.NextSupplyDropTick,
+            };
             if (s.TutorialFlags.Count > 0)
             {
                 var flags = new List<string>(s.TutorialFlags);
@@ -746,6 +759,8 @@ namespace GalaxyRoyale.Sim.Save
                 // Optional (added mid-v17) — earlier v17 saves simply lack it.
                 ShieldUntilTick = buffs.TryGetValue("shieldUntilTick", out var sh) && sh != null
                     ? ToI32(sh) : 0,
+                ProtectionUntilTick = buffs.TryGetValue("protectionUntilTick", out var pr) && pr != null
+                    ? ToI32(pr) : 0,
             };
 
             s.Mailbox = new List<MailItem>();
@@ -781,12 +796,24 @@ namespace GalaxyRoyale.Sim.Save
                 BossDamage = stats.TryGetValue("bossDamage", out var bd) && bd != null ? ToI64(bd) : 0,
                 BossFinalBlows = Opt("bossFinalBlows"),
                 MarketTrades = Opt("marketTrades"),
+                GatheredMilli = stats.TryGetValue("gatheredMilli", out var gm) && gm != null ? ToI64(gm) : 0,
+                DailiesClaimed = Opt("dailiesClaimed"),
+                SupplyDropsCollected = Opt("supplyDrops"),
+                ItemsUsed = Opt("itemsUsed"),
             };
 
             if (d.TryGetValue("achievements", out var ach) && ach != null)
                 foreach (var raw in AsArr(ach, "achievements"))
                     if (raw is string id) s.Achievements.Add(id);
             s.TutorialStep = d.TryGetValue("tutorial", out var tut) && tut != null ? ToI32(tut) : -1;
+            if (d.TryGetValue("campFirstClears", out var cfc) && cfc != null)
+                foreach (var raw in AsArr(cfc, "campFirstClears"))
+                    if (raw != null) s.CampFirstClears.Add(ToI32(raw));
+            if (d.TryGetValue("supply", out var sup) && sup is Dictionary<string, object?> supply)
+            {
+                s.SupplyCrates = supply.TryGetValue("crates", out var cr) && cr != null ? ToI32(cr) : 0;
+                s.NextSupplyDropTick = supply.TryGetValue("nextTick", out var nt) && nt != null ? ToI32(nt) : 0;
+            }
             if (d.TryGetValue("purchases", out var pu) && pu != null)
                 foreach (var raw in AsArr(pu, "purchases"))
                     if (raw is string tx) s.CreditedTransactions.Add(tx);
@@ -1188,6 +1215,10 @@ namespace GalaxyRoyale.Sim.Save
             Opt("bossDamage", st.BossDamage);
             Opt("bossFinalBlows", st.BossFinalBlows);
             Opt("marketTrades", st.MarketTrades);
+            Opt("gatheredMilli", st.GatheredMilli);
+            Opt("dailiesClaimed", st.DailiesClaimed);
+            Opt("supplyDrops", st.SupplyDropsCollected);
+            Opt("itemsUsed", st.ItemsUsed);
             return d;
         }
 
@@ -1452,6 +1483,10 @@ namespace GalaxyRoyale.Sim.Save
             TechId.PointDefenseGrid => "pointDefenseGrid",
             TechId.OrbitalBatteries => "orbitalBatteries",
             TechId.PlanetaryDeflectors => "planetaryDeflectors",
+            TechId.DeepSpaceMining => "deepSpaceMining",
+            TechId.SubspaceNavigation => "subspaceNavigation",
+            TechId.AdaptiveShielding => "adaptiveShielding",
+            TechId.CommandDoctrine => "commandDoctrine",
             _ => throw new InvalidOperationException($"unknown TechId {id}"),
         };
 
@@ -1487,6 +1522,10 @@ namespace GalaxyRoyale.Sim.Save
             "pointDefenseGrid" => TechId.PointDefenseGrid,
             "orbitalBatteries" => TechId.OrbitalBatteries,
             "planetaryDeflectors" => TechId.PlanetaryDeflectors,
+            "deepSpaceMining" => TechId.DeepSpaceMining,
+            "subspaceNavigation" => TechId.SubspaceNavigation,
+            "adaptiveShielding" => TechId.AdaptiveShielding,
+            "commandDoctrine" => TechId.CommandDoctrine,
             _ => throw new FormatException($"unknown tech '{s}'"),
         };
 

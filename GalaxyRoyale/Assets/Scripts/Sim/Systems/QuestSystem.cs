@@ -21,6 +21,18 @@ namespace GalaxyRoyale.Sim.Systems
                 QuestGoal.ResearchLevel => ResearchSystem.TechLevel(state, quest.Tech),
                 QuestGoal.BattlesWon => state.Stats.BattlesWon,
                 QuestGoal.CampScouted => CampScouted(state) ? 1 : 0,
+                QuestGoal.CampsCleared => state.Stats.CampsCleared,
+                QuestGoal.ShipsBuilt => state.Stats.ShipsBuilt,
+                QuestGoal.WildsSurveyed => WildsSurveys(state),
+                QuestGoal.SupplyDrops => state.Stats.SupplyDropsCollected,
+                QuestGoal.CommanderLevel => state.Commander.Level,
+                QuestGoal.Gathered => (int)Math.Min(int.MaxValue, state.Stats.GatheredMilli / 1000),
+                QuestGoal.ExtraMines => state.ExtraMines.Count,
+                QuestGoal.DailiesClaimed => state.Stats.DailiesClaimed,
+                QuestGoal.SkillsLearned => SkillRanks(state),
+                QuestGoal.ItemsUsed => state.Stats.ItemsUsed,
+                QuestGoal.ClanJoined => state.ClanId != 0 ? 1 : 0,
+                QuestGoal.MarketTrades => state.Stats.MarketTrades,
                 _ => 0,
             };
             return (Math.Min(have, quest.Target), quest.Target);
@@ -47,6 +59,20 @@ namespace GalaxyRoyale.Sim.Systems
                     state.Ships[kv.Key] = (state.Ships.TryGetValue(kv.Key, out var n) ? n : 0) + kv.Value;
             state.QuestStep++;
             return SimResult.Success;
+        }
+
+        static int SkillRanks(GameState state)
+        {
+            int n = 0;
+            foreach (var r in state.Commander.Skills.Values) n += r;
+            return n;
+        }
+
+        static int WildsSurveys(GameState state)
+        {
+            int n = 0;
+            foreach (var sector in state.Wilds.Sectors.Values) n += sector.Surveys;
+            return n;
         }
 
         /// <summary>A pirate camp's garrison scanned: camp recon files a Camp-kind
