@@ -20,9 +20,10 @@ namespace GalaxyRoyale.Sim.Tests
         [Test]
         public void Rotation_FollowsGalaxyTime()
         {
-            // Eleven days since the map events (2026-09-30): the original four with
-            // a map event after each.
-            Assert.AreEqual(11 * 24 * Hour, EventSystem.CycleSec, "the rotation spans eleven days");
+            // Two weeks since the map and rival events (2026-09-30): the original
+            // four with a map event after each, then the Bounty Board and the
+            // Core Tournament.
+            Assert.AreEqual(14 * 24 * Hour, EventSystem.CycleSec, "the rotation spans two weeks");
             Assert.AreEqual(GalaxyEventKind.None, EventSystem.Current(0).Def.Kind, "a new galaxy starts quiet");
             Assert.AreEqual(GalaxyEventKind.GoldRush, EventSystem.Current(LeadIn).Def.Kind);
             Assert.AreEqual(GalaxyEventKind.CometPass, EventSystem.Current(LeadIn + 48 * Hour).Def.Kind);
@@ -32,9 +33,11 @@ namespace GalaxyRoyale.Sim.Tests
             Assert.AreEqual(GalaxyEventKind.IonStorm, EventSystem.Current(LeadIn + 168 * Hour).Def.Kind);
             Assert.AreEqual(GalaxyEventKind.WarGames, EventSystem.Current(LeadIn + 192 * Hour).Def.Kind);
             Assert.AreEqual(GalaxyEventKind.Supernova, EventSystem.Current(LeadIn + 240 * Hour).Def.Kind);
+            Assert.AreEqual(GalaxyEventKind.BountyBoard, EventSystem.Current(LeadIn + 264 * Hour).Def.Kind);
+            Assert.AreEqual(GalaxyEventKind.CoreTournament, EventSystem.Current(LeadIn + 288 * Hour).Def.Kind);
             var nextRound = EventSystem.Current(LeadIn + EventSystem.CycleSec + 5);
             Assert.AreEqual(GalaxyEventKind.GoldRush, nextRound.Def.Kind);
-            Assert.AreEqual(8, nextRound.Instance, "every occurrence has its own number");
+            Assert.AreEqual(10, nextRound.Instance, "every occurrence has its own number");
             Assert.AreEqual(LeadIn + EventSystem.CycleSec, nextRound.StartTick);
             Assert.AreEqual(GalaxyEventKind.GoldRush, EventSystem.Next(0).Def.Kind, "the chip can say what's first");
         }
@@ -66,9 +69,11 @@ namespace GalaxyRoyale.Sim.Tests
             Assert.IsTrue(EventSystem.CanClaim(s));
             long gold = s.Resources.Gold;
             int dm = s.Premium.DarkMatter;
-            Assert.IsTrue(EventSystem.Claim(s).Ok);
             var def = EventSystem.Current(s.Tick).Def;
-            Assert.AreEqual(gold + def.Reward.Gold * 1000L, s.Resources.Gold);
+            var reward = EventSystem.RewardMilli(s, def);
+            Assert.Greater(reward.Gold, def.Reward.Gold * 1000L, "it scales with the colony's mines");
+            Assert.IsTrue(EventSystem.Claim(s).Ok);
+            Assert.AreEqual(gold + reward.Gold, s.Resources.Gold);
             Assert.AreEqual(dm + def.RewardDM, s.Premium.DarkMatter);
             Assert.AreEqual(1, s.Stats.EventsCompleted);
             Assert.IsFalse(EventSystem.Claim(s).Ok, "one reward per event");

@@ -41,6 +41,19 @@ namespace GalaxyRoyale.Sim.Tests
         static GameState RoundTrip(GameState s) => SaveCodec.Decode(SaveCodec.Encode(SaveManager.Wrap(s, 1000))).State;
 
         [Test]
+        public void EventRewards_KeepPaceWithTheColony()
+        {
+            var s = GameState.CreateNewGame(42, testMode: false);
+            var def = GalaxyEvents.Rotation[0];
+            long small = EventSystem.RewardMilli(s, def).Total;
+            foreach (var id in new[] { BuildingId.GoldMine, BuildingId.QuartzExtractor, BuildingId.HeliumRefinery })
+                s.Buildings[id].Level = 15;
+            long grown = EventSystem.RewardMilli(s, def).Total / 1000;
+            Assert.Greater(grown, 200_000, "a grown colony's event pays hundreds of thousands");
+            Assert.Greater(grown * 1000, small * 10);
+        }
+
+        [Test]
         public void EveryMapEvent_IsInTheRotation()
         {
             foreach (var k in new[] { GalaxyEventKind.CometPass, GalaxyEventKind.TradeCaravan,

@@ -70,6 +70,14 @@ namespace GalaxyRoyale.Sim
     public sealed record CaravanEscorted(ResourceBag PayMilli, int DarkMatter) : SimEvent;
     /// <summary>The Supernova went off; <paramref name="ShipsLost"/> of yours were still in the sector.</summary>
     public sealed record SupernovaDetonated(TileXY Centre, int ShipsLost) : SimEvent;
+    /// <summary>Rival events (2026-09-30): a bounty went up on Name, who lives at Tile.</summary>
+    public sealed record BountyPosted(string Name, TileXY Tile) : SimEvent;
+    /// <summary>A rival (Hunter) beat you to the bounty on Target.</summary>
+    public sealed record BountyTaken(string Hunter, string Target) : SimEvent;
+    /// <summary>The Core Tournament began (Began) or ended; Won when you held the Core at the end.</summary>
+    public sealed record CoreTournament(bool Began, bool Won, ResourceBag PrizeMilli, int DarkMatter, string Holder) : SimEvent;
+    /// <summary>The Siege Dreadnought shelled your colony: what it destroyed (milli).</summary>
+    public sealed record SiegeShelled(ResourceBag LostMilli) : SimEvent;
 
     public sealed class SimEventBus
     {

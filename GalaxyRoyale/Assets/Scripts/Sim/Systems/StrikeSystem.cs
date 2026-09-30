@@ -280,6 +280,8 @@ namespace GalaxyRoyale.Sim.Systems
                 state.Resources.Add(yourLoot);
             }
 
+            // Bounty Board (rival events, 2026-09-30): a win on the marked commander pays.
+            var bounty = won ? BountySystem.Claim(state, bot.Id) : null;
             if (won)
             {
                 state.Stats.BattlesWon++;
@@ -303,7 +305,8 @@ namespace GalaxyRoyale.Sim.Systems
                 Target = tile,
                 Subject = report.Winner switch
                 {
-                    BattleWinner.Attacker => $"{(escorts.Count > 0 ? "Joint strike" : "Raid")} victory — {snapshot.CommanderName}",
+                    BattleWinner.Attacker => $"{(escorts.Count > 0 ? "Joint strike" : "Raid")} victory — {snapshot.CommanderName}"
+                        + (bounty is { } b ? $" · bounty collected: +{b.pay.Total / 1000:N0} and {b.darkMatter} DM" : ""),
                     BattleWinner.Defender => $"{(escorts.Count > 0 ? "Joint strike" : "Raid")} repelled — {snapshot.CommanderName}",
                     _ => $"{(escorts.Count > 0 ? "Joint strike" : "Raid")} stalemate — {snapshot.CommanderName}",
                 },

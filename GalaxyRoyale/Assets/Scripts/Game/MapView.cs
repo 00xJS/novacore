@@ -1624,7 +1624,7 @@ namespace GalaxyRoyale.Game
                 if (state.Tick != _bossLabelTick)
                 {
                     _bossLabelTick = state.Tick;
-                    _bossLabelText = $"PIRATE DREADNOUGHT\n{System.Math.Round(GalaxyRoyale.Sim.Systems.BossSystem.HullShare(g.Boss) * 100):0}% hull";
+                    _bossLabelText = $"{BossSystem.Name(g.Boss.Variant).ToUpperInvariant()}\n{System.Math.Round(BossSystem.HullShare(g.Boss) * 100):0}% hull";
                 }
                 _labels.Place(LabelAnchor(_boss.position, _boss.localScale.y * 0.6f), _bossLabelText,
                     12, BossLabelColor, above: true, declutter: false);
@@ -1676,7 +1676,9 @@ namespace GalaxyRoyale.Game
         void SyncBoss(float t)
         {
             var boss = _ctx.Bots?.Boss;
-            if (boss == null || !boss.Active || _root == null)
+            // A cloaked Stealth Dreadnought isn't drawn (rival events, 2026-09-30).
+            if (boss == null || !boss.Active || _root == null
+                || (_ctx.State is { } ps && !BossSystem.Revealed(ps, _ctx.Bots!)))
             {
                 if (_boss != null) { Destroy(_boss.gameObject); _boss = null; }
                 return;

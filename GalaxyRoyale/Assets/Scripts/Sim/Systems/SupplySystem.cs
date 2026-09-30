@@ -24,24 +24,11 @@ namespace GalaxyRoyale.Sim.Systems
         /// <summary>What one crate holds right now (milli-units).</summary>
         public static ResourceBag CrateContents(GameState s)
         {
-            var bag = new ResourceBag();
-            foreach (var id in Buildings.All) AddOutput(bag, id, s.Buildings[id].Level);
-            foreach (var mine in s.ExtraMines) AddOutput(bag, MineTypes.ToBuildingId(mine.Type), mine.Level);
+            var hour = ResourceSystem.MineOutputPerHour(s);
+            double h = Balance.SupplyDropHoursOfOutput;
             long floor = Balance.SupplyDropFloor * 1000L;
-            return new ResourceBag(Math.Max(floor, bag.Gold), Math.Max(floor, bag.Quartz), Math.Max(floor / 2, bag.Helium));
-        }
-
-        static void AddOutput(ResourceBag bag, BuildingId id, int level)
-        {
-            var def = Buildings.Defs[id];
-            if (def.Kind != BuildingKind.Producer || level < 1) return;
-            long milli = (long)(Balance.ProdPerHour(def.BaseProdPerHour, level) * 1000.0 * Balance.SupplyDropHoursOfOutput);
-            switch (def.Resource)
-            {
-                case "gold": bag.Gold += milli; break;
-                case "quartz": bag.Quartz += milli; break;
-                case "helium": bag.Helium += milli; break;
-            }
+            return new ResourceBag(Math.Max(floor, (long)(hour.Gold * h)), Math.Max(floor, (long)(hour.Quartz * h)),
+                Math.Max(floor / 2, (long)(hour.Helium * h)));
         }
 
         /// <summary>Open every waiting crate. Returns what they held (milli), or null if none waited.</summary>

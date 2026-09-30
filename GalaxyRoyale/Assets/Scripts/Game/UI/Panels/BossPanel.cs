@@ -20,6 +20,9 @@ namespace GalaxyRoyale.Game.UI
             var boss = galaxy.Boss;
             if (!boss.Active)
                 return $"Next one in {UiTheme.FmtLong(Math.Max(0, boss.NextVisitTick - state.Tick))}";
+            if (!BossSystem.Revealed(state, galaxy))
+                return $"cloaked for {UiTheme.FmtLong(boss.ArrivedTick + BossSystem.StealthCloakSec - state.Tick)} · leaves in " +
+                       UiTheme.FmtLong(Math.Max(0, boss.LeavesTick - state.Tick));
             return $"{Pct(BossSystem.HullShare(boss))} hull · leaves in {UiTheme.FmtLong(Math.Max(0, boss.LeavesTick - state.Tick))}";
         }
 
@@ -28,7 +31,7 @@ namespace GalaxyRoyale.Game.UI
             var ui = UIController.Instance!;
             if (ctx.State == null || ctx.Bots == null) return;
             Label? sub = null;
-            var strip = CalloutChrome.Strip("PIRATE DREADNOUGHT", Status(ctx.State, ctx.Bots), CalloutChrome.Close, l => sub = l,
+            var strip = CalloutChrome.Strip(BossSystem.Name(ctx.Bots.Boss.Variant).ToUpperInvariant(), Status(ctx.State, ctx.Bots), CalloutChrome.Close, l => sub = l,
                 CalloutChrome.Act("STRIKE", () => { CalloutChrome.Close(); Open(ctx); }, icon: Icon.Swords));
             strip.schedule.Execute(() => { if (sub != null && ctx.State != null && ctx.Bots != null) sub.text = Status(ctx.State, ctx.Bots); }).Every(1000);
             ui.OpenCalloutElement(strip);
@@ -41,7 +44,15 @@ namespace GalaxyRoyale.Game.UI
             var state = ctx.State;
             var galaxy = ctx.Bots;
             var boss = galaxy.Boss;
-            var (blocker, content, footer) = Widgets.ModalPanelFooter("PIRATE DREADNOUGHT", ui.CloseModal, 84f);
+            var (blocker, content, footer) = Widgets.ModalPanelFooter(
+                boss.Active ? BossSystem.Name(boss.Variant).ToUpperInvariant() : "PIRATE DREADNOUGHT", ui.CloseModal, 84f);
+            if (boss.Active)
+            {
+                // The visit's variant (rival events, 2026-09-30).
+                var trait = Note(BossSystem.Trait(boss.Variant), 0);
+                trait.style.marginBottom = 8;
+                content.Add(trait);
+            }
 
             if (!boss.Active)
             {
@@ -229,7 +240,9 @@ namespace GalaxyRoyale.Game.UI
             box.Add(head);
             box.Add(Note("Every few days a Pirate Dreadnought drops in somewhere in the middle rings and stays for a day. " +
                 "Its hull is shared by the whole galaxy: every commander's strike wears it down, and the clans race to deal " +
-                $"the most damage. When it breaks apart, {BossSystem.PoolDMKilled:N0} Dark Matter is shared out by damage.", 4));
+                $"the most damage. When it breaks apart, {BossSystem.PoolDMKilled:N0} Dark Matter is shared out by damage. " +
+                "They come in turn as the classic Dreadnought, a Carrier (harder-hitting, lighter hull), a Siege Dreadnought " +
+                "(shells nearby colonies every 4 hours) and a Stealth Dreadnought (hidden for its first 8 hours).", 4));
             return box;
         }
 

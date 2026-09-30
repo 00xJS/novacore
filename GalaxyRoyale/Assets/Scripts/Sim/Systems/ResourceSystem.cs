@@ -86,6 +86,29 @@ namespace GalaxyRoyale.Sim.Systems
             return rates;
         }
 
+        /// <summary>What the colony's mines make in an hour at full energy, before any
+        /// boost (milli-units): the yardstick for rewards that keep pace with the colony
+        /// (supply drops, event rewards).</summary>
+        public static ResourceBag MineOutputPerHour(GameState state)
+        {
+            var bag = new ResourceBag();
+            void Add(BuildingId id, int level)
+            {
+                var def = Buildings.Defs[id];
+                if (def.Kind != BuildingKind.Producer || level < 1) return;
+                long milli = Balance.ProdPerHour(def.BaseProdPerHour, level) * 1000L;
+                switch (def.Resource)
+                {
+                    case "gold": bag.Gold += milli; break;
+                    case "quartz": bag.Quartz += milli; break;
+                    case "helium": bag.Helium += milli; break;
+                }
+            }
+            foreach (var id in Buildings.All) Add(id, state.Buildings[id].Level);
+            foreach (var mine in state.ExtraMines) Add(MineTypes.ToBuildingId(mine.Type), mine.Level);
+            return bag;
+        }
+
         /// <summary>Home Guard (balance pass 2026-09-30): warships docked at home lift
         /// production, up to Balance.HomeGuardMaxBonus once their might reaches
         /// Balance.HomeGuardFullMight(CC). Fleets out flying don't count, which makes

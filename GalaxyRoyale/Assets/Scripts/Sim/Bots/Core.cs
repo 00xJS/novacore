@@ -26,6 +26,9 @@ namespace GalaxyRoyale.Sim.Bots
         /// <summary>What happened at the core, newest first (capped at
         /// CoreSystem.MaxHistory). Names are snapshots, as tagged at the time.</summary>
         public List<CoreLogEntry> History = new();
+        /// <summary>Core Tournament (rival events, 2026-09-30): the event instance of the
+        /// tournament under way, -1 when none is.</summary>
+        public int TournamentInstance = -1;
     }
 
     public enum CoreLogKind
@@ -38,6 +41,10 @@ namespace GalaxyRoyale.Sim.Bots
         Abandoned,
         /// <summary>The Core Guardians rebuilt to full strength.</summary>
         Rebuilt,
+        /// <summary>A Core Tournament began: the holder (Other) was thrown out.</summary>
+        TournamentOpened,
+        /// <summary>Actor held the Core when the tournament ended.</summary>
+        TournamentWon,
     }
 
     public sealed class CoreLogEntry

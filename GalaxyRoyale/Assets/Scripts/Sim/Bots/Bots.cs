@@ -900,6 +900,8 @@ namespace GalaxyRoyale.Sim.Bots
                 if (myPower < (long)(EstimateDefensePower(other.State) * BeatabilityEdge))
                     continue;                                       // a fight they'd lose
                 long loot = LootableTotal(other.State);
+                // Bounty Board (2026-09-30): everyone hunts the marked commander.
+                if (BountySystem.IsMarked(player, other.Id)) loot = (long)(loot * GalaxyEvents.BountyHuntWeight);
                 // At war, the enemy clan's members rank as the richest marks.
                 if (myClan != null && other.ClanId != 0 && myClan.WarWithClanId == other.ClanId)
                     loot = (long)(loot * ClanSystem.WarTargetWeight);
@@ -1472,6 +1474,8 @@ namespace GalaxyRoyale.Sim.Bots
                         defender.State.Resources.Helium -= loot.Helium;
                         attacker.State.Stats.BattlesWon++;
                         defender.State.Stats.BattlesLost++;
+                        if (BountySystem.IsMarked(player, defender.Id))
+                            BountySystem.TakenByRival(player, galaxy, attacker, march.ArrivesAtTick, events);
                         defender.State.BurningUntilTick = Math.Max(defender.State.BurningUntilTick,
                             march.ArrivesAtTick + Balance.BurnDurationSec); // battle scar
                         march.LootMilli = loot;

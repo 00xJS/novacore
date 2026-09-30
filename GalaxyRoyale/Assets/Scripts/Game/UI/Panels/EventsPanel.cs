@@ -70,6 +70,15 @@ namespace GalaxyRoyale.Game.UI
                 {
                     body.Add(EventCard(ctx, def, have, need, claimable, claimed, () => key = "", out var left));
                     eventLeft = left;
+                    // Rival events: who's marked.
+                    if (def.Kind == GalaxyEventKind.BountyBoard && state.BountyTargetId != 0)
+                    {
+                        var (pay, dm) = BountySystem.Reward(state);
+                        body.Add(Wrap(Widgets.Text(state.BountyClaimed
+                            ? $"The bounty on {state.BountyTargetName} has been collected."
+                            : $"Wanted: {state.BountyTargetName} at {state.BountyTile.X}, {state.BountyTile.Y}. " +
+                              $"Win a raid on them for {UiTheme.FmtAmount(pay.Total)} and {dm} DM.", 12, UiTheme.Energy), 6));
+                    }
                     // Map events (2026-09-30): take the player to it.
                     if (EventSites.Focus(state) is { } spot)
                     {
@@ -199,14 +208,14 @@ namespace GalaxyRoyale.Game.UI
             card.Add(goal);
             card.Add(Bar(need > 0 ? (float)have / need : 1f, have >= need ? UiTheme.Good : UiTheme.Energy));
 
-            card.Add(Wrap(Widgets.Text($"Reward: {RewardText(def)}", 11, UiTheme.Accent), 8));
+            card.Add(Wrap(Widgets.Text($"Reward: {RewardText(ctx.State!, def)}", 11, UiTheme.Accent), 8));
             var claim = Widgets.IconButton(Icon.Check,
                 claimed ? "REWARD CLAIMED" : claimable ? "CLAIM REWARD" : "IN PROGRESS", () =>
                 {
                     var result = EventSystem.Claim(ctx.State!);
                     if (!result.Ok) { ui.Toast(result.Reason ?? "Not yet"); return; }
                     GameAudio.Feedback(Sfx.Coins, Haptic.Success);
-                    ui.Toast($"{def.Name} complete — {RewardText(def)}", Icon.Bolt, UiTheme.Energy);
+                    ui.Toast($"{def.Name} complete — {RewardText(ctx.State!, def)}", Icon.Bolt, UiTheme.Energy);
                     LocalBootstrap.RequestSync();
                     invalidate();
                 }, 13);
@@ -218,12 +227,14 @@ namespace GalaxyRoyale.Game.UI
             return card;
         }
 
-        public static string RewardText(GalaxyEventDef def)
+        public static string RewardText(GameState state, GalaxyEventDef def)
         {
+            // Scaled to the colony (EventSystem.RewardMilli), so it keeps pace as you grow.
+            var r = EventSystem.RewardMilli(state, def);
             var parts = new List<string>();
-            if (def.Reward.Gold > 0) parts.Add($"{def.Reward.Gold:N0} gold");
-            if (def.Reward.Quartz > 0) parts.Add($"{def.Reward.Quartz:N0} quartz");
-            if (def.Reward.Helium > 0) parts.Add($"{def.Reward.Helium:N0} helium");
+            if (r.Gold > 0) parts.Add($"{UiTheme.FmtAmount(r.Gold)} gold");
+            if (r.Quartz > 0) parts.Add($"{UiTheme.FmtAmount(r.Quartz)} quartz");
+            if (r.Helium > 0) parts.Add($"{UiTheme.FmtAmount(r.Helium)} helium");
             if (def.RewardDM > 0) parts.Add($"{def.RewardDM} DM");
             return string.Join(" · ", parts);
         }
