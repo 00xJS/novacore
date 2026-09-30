@@ -19,13 +19,21 @@ namespace GalaxyRoyale.Game
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
             "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail, " +
             "command, mines, frontier, port, wilds, sector, find, orbit, orbitsouth, mapcore, mapall, report, replay, demoreport, demoreplay, " +
-            "tour, fxdemo";
+            "tour, fxdemo, handbook";
 
         public static void Run(GameContext ctx)
         {
             ApplySettings(Environment.GetEnvironmentVariable("GR_SETTINGS"));
             // GR_AI=<proxy URL> points the AI writers at a proxy (a local test server, say).
             if (Environment.GetEnvironmentVariable("GR_AI") is { } ai) AiWriter.ProxyUrl = ai;
+            // GR_TUTORIAL=<step id> jumps the training to that step (off = leave it).
+            if (Environment.GetEnvironmentVariable("GR_TUTORIAL") is { } tut && ctx.State != null)
+            {
+                int index = -1;
+                for (int i = 0; i < Data.Tutorial.Steps.Count; i++)
+                    if (Data.Tutorial.Steps[i].Id == tut) index = i;
+                ctx.State.TutorialStep = tut == "off" ? Sim.Systems.TutorialSystem.Done : Math.Max(0, index);
+            }
             string? open = Environment.GetEnvironmentVariable("GR_OPEN");
             if (string.IsNullOrWhiteSpace(open)) return;
             // After the boot-time panels (the "while you were away" debrief) have had their turn.
@@ -97,6 +105,7 @@ namespace GalaxyRoyale.Game
                     case "fleet": ui.SwitchView(UI.ViewId.Fleet); break;
                     case "ship": UI.ShipDetailPanel.Open(ctx, HullId.Cruiser, () => ui.SwitchView(UI.ViewId.Fleet)); break;
                     case "map": ui.SwitchView(UI.ViewId.Map); break;
+                    case "handbook": UI.HandbookPanel.Open(ctx); break;
                     // The galaxy map framed on the Galactic Core and the rivals around it.
                     case "mapcore":
                         ui.CloseModal();

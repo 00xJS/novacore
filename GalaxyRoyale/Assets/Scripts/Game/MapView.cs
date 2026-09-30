@@ -234,6 +234,16 @@ namespace GalaxyRoyale.Game
 
         public bool IsActive => _active;
 
+        /// <summary>Where a tile is on screen right now (panel points), for the training's
+        /// spotlight; null off the map view, or off the screen.</summary>
+        public Vector2? PanelPoint(TileXY tile)
+        {
+            if (!_active || _mapCam == null || UI.UIController.Instance == null) return null;
+            var sp = _mapCam.WorldToScreenPoint(TileToWorld(tile.X, tile.Y));
+            if (sp.z <= 0f || sp.x < 0f || sp.y < 0f || sp.x > Screen.width || sp.y > Screen.height) return null;
+            return UI.UIController.Instance.ScreenToPanel(sp);
+        }
+
         public void ToggleMap()
         {
             if (_active) ExitMap();

@@ -43,7 +43,7 @@ namespace GalaxyRoyale.Game.UI
         public DistrictHud(VisualElement root, float bottom, GameContext ctx)
         {
             _ctx = ctx;
-            Bar = new VisualElement();
+            Bar = new VisualElement { name = "tut-districts" };
             Bar.style.position = Position.Absolute;
             Bar.style.left = 66;
             Bar.style.right = 66;
@@ -60,7 +60,7 @@ namespace GalaxyRoyale.Game.UI
             {
                 var d = district;
                 var tab = new Tab();
-                var b = new Button(() => BaseGlobe.Instance?.FlyTo(d)) { text = "" };
+                var b = new Button(() => BaseGlobe.Instance?.FlyTo(d)) { text = "", name = $"tut-district-{d}" };
                 b.clicked += GameAudio.Tap;
                 b.style.flexGrow = 1;
                 b.style.flexBasis = 0;

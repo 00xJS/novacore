@@ -234,6 +234,7 @@ namespace GalaxyRoyale.Game.UI
                     return;
                 }
 
+                bool namedSpy = false, namedBattle = false;
                 foreach (var report in items)
                 {
                     var r = report;
@@ -245,6 +246,9 @@ namespace GalaxyRoyale.Game.UI
                     else if (isBattle) Holo.SetFill(row, UiTheme.Wash(UiTheme.Bad, r.Read ? 0.5f : 0.9f));
                     else if (r.Read) Holo.SetFill(row, new UnityEngine.Color(UiTheme.PanelLight.r, UiTheme.PanelLight.g, UiTheme.PanelLight.b, 0.4f));
                     row.RegisterCallback<PointerUpEvent>(_ => OpenDetail(ctx, r));
+                    // The training points at the first scan and the first attack report.
+                    if (r is SpyReport && !namedSpy) { row.name = "tut-mail-spy"; namedSpy = true; }
+                    if (r is BattleMailReport { Defending: false } && !namedBattle) { row.name = "tut-mail-battle"; namedBattle = true; }
 
                     // Unread dot / saved star / radar warning are painted icons —
                     // text glyphs are at the mercy of the runtime font.
@@ -288,6 +292,8 @@ namespace GalaxyRoyale.Game.UI
         {
             var ui = UIController.Instance!;
             report.Read = true;
+            if (report is SpyReport) ui.Notice(TutorialSeen.SpyReport);
+            if (report is BattleMailReport { Defending: false }) ui.Notice(TutorialSeen.BattleReport);
 
             var (blocker, content, footer) = Widgets.ModalPanelFooter(DisplaySubject(report), ui.OpenMailbox, 70f);
             var state = ctx.State!;
@@ -636,12 +642,14 @@ namespace GalaxyRoyale.Game.UI
             }, 11);
             buttons.Add(favBtn);
 
-            buttons.Add(Widgets.TextButton("VIEW ON MAP", () =>
+            var viewOnMap = Widgets.TextButton("VIEW ON MAP", () =>
             {
                 ui.CloseModal();
                 ui.SwitchView(ViewId.Map);
                 GetMapView(ctx)?.FocusTile(report.Target);
-            }, 11));
+            }, 11);
+            viewOnMap.name = "tut-view-on-map";
+            buttons.Add(viewOnMap);
 
             buttons.Add(Widgets.TextButton("DELETE", () =>
             {

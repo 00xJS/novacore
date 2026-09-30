@@ -528,6 +528,14 @@ namespace GalaxyRoyale.Sim.Save
                 used.Sort(StringComparer.Ordinal);
                 root["redeemed"] = Arr(used, x => (object?)x);
             }
+            // The new-commander training (2026-09-30); older saves read as finished.
+            root["tutorial"] = (long)s.TutorialStep;
+            if (s.TutorialFlags.Count > 0)
+            {
+                var flags = new List<string>(s.TutorialFlags);
+                flags.Sort(StringComparer.Ordinal);
+                root["tutorialFlags"] = Arr(flags, x => (object?)x);
+            }
             if (s.Title != null) root["title"] = s.Title;
             if (s.EventInstance >= 0)
                 root["event"] = new Dictionary<string, object?>
@@ -778,6 +786,10 @@ namespace GalaxyRoyale.Sim.Save
             if (d.TryGetValue("achievements", out var ach) && ach != null)
                 foreach (var raw in AsArr(ach, "achievements"))
                     if (raw is string id) s.Achievements.Add(id);
+            s.TutorialStep = d.TryGetValue("tutorial", out var tut) && tut != null ? ToI32(tut) : -1;
+            if (d.TryGetValue("tutorialFlags", out var tf) && tf != null)
+                foreach (var raw in AsArr(tf, "tutorialFlags"))
+                    if (raw is string flag) s.TutorialFlags.Add(flag);
             if (d.TryGetValue("redeemed", out var red) && red != null)
                 foreach (var raw in AsArr(red, "redeemed"))
                     if (raw is string hash) s.RedeemedCodes.Add(hash);

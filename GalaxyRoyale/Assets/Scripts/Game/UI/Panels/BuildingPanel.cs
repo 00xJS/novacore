@@ -160,6 +160,7 @@ namespace GalaxyRoyale.Game.UI
                     summary.style.marginTop = 10;
                     body.Add(summary);
                     var research = Widgets.TextButton("OPEN RESEARCH", () => ui.OpenResearch(), 12);
+                    research.name = "tut-open-research";
                     research.style.marginTop = 6;
                     research.style.height = 38;
                     body.Add(research);
@@ -353,6 +354,7 @@ namespace GalaxyRoyale.Game.UI
                     else GameAudio.Feedback(Sfx.Error, Haptic.Error);
                 });
                 Widgets.SetButtonEnabled(upgrade, check.Ok);
+                upgrade.name = mineId == null ? $"tut-upgrade-{id}" : "tut-upgrade-mine";
                 upgrade.style.marginTop = 14;
                 upgrade.style.height = 42;
                 body.Add(upgrade);
@@ -400,6 +402,7 @@ namespace GalaxyRoyale.Game.UI
                                     cut == long.MaxValue ? int.MaxValue : (int)cut);
                         },
                         onBack: Reopen));
+                speed.name = mineId == null ? $"tut-speedup-{id}" : "tut-speedup-mine";
                 speed.style.width = Length.Percent(48f);
                 actions.Add(speed);
 

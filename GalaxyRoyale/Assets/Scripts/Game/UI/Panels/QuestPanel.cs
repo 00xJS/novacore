@@ -123,6 +123,7 @@ namespace GalaxyRoyale.Game.UI
                 ui.OnQuestClaimed();
                 rerender();
             }, 13);
+            claim.name = "tut-claim";
             claim.style.height = 42;
             claim.style.marginTop = 10;
             Widgets.SetButtonEnabled(claim, complete);

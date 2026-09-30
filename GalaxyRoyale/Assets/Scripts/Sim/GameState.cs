@@ -390,6 +390,11 @@ namespace GalaxyRoyale.Sim
         public HashSet<string> Achievements = new();
         /// <summary>Fingerprints of the redeem codes used in this game (RedeemSystem).</summary>
         public HashSet<string> RedeemedCodes = new();
+        /// <summary>The new-commander training (TutorialSystem): the step under way,
+        /// or -1 once it's finished or skipped — and for saves from before it existed.</summary>
+        public int TutorialStep = -1;
+        /// <summary>The training's one-time gifts already handed over.</summary>
+        public HashSet<string> TutorialFlags = new();
         /// <summary>Equipped commander title — an unlocked achievement's id (null = none).</summary>
         public string? Title;
         /// <summary>Galaxy event being tracked (EventSystem): its instance number,
@@ -501,6 +506,7 @@ namespace GalaxyRoyale.Sim
                 },
                 TestMode = test,
                 Difficulty = difficulty,
+                TutorialStep = 0, // every new game starts the training
                 Buildings = buildings,
                 BuildingLayout = DefaultLayout(),
                 Ships = ships,

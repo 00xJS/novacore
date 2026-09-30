@@ -102,6 +102,7 @@ namespace GalaxyRoyale.Game.UI
             for (int i = 0; i < tabs.Length; i++)
             {
                 int p = i;
+                tabs[i].name = $"tut-research-tab-{i}";
                 tabs[i].style.width = Length.Percent(31.5f);
                 tabs[i].clicked += () => { page = p; selected = null; Invalidate(); };
                 catRow.Add(tabs[i]);
@@ -160,6 +161,7 @@ namespace GalaxyRoyale.Game.UI
                 card.style.paddingBottom = 8;
                 Holo.Frame(card, new UnityEngine.Color(color.r, color.g, color.b, sel ? 0.30f : 0.12f), color, 9f, sel ? 2f : 1f);
                 card.RegisterCallback<PointerUpEvent>(_ => { selected = id; Invalidate(); });
+                card.name = $"tut-tech-{id}";
 
                 // Tech emblem (drop-in Resources/Research art, else a painted badge).
                 var emblem = ResearchArt.Emblem(id, 34f, dim: locked);
@@ -372,6 +374,7 @@ namespace GalaxyRoyale.Game.UI
                     }, 12);
                     Widgets.SetButtonEnabled(research,
                         check.Ok && !ResearchSystem.IsResearching(state, id));
+                    research.name = "tut-research";
                     research.style.marginTop = 8;
                     research.style.height = 38;
                     card.Add(research);
