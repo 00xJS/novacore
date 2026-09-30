@@ -49,6 +49,7 @@ namespace GalaxyRoyale.Sim
             AcademySystem.Tick(_state, _events); // after the marches: a led fleet lost this tick
             ConsulateSystem.Tick(_state, _events); // deliveries that landed this tick
             MapSystem.Tick(_state, _events);
+            CampaignSystem.Tick(_state, _events); // chapters, lairs, returning lords
             // The Wilds (2026-09-29) go last: surveys and the drones' haul read the
             // resources and buildings as this tick left them, and nothing above
             // depends on them.

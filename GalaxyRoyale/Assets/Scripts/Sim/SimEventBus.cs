@@ -92,6 +92,13 @@ namespace GalaxyRoyale.Sim
     public sealed record ExpeditionReturned(Systems.ExpeditionLog Log) : SimEvent;
     /// <summary>Nemesis rivals (2026-09-30): something your nemesis did or said.</summary>
     public sealed record NemesisEvent(Systems.NemesisNews News) : SimEvent;
+    // The campaign and the Pirate Lords (2026-09-30).
+    public sealed record ChapterBegan(int Chapter) : SimEvent;
+    public sealed record CampaignObjectiveDone(int Chapter, int Objective) : SimEvent;
+    public sealed record ChapterReady(int Chapter) : SimEvent;
+    public sealed record ChapterClaimed(int Chapter, ResourceBag PayMilli, int DarkMatter) : SimEvent;
+    public sealed record LordDefeated(int Lord, int Tier, ResourceBag PayMilli, int DarkMatter, RelicKind? Relic) : SimEvent;
+    public sealed record LordReturns(int Lord, int Tier, TileXY Tile) : SimEvent;
 
     public sealed class SimEventBus
     {

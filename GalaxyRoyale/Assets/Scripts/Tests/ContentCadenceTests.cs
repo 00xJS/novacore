@@ -30,7 +30,14 @@ namespace GalaxyRoyale.Sim.Tests
         /// chapter of something known (Notable), or a step up (Minor).</summary>
         public enum Tier { Minor, Notable, Major }
 
-        public sealed record First(int Tick, Tier Tier, string Kind, string What);
+        /// <summary>(A class: Unity's compiler has no IsExternalInit for records in this assembly.)</summary>
+        public sealed class First
+        {
+            public readonly int Tick;
+            public readonly Tier Tier;
+            public readonly string Kind, What;
+            public First(int tick, Tier tier, string kind, string what) { Tick = tick; Tier = tier; Kind = kind; What = what; }
+        }
 
         /// <summary>Everything the player has met so far, as keys → (tier, kind, label).</summary>
         static Dictionary<string, (Tier tier, string kind, string what)> Seen(GameState s, BotGalaxy galaxy)
@@ -66,6 +73,20 @@ namespace GalaxyRoyale.Sim.Tests
             for (int n = 1; n <= s.SeasonHistory.Count; n++)
                 d[$"season:{n}"] = (Tier.Notable, "season", $"Season {n} finished");
             if (s.ClanId != 0) d["clan"] = (Tier.Major, "social", "Joined a clan");
+            // The campaign (2026-09-30): each chapter opening is a new story; lords beaten, lords back.
+            for (int ch = 0; ch < s.Campaign.Chapter + (s.Campaign.Open ? 1 : 0) && ch < Campaign.Chapters.Count; ch++)
+                d[$"chapter:{ch}"] = (Tier.Major, "story", $"Chapter {ch + 1}: {Campaign.Chapters[ch].Title}");
+            for (int ch = 0; ch < s.Campaign.Chapter; ch++)
+                d[$"chapterdone:{ch}"] = (Tier.Notable, "story", $"Chapter {ch + 1} claimed");
+            foreach (var kv in s.Campaign.LordWins)
+                for (int w = 1; w <= kv.Value; w++)
+                    d[$"lord:{kv.Key}:{w}"] = (w == 1 ? Tier.Major : Tier.Notable, "lord",
+                        w == 1 ? $"Beat {PirateLords.Def(kv.Key).Name}" : $"Beat {PirateLords.Def(kv.Key).Name} again");
+            if (LairSystem.Find(s, s.Campaign.RematchId) is { } back)
+                d[$"return:{back.Id}"] = (Tier.Notable, "lord", $"{LairSystem.LordOf(back).Name} returns");
+            if (s.Campaign.Open && Campaign.Chapters[s.Campaign.Chapter] is { } open)
+                for (int i = 0; i < open.Objectives.Count; i++)
+                    if (CampaignSystem.Done(s, i)) d[$"objective:{s.Campaign.Chapter}:{i}"] = (Tier.Notable, "story", open.Objectives[i].Text);
             if (NemesisSystem.Active(s)) d[$"nemesis:{s.Nemesis.BotId}"] = (Tier.Notable, "rival", $"Nemesis {s.Nemesis.Name}");
             var live = EventSystem.Current(s.Tick);
             if (!EventSystem.IsQuiet(live))
@@ -110,6 +131,8 @@ namespace GalaxyRoyale.Sim.Tests
             if (s.ShipQueue.Count == 0)
                 foreach (var h in Ships.All)
                     if (FleetSystem.UnlockBlocker(s, h) == null && Count(s, h) == 0 && FleetSystem.QueueShips(s, h, 3).Ok) break;
+            // Claim the Wilds' finds: claimed sectors fog over again and can be surveyed anew.
+            foreach (var index in s.Wilds.Sectors.Keys.ToList()) WildsSystem.Claim(s, index);
             if (TerraformSystem.Level(s) >= 1 && s.Terraform.Path == TerraformPath.None)
                 TerraformSystem.Start(s, TerraformPath.Metallic);
             else if (s.Terraform.Path != TerraformPath.None) TerraformSystem.Start(s, s.Terraform.Path);
@@ -123,6 +146,30 @@ namespace GalaxyRoyale.Sim.Tests
         }
 
         static int Count(GameState s, HullId h) => s.Ships.TryGetValue(h, out var n) ? n : 0;
+
+        /// <summary>The campaign: claim a finished chapter, and storm a lord's lair with the
+        /// whole docked war fleet when the forecast says it wins.</summary>
+        static void Story(GameState s)
+        {
+            CampaignSystem.Claim(s);
+            // An objective that names a building's stage: push that building.
+            if (CampaignSystem.Current(s) is { } ch && s.Campaign.Open)
+                for (int i = 0; i < ch.Objectives.Count; i++)
+                    if (ch.Objectives[i].Goal == CampaignGoal.TerraformStage && !CampaignSystem.Done(s, i)
+                        && s.BuildQueue.All(o => o.Building != BuildingId.Terraformer))
+                        BuildingSystem.StartUpgrade(s, BuildingId.Terraformer);
+            if (s.Marches.Any(m => m.Mission == MarchMission.Attack)) return;
+            foreach (var id in new[] { s.Campaign.LairId, s.Campaign.RematchId })
+            {
+                if (LairSystem.Find(s, id) is not { } lair) continue;
+                var fleet = s.Ships.Where(kv => kv.Value > 0 && ResourceSystem.IsWarship(kv.Key))
+                    .ToDictionary(kv => kv.Key, kv => kv.Value);
+                if (fleet.Count == 0) return;
+                var odds = Combat.BattleForecast.Predict(fleet, MarchSystem.CampGarrison(lair), ResearchSystem.CombatMods(s));
+                if (odds.Winner != Combat.BattleWinner.Attacker) continue;
+                if (MarchSystem.SendMarch(s, fleet, lair.Tile, MarchMission.Attack, out _).Ok) return;
+            }
+        }
 
         [Test, Explicit("a 90-day full-galaxy run: run it by name")]
         public void ContentCadence_ScriptedCommander_FullGalaxy()
@@ -140,6 +187,8 @@ namespace GalaxyRoyale.Sim.Tests
             var sessions = new List<(int tick, int notable)>(); // each awake check-in: firsts at Notable+
             var ccByDay = new int[days + 1];
             var lvlByDay = new int[days + 1];
+            var campsByDay = new int[days + 1];
+            var battlesByDay = new int[days + 1];
             var clock = System.Diagnostics.Stopwatch.StartNew();
 
             while (s.Tick < days * Day)
@@ -148,6 +197,7 @@ namespace GalaxyRoyale.Sim.Tests
                 if (awake)
                 {
                     Curious(s, galaxy);
+                    Story(s);
                     StandardPacingTests.CheckIn(s, pace);
                 }
                 engine.Advance(awake ? CheckInSec : Hour);
@@ -165,6 +215,8 @@ namespace GalaxyRoyale.Sim.Tests
                 int day = Math.Min(days, s.Tick / Day);
                 ccByDay[day] = s.Buildings[BuildingId.CommandCenter].Level;
                 lvlByDay[day] = s.Commander.Level;
+                campsByDay[day] = s.Stats.CampsCleared;
+                battlesByDay[day] = s.Stats.BattlesWon;
             }
 
             // ---- the report ----
@@ -178,7 +230,7 @@ namespace GalaxyRoyale.Sim.Tests
                 var today = firsts.Where(f => f.Tick / Day == d0).ToList();
                 int sess = sessions.Count(x => x.tick / Day == d0), fresh = sessions.Count(x => x.tick / Day == d0 && x.notable > 0);
                 log.WriteLine($"  d{d0,-3} {today.Count(f => f.Tier == Tier.Major),2} / {today.Count(f => f.Tier == Tier.Notable),2} / " +
-                              $"{today.Count(f => f.Tier == Tier.Minor),3}   fresh sessions {fresh}/{sess}   CC {ccByDay[d0]} L{lvlByDay[d0]}   " +
+                              $"{today.Count(f => f.Tier == Tier.Minor),3}   fresh sessions {fresh}/{sess}   CC {ccByDay[d0]} L{lvlByDay[d0]} camps {campsByDay[d0]} wins {battlesByDay[d0]}   " +
                               string.Join(", ", today.Where(f => f.Tier == Tier.Major).Select(f => f.What)));
             }
             // Dry stretches: the longest runs of awake check-ins with nothing Notable or bigger.

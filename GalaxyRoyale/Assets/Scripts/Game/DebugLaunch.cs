@@ -19,7 +19,7 @@ namespace GalaxyRoyale.Game
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
             "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail, " +
             "command, mines, frontier, port, wilds, sector, find, orbit, orbitsouth, mapcore, mapall, report, replay, demoreport, demoreplay, " +
-            "tour, fxdemo, handbook, recap";
+            "tour, fxdemo, handbook, recap, story, lair";
 
         public static void Run(GameContext ctx)
         {
@@ -38,6 +38,10 @@ namespace GalaxyRoyale.Game
             if (Environment.GetEnvironmentVariable("GR_EVENT") is { } ev && ctx.State != null
                 && Enum.TryParse<Data.GalaxyEventKind>(ev, out var kind))
                 Sim.Systems.EventSystem.DebugForce = (kind, ctx.State.Tick);
+            // GR_CAMPAIGN=<chapter 1-10>: that chapter of The Long Night opens now, for a look.
+            if (Environment.GetEnvironmentVariable("GR_CAMPAIGN") is { } chapter && ctx.State != null
+                && int.TryParse(chapter, out int ch))
+                Sim.Systems.CampaignSystem.DebugOpen(ctx.State, ch - 1);
             string? open = Environment.GetEnvironmentVariable("GR_OPEN");
             if (string.IsNullOrWhiteSpace(open)) return;
             // After the boot-time panels (the "while you were away" debrief) have had their turn.
@@ -117,6 +121,11 @@ namespace GalaxyRoyale.Game
                             UI.EventsPanel.ShowOnMap(ctx, spot.tile, spot.node);
                         break;
                     case "darkmatter": ui.OpenDarkMatterShop(); break;
+                    case "story": UI.CampaignPanel.Open(ctx); break;
+                    case "lair": // the campaign lair (with GR_CAMPAIGN), as SHOW THE LAIR does
+                        if (ctx.State != null && Sim.Systems.LairSystem.Find(ctx.State, ctx.State.Campaign.LairId) is { } lairNode)
+                            UI.EventsPanel.ShowOnMap(ctx, lairNode.Tile, lairNode);
+                        break;
                     case "recap": // the season recap: the last finished season, or a sample one
                         if (ctx.State != null)
                             UI.SeasonRecapPanel.Open(ctx, ctx.State.SeasonHistory.Count > 0

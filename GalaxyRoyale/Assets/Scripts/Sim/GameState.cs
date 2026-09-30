@@ -471,6 +471,8 @@ namespace GalaxyRoyale.Sim
         public int NextExpeditionId;
         /// <summary>Nemesis rivals (2026-09-30): your nemesis, and grudges building up.</summary>
         public Systems.NemesisState Nemesis = new();
+        /// <summary>The campaign and the Pirate Lords (2026-09-30).</summary>
+        public Systems.CampaignState Campaign = new();
         /// <summary>Today's daily objectives (Game/DailyObjectives; in the save since 2026-09-30).</summary>
         public DailyState Daily = new();
         /// <summary>Not saved: ResourceSystem.Tick's production rates and the inputs'

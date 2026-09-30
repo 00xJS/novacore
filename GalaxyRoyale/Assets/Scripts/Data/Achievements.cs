@@ -12,6 +12,7 @@ namespace GalaxyRoyale.Data
         ClanJoined, ClanSize, ClanWarsWon, SeasonTop, EventsCompleted, Might,
         CoresSeized, CoreHoursHeld, BossDamage, BossFinalBlows, MarketTrades,
         NemesesDefeated, // 2026-09-30
+        LordsDefeated, ChaptersDone, // the campaign (2026-09-30)
     }
 
     public sealed class AchievementDef
@@ -66,6 +67,11 @@ namespace GalaxyRoyale.Data
             A("final-blow", "Leviathan Slayer", "Land the final blow on a Pirate Dreadnought", AchievementGoal.BossFinalBlows, 1, 300, "Leviathan Slayer"),
             A("trader", "Merchant Prince", "Make 25 trades on the galactic market", AchievementGoal.MarketTrades, 25, 100, "Merchant Prince"),
             A("nemesis-slayer", "Nemesis Slayer", "Break a nemesis", AchievementGoal.NemesesDefeated, 1, 200, "Nemesis Slayer"),
+            // The campaign, "The Long Night" (2026-09-30).
+            A("lord-breaker", "Lord-Breaker", "Defeat 3 Pirate Lords", AchievementGoal.LordsDefeated, 3, 200, "Lord-Breaker"),
+            A("court-breaker", "Court-Breaker", "Defeat every Pirate Lord", AchievementGoal.LordsDefeated, 10, 500, "Scourge of the Court"),
+            A("nightwalker", "Nightwalker", "Finish 5 chapters of The Long Night", AchievementGoal.ChaptersDone, 5, 250, "Nightwalker"),
+            A("dawnbringer", "Dawnbringer", "Finish The Long Night", AchievementGoal.ChaptersDone, 10, 600, "Dawnbringer"),
         };
 
         public static AchievementDef? ById(string id)

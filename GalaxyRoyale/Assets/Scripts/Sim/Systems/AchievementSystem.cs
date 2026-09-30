@@ -42,6 +42,8 @@ namespace GalaxyRoyale.Sim.Systems
                 AchievementGoal.BossFinalBlows => state.Stats.BossFinalBlows,
                 AchievementGoal.MarketTrades => state.Stats.MarketTrades,
                 AchievementGoal.NemesesDefeated => state.Stats.NemesesDefeated,
+                AchievementGoal.LordsDefeated => LairSystem.LordsBeaten(state),
+                AchievementGoal.ChaptersDone => CampaignSystem.ChaptersDone(state),
                 _ => 0,
             };
             return (Math.Min(have, a.Target), a.Target);

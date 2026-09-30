@@ -45,7 +45,7 @@ namespace GalaxyRoyale.Sim.Systems
 
         /// <summary>A spot between <paramref name="minD"/> and <paramref name="maxD"/> tiles
         /// from home, inside the galaxy, outside the Core Zone, preferring a free tile.</summary>
-        static TileXY PlaceNear(GameState s, int instance, int salt, int minD, int maxD, bool needFree, int margin = 0)
+        internal static TileXY PlaceNear(GameState s, int instance, int salt, int minD, int maxD, bool needFree, int margin = 0)
         {
             for (int attempt = 0; attempt < 12; attempt++)
             {

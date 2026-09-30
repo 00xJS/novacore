@@ -155,6 +155,17 @@ namespace GalaxyRoyale.Sim.Tests
             Gather(s, pace);
         }
 
+        /// <summary>The open chapter still wants camps cleared or battles won: fight for it
+        /// even when the loot doesn't cover the losses.</summary>
+        static bool CampaignWantsFights(GameState s)
+        {
+            if (!s.Campaign.Open || CampaignSystem.Current(s) is not { } ch) return false;
+            for (int i = 0; i < ch.Objectives.Count; i++)
+                if (ch.Objectives[i].Goal is CampaignGoal.CampsCleared or CampaignGoal.BattlesWon && !CampaignSystem.Done(s, i))
+                    return true;
+            return false;
+        }
+
         static bool Up(GameState s, BuildingId id) =>
             BuildingSystem.CheckUpgrade(s, id).Ok && BuildingSystem.StartUpgrade(s, id).Ok;
 
@@ -293,7 +304,7 @@ namespace GalaxyRoyale.Sim.Tests
                 var odds = BattleForecast.Predict(fleet, MarchSystem.CampGarrison(camp), ResearchSystem.CombatMods(s));
                 if (odds.Winner != BattleWinner.Attacker) continue;
                 long lossCost = odds.YourLossesByHull.Sum(kv => (long)Ships.Defs[kv.Key].Cost.Total * kv.Value);
-                bool questFight = QuestSystem.Current(s) is { Goal: QuestGoal.BattlesWon };
+                bool questFight = QuestSystem.Current(s) is { Goal: QuestGoal.BattlesWon } || CampaignWantsFights(s);
                 if (!questFight && MarchSystem.CampLoot(s, camp).Total / 1000 <= lossCost) continue;
                 // Enough Haulers to carry the camp's stockpile home.
                 long perHauler = (long)(MarchSystem.EffCargoCap(s, new Dictionary<HullId, int> { [HullId.Hauler] = 1 })

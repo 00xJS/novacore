@@ -723,7 +723,8 @@ namespace GalaxyRoyale.Game
             var root = new GameObject($"Node {node.Id}");
             root.transform.SetParent(_root!.transform, worldPositionStays: false);
             root.transform.localPosition = TileToWorld(node.Tile.X, node.Tile.Y);
-            var badge = MapVisuals.OverrideSprite($"map-badge-{node.Kind.ToString().ToLowerInvariant()}");
+            var badge = MapVisuals.OverrideSprite(LairSystem.IsLair(node) ? "map-badge-lair"
+                : $"map-badge-{node.Kind.ToString().ToLowerInvariant()}");
             if (badge != null)
                 MapVisuals.Spawn(root.transform, "Badge", badge, new Vector3(0.42f, -0.4f, -0.05f), 0.36f, 0.36f, Color.white, 12);
             root.AddComponent<MapBillboard>(); // face the viewer at the tilt
