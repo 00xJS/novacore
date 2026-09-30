@@ -7,7 +7,7 @@ Drafts and a checklist for putting Galaxy Royale on the App Store. Nothing here 
 | `listing.md` | Name, subtitle, promotional text, description, keywords, category, age-rating answers — within Apple's limits |
 | `privacy.md` | App Privacy answers ("no data collected") and why |
 | `review-notes.md` | Notes for App Review |
-| `screenshots/` | Six captioned 6.9" App Store screenshots (1320 × 2868 JPEG): the colony, the Wilds, a battle replay, the Spaceport, the galaxy and a battle report |
+| `screenshots/` | Six captioned 6.9" App Store screenshots (1320 × 2868 JPEG, retaken 2026-09-30): the colony, the Galactic Core, the Frontier, the whole galaxy, the Wilds and a battle report |
 | `../docs/` | The privacy policy, support and home pages, ready for GitHub Pages or any web host |
 | `../scripts/screenshots.sh` | Screenshot tour: opens each screen in the Simulator and saves a raw 6.9" PNG (`screenshots/raw/`, not committed) |
 | `../scripts/store_frames.py` | Sets raw captures in the captioned frames above |
@@ -21,7 +21,8 @@ The app icon (`GalaxyRoyale/Assets/icon1024.png`) and the launch screen's logo (
    - Enable Game Center on the app.
    - Create the leaderboard **`galaxyroyale.might`**: "Might", integer, high to low.
    - Create an achievement for each id in `GalaxyRoyale/Assets/Scripts/Game/GameCenter.cs` (`galaxyroyale.<achievement-id>`, 100 points total or your own split). Achievements that don't exist in App Store Connect are skipped quietly.
-3. **Screenshots:** upload `screenshots/*.jpg` (6.9", 1320 × 2868, in order). To make fresh ones, run `scripts/screenshots.sh` on the 6.9" Simulator (iPhone Pro Max) with a save that has something to show, then `scripts/store_frames.py`.
+3. **Screenshots:** upload `screenshots/*.jpg` (6.9", 1320 × 2868, in order).
+   - **Privacy manifests** ship in the build (`GalaxyRoyale/iOSPrivacy/` for the app, `GalaxyRoyale/iOSWidget/` for the widget): no tracking, no data collected, and the UserDefaults reasons. Keep them in step with `privacy.md` if the app ever starts collecting anything. To make fresh ones, run `scripts/screenshots.sh` on the 6.9" Simulator (iPhone Pro Max) with a save that has something to show, then `scripts/store_frames.py`.
 4. **Web pages** (not App Store Connect): put `docs/` online. On GitHub: Settings › Pages › Deploy from a branch › `main` / `docs`. It serves `https://<user>.github.io/<repo>/`; a private repo needs a paid plan for Pages, so any static host works too. First fill in the two `[support email]` / contact placeholders in `docs/support.html` and `docs/privacy.html`.
 5. **Listing:** paste from `listing.md`. Support URL: `…/support.html`; marketing URL (optional): the `docs/` home page.
 6. **Privacy:** answer from `privacy.md`; privacy policy URL: `…/privacy.html`.

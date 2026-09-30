@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Galaxy Royale's privacy manifest (the app target). IosPostProcess copies it
+  into the Xcode project; Unity's frameworks ship their own (file timestamps).
+  - No tracking, no tracking domains.
+  - No data collected: saves stay on the device and in the player's own iCloud
+    key-value store; Game Center is Apple's; problem reports and the optional AI
+    proxy only send what the player chooses, to where the player points them.
+  - UserDefaults: PlayerPrefs (settings, the last iCloud backup time) are the
+    app's own (CA92.1); the home-screen widget's snapshot goes through the
+    shared app group (1C8F.1).
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
