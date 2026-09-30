@@ -103,6 +103,8 @@ namespace GalaxyRoyale.Sim
     public sealed record TwistBegan(TwistKind Kind) : SimEvent;
     // Mega-projects (2026-09-30).
     public sealed record MegaprojectStageDone(MegaprojectKind Kind, int Stage) : SimEvent;
+    // Ship modules (2026-09-30).
+    public sealed record BlueprintFound(ModuleKind Kind, int Mark) : SimEvent;
 
     public sealed class SimEventBus
     {

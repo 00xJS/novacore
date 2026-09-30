@@ -19,7 +19,7 @@ namespace GalaxyRoyale.Game
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
             "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail, " +
             "command, mines, frontier, port, wilds, sector, find, orbit, orbitsouth, mapcore, mapall, report, replay, demoreport, demoreplay, " +
-            "tour, fxdemo, handbook, recap, story, lair, projects";
+            "tour, fxdemo, handbook, recap, story, lair, projects, refits";
 
         public static void Run(GameContext ctx)
         {
@@ -44,6 +44,9 @@ namespace GalaxyRoyale.Game
             // GR_MEGA=<0-5>: every mega-project at that stage, for a look at them in orbit.
             if (Environment.GetEnvironmentVariable("GR_MEGA") is { } mega && ctx.State != null && int.TryParse(mega, out int stages))
                 foreach (var def in Data.Megaprojects.All) ctx.State.Mega.Stages[def.Kind] = Math.Clamp(stages, 0, Data.Megaprojects.Stages);
+            // GR_BLUEPRINTS=<1-3>: that many copies of every module blueprint, for a look at REFITS.
+            if (Environment.GetEnvironmentVariable("GR_BLUEPRINTS") is { } bps && ctx.State != null && int.TryParse(bps, out int copies))
+                foreach (var def in Data.Modules.All) ctx.State.Modules.Blueprints[def.Kind] = Math.Clamp(copies, 0, 3);
             // GR_CAMPAIGN=<chapter 1-10>: that chapter of The Long Night opens now, for a look.
             if (Environment.GetEnvironmentVariable("GR_CAMPAIGN") is { } chapter && ctx.State != null
                 && int.TryParse(chapter, out int ch))
@@ -129,6 +132,7 @@ namespace GalaxyRoyale.Game
                     case "darkmatter": ui.OpenDarkMatterShop(); break;
                     case "story": UI.CampaignPanel.Open(ctx); break;
                     case "projects": UI.MegaprojectsPanel.Open(ctx); break;
+                    case "refits": UI.RefitsPanel.Open(ctx); break;
                     case "lair": // the campaign lair (with GR_CAMPAIGN), as SHOW THE LAIR does
                         if (ctx.State != null && Sim.Systems.LairSystem.Find(ctx.State, ctx.State.Campaign.LairId) is { } lairNode)
                             UI.EventsPanel.ShowOnMap(ctx, lairNode.Tile, lairNode);

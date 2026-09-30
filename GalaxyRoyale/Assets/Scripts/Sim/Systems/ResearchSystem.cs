@@ -154,11 +154,11 @@ namespace GalaxyRoyale.Sim.Systems
 
         /// <summary>Global + hull-scoped attack multiplier for one hull.</summary>
         public static float AtkMultFor(GameState state, HullId hull) =>
-            AtkMult(state) + EffectTotalFor(state, TechEffectKind.AtkMult, hull);
+            AtkMult(state) + EffectTotalFor(state, TechEffectKind.AtkMult, hull) + ModuleSystem.AtkFor(state, hull);
 
         /// <summary>Global + hull-scoped durability multiplier for one hull.</summary>
         public static float HpMultFor(GameState state, HullId hull) =>
-            HpMult(state) + EffectTotalFor(state, TechEffectKind.HpMult, hull);
+            HpMult(state) + EffectTotalFor(state, TechEffectKind.HpMult, hull) + ModuleSystem.HpFor(state, hull);
 
         /// <summary>Orbital Batteries level (planetary guns, home defense only): the
         /// research plus the commander's Orbital Gunners.</summary>

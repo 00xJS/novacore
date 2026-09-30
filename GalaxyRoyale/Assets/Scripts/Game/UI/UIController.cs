@@ -545,6 +545,7 @@ namespace GalaxyRoyale.Game.UI
             _clanFab = MiniFab(Icon.Pact, "CLAN", OpenClan);
             MiniFab(Icon.Rotate, "MARKET", OpenMarket);
             col = rightCol;
+            MiniFab(Icon.Ship, "REFITS", () => RefitsPanel.Open(_ctx)); // ship modules (2026-09-30)
             _exploreFab = MiniFab(Icon.Compass, "EXPLORE", () => ExpeditionsPanel.Open(_ctx)); // expeditions (2026-09-30)
             // QUESTS took AWARDS' place (user 2026-09-29); awards stay under Profile › TITLES & AWARDS.
             MiniFab(Icon.Star, "QUESTS", () => QuestPanel.Open(_ctx));
@@ -1148,6 +1149,14 @@ namespace GalaxyRoyale.Game.UI
                     Toast($"{lord.FullName} is defeated: \"{lord.Last}\" +{UiTheme.FmtAmount(fell.PayMilli.Total)} · +{fell.DarkMatter} DM{relic}",
                         Icon.Trophy, UiTheme.Good);
                     GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                    break;
+                }
+                case BlueprintFound bp:
+                {
+                    var def = Modules.Def(bp.Kind);
+                    Toast(bp.Mark <= 1 ? $"Blueprint found: {def.Name}. Fit it to a hull class in MORE › REFITS"
+                        : $"Blueprint copy: {def.Name} is now {Modules.MarkName(bp.Mark)}", Icon.Ship, UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Discovery, Haptic.Success);
                     break;
                 }
                 case MegaprojectStageDone mega:

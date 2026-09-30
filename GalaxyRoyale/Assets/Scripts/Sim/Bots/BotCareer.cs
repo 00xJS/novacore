@@ -149,6 +149,24 @@ namespace GalaxyRoyale.Sim.Bots
             }
         }
 
+        /// <summary>Fit every warship class with the owned module that suits the temperament:
+        /// attack first for the bold, staying power for the careful.</summary>
+        static void FitModules(GameState s, bool bold)
+        {
+            ModuleKind? best = null;
+            float bestScore = float.MinValue;
+            foreach (var def in Modules.All)
+            {
+                int mark = ModuleSystem.Mark(s, def.Kind);
+                if (mark == 0) continue;
+                float scale = Modules.MarkScale(mark);
+                float score = (bold ? def.Atk * 1.5f + def.Hp : def.Atk + def.Hp * 1.5f) * scale;
+                if (score > bestScore) { bestScore = score; best = def.Kind; }
+            }
+            if (best == null) return;
+            foreach (var c in Modules.Classes) ModuleSystem.Fit(s, c, best);
+        }
+
         // ---------- the Terraformer ----------
 
         static void Terraform(GameState s, BotPersonality personality)
@@ -205,6 +223,12 @@ namespace GalaxyRoyale.Sim.Bots
                 {
                     var kind = (RelicKind)((bot.Id + s.Stats.ExpeditionsDone) % Relics.All.Count);
                     s.Relics[kind] = RelicSystem.Count(s, kind) + 1;
+                }
+                // Now and then a module blueprint (2026-09-30), fitted by temperament.
+                if (rng() < 0.25)
+                {
+                    ModuleSystem.Grant(s, (ModuleKind)((bot.Id + s.Stats.ExpeditionsDone) % Modules.All.Count));
+                    FitModules(s, rng() < 0.5);
                 }
             }
         }
