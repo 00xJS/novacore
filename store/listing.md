@@ -22,7 +22,7 @@ Galaxy Royale pits you against 249 simulated commanders who play by the same rul
 BUILD YOUR EMPIRE
 • Build your colony on a living globe you can spin in your hand: the Command district, the Mining Belt, the Frontier and, round the back, the Spaceport where your fleet parks.
 • Tip the planet south into the Wilds: 58 sectors under survey fog. Survey them for gold seams, crystal fields and helium vents your drones harvest, supply caches and Dark Matter relics. The Wilds refill and shift, so they never run out.
-• Grow from a small outpost: mines, refineries, power, shipyards, research labs, a radar station, a Command Bastion with railguns, a Salvage Yard and a Drone Factory.
+• Grow from a small outpost: mines, refineries, power, shipyards, research labs and a radar station, then the Frontier: a Command Bastion with railguns, a Salvage Yard, a Drone Factory, a Repair Dock, a Jump Gate, a Clan Embassy and a Deep Space Observatory.
 • Research a 30-tech tree across economy, logistics, military, industry and defence.
 • Build a fleet from 23 hulls — fighters to dreadnoughts — each with a counter in the combat triangle.
 
@@ -38,8 +38,10 @@ GROW AS A COMMANDER
 • Trade resources on the galactic market.
 
 PLAY YOUR WAY
+• New to strategy games? A step-by-step training walks you through your first colony, and the Commander's Handbook explains every system.
 • Choose Easy, Standard or Brutal — how hard the galaxy leans on you.
 • Single-player and offline: no account, no server, no ads. Your empire saves on your phone and backs up to your iCloud.
+• Free to play. Dark Matter, the premium currency, is earned in play and can also be bought in optional in-app purchases.
 • A home-screen widget for your timers, and a Live Activity that counts down an incoming raid on your Lock Screen and in the Dynamic Island.
 • Text size, colour-blind colours and reduced motion options; synthesized music and sound, and haptics.
 
@@ -47,12 +49,16 @@ PLAY YOUR WAY
 space,strategy,4x,empire,fleet,colony,clan,raid,sci-fi,conquest,commander,base,builder,offline
 
 ## What's new (this version)
-Your colony on a globe, with the Spaceport and the Wilds to explore. New art for every ship, battle reports and replays built around it, the Command Bastion, the Salvage Yard and the Drone Factory, and a new icon.
+First release: your colony on a globe with the Spaceport and the Wilds to explore, a Frontier of seven advanced buildings, a redesigned galaxy map with the Galactic Core at its heart, and a training for new commanders.
 
 ## Support URL / Marketing URL
-`docs/support.html` and `docs/index.html` once `docs/` is online (see README step 4).
+- Support URL: https://00xjs.github.io/novacore/support.html
+- Marketing URL (optional): https://00xjs.github.io/novacore/
+- Privacy policy URL: https://00xjs.github.io/novacore/privacy.html
 
 ## Age rating answers (questionnaire)
 - Cartoon or fantasy violence: **infrequent/mild** (ships explode in battle replays; no gore).
-- Everything else: **none** (no realistic violence, no mature themes, no gambling or loot boxes; no user-generated content; no unrestricted web access).
+- In-app purchases: **yes** (Dark Matter, consumable).
+- Loot boxes / random items for purchase: **yes, if asked** — Planetary Resurfacing (bought with Dark Matter) gives a random planet surface. It's cosmetic, and its description in the shop states the odds (every surface equally likely).
+- Everything else: **none** (no realistic violence, no mature themes, no gambling; no user-generated content; no unrestricted web access — the Settings links open the privacy, support pages in Safari).
 - Expected rating: 9+ (for the fantasy violence).

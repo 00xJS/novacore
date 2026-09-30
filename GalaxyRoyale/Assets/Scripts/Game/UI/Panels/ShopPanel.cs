@@ -1,6 +1,8 @@
 // GALACTIC EXCHANGE — UI Toolkit port of v1's ShopPanel. ITEMS tab (inventory,
 // USE) is the default; the SHOP tab sells with Dark Matter, filtered by the
-// four category sub-tabs. Skins show BUY → APPLY → ACTIVE.
+// four category sub-tabs. Skins show BUY → APPLY → ACTIVE. DARK MATTER
+// (2026-09-30) sells packs for real money through the App Store (StoreService),
+// priced in the player's own currency by the App Store itself.
 using System;
 using System.Linq;
 using UnityEngine.UIElements;
@@ -11,7 +13,7 @@ namespace GalaxyRoyale.Game.UI
 {
     public static class ShopPanel
     {
-        public static VisualElement Build(GameContext ctx, out Action refresh)
+        public static VisualElement Build(GameContext ctx, out Action refresh, int startTab = 0)
         {
             var ui = UIController.Instance!;
             var (blocker, content) = Widgets.ModalPanel("GALACTIC EXCHANGE", ui.CloseModal, 84f);
@@ -20,18 +22,24 @@ namespace GalaxyRoyale.Game.UI
             dmLine.style.unityTextAlign = UnityEngine.TextAnchor.MiddleRight;
             content.Add(dmLine);
 
-            bool shopTab = false; // nav entry is "Items"; SHOP lives inside
+            // 0 ITEMS (the nav entry is "Items"), 1 SHOP, 2 DARK MATTER.
+            int tab = startTab;
+            bool shopTab = false;
             var category = ShopCategory.Resources;
             string cache = "";
 
             var tabRow = Widgets.HBox(Justify.SpaceBetween);
             tabRow.style.marginTop = 6;
-            var itemsBtn = Widgets.TextButton("ITEMS", () => { shopTab = false; cache = ""; });
-            itemsBtn.style.width = Length.Percent(49f);
-            var shopBtn = Widgets.TextButton("SHOP", () => { shopTab = true; cache = ""; });
-            shopBtn.style.width = Length.Percent(49f);
+            var itemsBtn = Widgets.TextButton("ITEMS", () => { tab = 0; cache = ""; }, 11);
+            itemsBtn.style.width = Length.Percent(32f);
+            var shopBtn = Widgets.TextButton("SHOP", () => { tab = 1; cache = ""; }, 11);
+            shopBtn.style.width = Length.Percent(32f);
+            var dmBtn = Widgets.TextButton("DARK MATTER", () => { tab = 2; cache = ""; }, 11);
+            dmBtn.name = "shop-darkmatter";
+            dmBtn.style.width = Length.Percent(32f);
             tabRow.Add(itemsBtn);
             tabRow.Add(shopBtn);
+            tabRow.Add(dmBtn);
             content.Add(tabRow);
 
             var catRow = Widgets.HBox(Justify.SpaceBetween);
@@ -142,10 +150,59 @@ namespace GalaxyRoyale.Game.UI
                 }
             }
 
+            void RenderDarkMatter()
+            {
+                var store = StoreService.Instance;
+                var intro = Widgets.Text("Dark Matter buys speed-ups, resource packs, shields and skins in the SHOP. " +
+                                         "You also earn it from quests, events, achievements and the Galactic Core.", 11, UiTheme.Dim);
+                intro.style.whiteSpace = WhiteSpace.Normal;
+                intro.style.marginBottom = 4;
+                list.Add(intro);
+                if (store == null || store.State != StoreService.Status.Ready)
+                {
+                    string msg = store == null ? "The App Store isn't available."
+                        : store.State == StoreService.Status.Loading ? "Contacting the App Store…"
+                        : store.Error + ".";
+                    var note = Widgets.Text(msg, 12, UiTheme.Dim);
+                    note.style.unityTextAlign = UnityEngine.TextAnchor.MiddleCenter;
+                    note.style.whiteSpace = WhiteSpace.Normal;
+                    note.style.marginTop = 24;
+                    list.Add(note);
+                    if (store != null && store.State == StoreService.Status.Unavailable)
+                    {
+                        var retry = Widgets.TextButton("TRY AGAIN", () => { store.Load(); cache = ""; }, 11);
+                        retry.style.alignSelf = Align.Center;
+                        retry.style.marginTop = 10;
+                        retry.style.minWidth = 120;
+                        list.Add(retry);
+                    }
+                    return;
+                }
+                foreach (var pack in DarkMatterPacks.All)
+                {
+                    if (!store.Prices.TryGetValue(pack.ProductId, out var price)) continue;
+                    string desc = pack.Bonus > 0
+                        ? $"{pack.DarkMatter:N0} Dark Matter  ·  +{pack.Bonus * 100f:0}% bonus"
+                        : $"{pack.DarkMatter:N0} Dark Matter";
+                    var p = pack;
+                    ItemRow(pack.Name, desc, store.Busy ? "…" : price, !store.Busy, () => { store.Buy(p); cache = ""; });
+                }
+                var small = Widgets.Text("Purchases are charged to your Apple Account and can't be undone in the game. " +
+                                         "Dark Matter is kept in your save and your iCloud backup.", 10, UiTheme.Dim);
+                small.style.whiteSpace = WhiteSpace.Normal;
+                small.style.marginTop = 10;
+                list.Add(small);
+            }
+
             refresh = () =>
             {
                 var state = ctx.State!;
+                shopTab = tab == 1;
+                var store = StoreService.Instance;
                 var sb = new System.Text.StringBuilder();
+                sb.Append(tab).Append('|');
+                if (tab == 2 && store != null)
+                    sb.Append(store.State).Append(store.Busy).Append(store.Prices.Count).Append(store.Error).Append('|');
                 sb.Append(shopTab).Append('|').Append(category).Append('|')
                   .Append(state.Premium.DarkMatter).Append('|')
                   .Append(state.Skins.Owned.Count).Append('|').Append(state.Skins.ActivePlanet).Append('|');
@@ -155,14 +212,16 @@ namespace GalaxyRoyale.Game.UI
                 cache = key;
 
                 dmLine.text = $"{state.Premium.DarkMatter:N0} DM";
-                Widgets.SetButtonHighlight(itemsBtn, !shopTab);
-                Widgets.SetButtonHighlight(shopBtn, shopTab);
+                Widgets.SetButtonHighlight(itemsBtn, tab == 0);
+                Widgets.SetButtonHighlight(shopBtn, tab == 1);
+                Widgets.SetButtonHighlight(dmBtn, tab == 2);
                 catRow.style.display = shopTab ? DisplayStyle.Flex : DisplayStyle.None;
                 foreach (var kv in catButtons)
                     Widgets.SetButtonHighlight(kv.Value, kv.Key == category);
 
                 list.Clear();
-                if (shopTab) RenderShop();
+                if (tab == 2) RenderDarkMatter();
+                else if (shopTab) RenderShop();
                 else RenderItems();
             };
             refresh();

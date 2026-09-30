@@ -846,6 +846,7 @@ namespace GalaxyRoyale.Game.UI
         /// <summary>The open modal panel, if any (the training coach looks inside it).</summary>
         public VisualElement? CurrentModal => _modal;
         public void OpenShop() => OpenModal(ShopPanel.Build(_ctx, out var r), r);
+        public void OpenDarkMatterShop() => OpenModal(ShopPanel.Build(_ctx, out var r, startTab: 2), r);
         public void OpenMailbox() => OpenModal(MailboxPanel.Build(_ctx, out var r), r);
 
         // ---------- toasts (v1 ToastManager: max 3, ~2.6s lifetime) ----------
