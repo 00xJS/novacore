@@ -518,7 +518,7 @@ namespace GalaxyRoyale.Game.UI
                 var caption = b.Q<Label>("caption");
                 UiFonts.ApplyBody(caption);
                 caption.style.letterSpacing = 0;
-                caption.style.fontSize = 8;
+                caption.style.fontSize = 7;
                 b.style.marginBottom = 8;
                 _moreMenu.Add(b);
                 return b;
@@ -528,7 +528,8 @@ namespace GalaxyRoyale.Game.UI
             MiniFab(Icon.Warning, "BOSS", OpenBoss);
             _clanFab = MiniFab(Icon.Pact, "CLAN", OpenClan);
             MiniFab(Icon.Rotate, "MARKET", OpenMarket);
-            MiniFab(Icon.Trophy, "AWARDS", OpenAchievements);
+            // QUESTS took AWARDS' place (user 2026-09-29); awards stay under Profile › TITLES & AWARDS.
+            MiniFab(Icon.Star, "QUESTS", () => QuestPanel.Open(_ctx));
             _eventsFab = MiniFab(Icon.Bolt, "EVENTS", () => OpenEvents());
             _dailyFab = MiniFab(Icon.Check, "DAILY", OpenDaily);
             MiniFab(Icon.Chart, "RANK", () => OpenRankings());
@@ -556,26 +557,10 @@ namespace GalaxyRoyale.Game.UI
             _queuesFab.style.left = 12;
             _queuesFab.style.bottom = UiTheme.NavH + TickerH + 16;
 
-            _queuesBadge = new VisualElement { pickingMode = PickingMode.Ignore };
-            _queuesBadge.style.position = Position.Absolute;
-            _queuesBadge.style.right = 4;
-            _queuesBadge.style.top = 2;
-            // A round pip (it was a bare square); two-digit counts stretch it into a pill.
-            _queuesBadge.style.minWidth = 16;
-            _queuesBadge.style.height = 16;
-            _queuesBadge.style.paddingLeft = 3;
-            _queuesBadge.style.paddingRight = 3;
-            _queuesBadge.style.borderTopLeftRadius = 8;
-            _queuesBadge.style.borderTopRightRadius = 8;
-            _queuesBadge.style.borderBottomLeftRadius = 8;
-            _queuesBadge.style.borderBottomRightRadius = 8;
-            Widgets.SetBorder(_queuesBadge, UiTheme.Bg, 1.5f);
-            _queuesBadge.style.backgroundColor = UiTheme.Magenta;
-            _queuesBadge.style.justifyContent = Justify.Center;
-            _queuesBadge.style.alignItems = Align.Center;
+            _queuesBadge = Widgets.CountBubble(18f, 10, UiTheme.Magenta, out _queuesBadgeLabel);
+            _queuesBadge.style.right = 3;
+            _queuesBadge.style.top = 1;
             _queuesBadge.style.display = DisplayStyle.None;
-            _queuesBadgeLabel = Widgets.Text("", 11, Color.white, bold: true);
-            _queuesBadge.Add(_queuesBadgeLabel);
             _queuesFab.Add(_queuesBadge);
 
             _root.Add(_queuesFab);
@@ -1527,7 +1512,7 @@ namespace GalaxyRoyale.Game.UI
                 _queuesCountCache = idleCount;
                 bool show = idleCount > 0;
                 _queuesBadge.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
-                _queuesBadgeLabel.text = show ? idleCount.ToString() : "";
+                _queuesBadgeLabel.text = show ? Widgets.BubbleCount(idleCount) : "";
             }
         }
 

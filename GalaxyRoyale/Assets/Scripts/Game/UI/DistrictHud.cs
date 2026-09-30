@@ -84,22 +84,9 @@ namespace GalaxyRoyale.Game.UI
                 tab.Count.pickingMode = PickingMode.Ignore;
                 tab.Count.style.marginTop = 1;
                 b.Add(tab.Count);
-                tab.Dot = new VisualElement { pickingMode = PickingMode.Ignore };
-                tab.Dot.style.position = Position.Absolute;
+                tab.Dot = Widgets.CountBubble(15f, 9, UiTheme.Magenta, out tab.DotLabel);
                 tab.Dot.style.top = 3;
                 tab.Dot.style.right = 3;
-                tab.Dot.style.minWidth = 13;
-                tab.Dot.style.height = 13;
-                tab.Dot.style.borderTopLeftRadius = 7;
-                tab.Dot.style.borderTopRightRadius = 7;
-                tab.Dot.style.borderBottomLeftRadius = 7;
-                tab.Dot.style.borderBottomRightRadius = 7;
-                tab.Dot.style.backgroundColor = UiTheme.Magenta;
-                tab.Dot.style.justifyContent = Justify.Center;
-                tab.Dot.style.alignItems = Align.Center;
-                tab.DotLabel = Widgets.Text("", 8, Color.white, bold: true);
-                tab.DotLabel.pickingMode = PickingMode.Ignore;
-                tab.Dot.Add(tab.DotLabel);
                 tab.Dot.style.display = DisplayStyle.None;
                 b.Add(tab.Dot);
                 if (district != BaseDistrict.Wilds)
@@ -257,7 +244,7 @@ namespace GalaxyRoyale.Game.UI
             tab.Count.text = count;
             tab.Count.style.color = on ? UiTheme.Text : Idle;
             tab.Dot.style.display = dot > 0 ? DisplayStyle.Flex : DisplayStyle.None;
-            tab.DotLabel.text = dot.ToString();
+            tab.DotLabel.text = Widgets.BubbleCount(dot);
         }
     }
 }

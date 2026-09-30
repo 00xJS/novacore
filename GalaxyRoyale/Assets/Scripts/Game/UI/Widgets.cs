@@ -518,6 +518,41 @@ namespace GalaxyRoyale.Game.UI
             return (bar, fill, label);
         }
 
+        /// <summary>A round count bubble (queues, district tabs): a true circle with its
+        /// number centred on both axes. The label fills the circle and centres its
+        /// text itself, so Label padding and font metrics can't push it off-centre.</summary>
+        public static VisualElement CountBubble(float size, int fontSize, Color fill, out Label label)
+        {
+            var dot = new VisualElement { pickingMode = PickingMode.Ignore };
+            dot.style.position = Position.Absolute;
+            dot.style.width = size;
+            dot.style.height = size;
+            float r = size * 0.5f;
+            dot.style.borderTopLeftRadius = r;
+            dot.style.borderTopRightRadius = r;
+            dot.style.borderBottomLeftRadius = r;
+            dot.style.borderBottomRightRadius = r;
+            dot.style.backgroundColor = fill;
+            label = new Label("") { pickingMode = PickingMode.Ignore };
+            label.style.position = Position.Absolute;
+            label.style.left = 0;
+            label.style.right = 0;
+            label.style.top = 0;
+            label.style.bottom = 0;
+            label.style.marginLeft = label.style.marginRight = label.style.marginTop = label.style.marginBottom = 0;
+            label.style.paddingLeft = label.style.paddingRight = label.style.paddingTop = label.style.paddingBottom = 0;
+            label.style.unityTextAlign = TextAnchor.MiddleCenter;
+            label.style.fontSize = fontSize;
+            label.style.color = Color.white;
+            label.style.unityFontStyleAndWeight = FontStyle.Bold;
+            label.style.whiteSpace = WhiteSpace.NoWrap;
+            dot.Add(label);
+            return dot;
+        }
+
+        /// <summary>Counts over 9 read "9+" so the bubble stays a circle.</summary>
+        public static string BubbleCount(int n) => n > 9 ? "9+" : n.ToString();
+
         /// <summary>A CSS border — or, on an element with a painted frame, the
         /// frame's stroke, so older code colouring a ring still works.</summary>
         public static void SetBorder(VisualElement e, Color color, float width)
