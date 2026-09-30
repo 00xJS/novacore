@@ -34,7 +34,7 @@ FIGHT FOR THE GALAXY
 
 GROW AS A COMMANDER
 • Earn XP from everything you do, level up, and spend skill points across three branches: Industry, Admiralty and Bastion.
-• Achievements and titles, 14-day seasons with rankings and rewards, rotating galaxy events and daily objectives.
+• Achievements and titles, weekly seasons with rankings and rewards, rotating galaxy events and daily objectives.
 • Trade resources on the galactic market.
 
 PLAY YOUR WAY

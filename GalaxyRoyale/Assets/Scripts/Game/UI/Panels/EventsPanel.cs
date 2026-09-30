@@ -89,7 +89,7 @@ namespace GalaxyRoyale.Game.UI
                 sHead.Add(seasonLeft);
                 season.Add(sHead);
                 season.Add(Wrap(Widgets.Text(
-                    "Two-week race: every empire is ranked by the might it GAINS this season, " +
+                    "One-week race: every empire is ranked by the might it GAINS this season, " +
                     "so a young colony can beat the giants.", 11, UiTheme.Text), 6));
                 if (galaxy != null)
                 {

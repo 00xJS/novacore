@@ -1,4 +1,6 @@
-// Seasons (user request 2026-09-28): two-week races on galaxy time. The season
+// Seasons (user request 2026-09-28): one-week races on galaxy time (cut from
+// two weeks 2026-09-29 so a single-player run sees a finish line every week,
+// in step with the weekly event rotation). The season
 // board ranks every empire by the might it GAINED this season, so a young
 // colony can win one against giants; at the end the finishing rank pays Dark
 // Matter, lands in the season history, and every baseline resets. Runs after
@@ -12,7 +14,7 @@ namespace GalaxyRoyale.Sim.Systems
 {
     public static class SeasonSystem
     {
-        public const int SeasonSec = 14 * 24 * 3600;
+        public const int SeasonSec = 7 * 24 * 3600;
 
         public static int SeasonAt(int tick) => 1 + Math.Max(0, tick) / SeasonSec;
         public static int EndTick(int season) => season * SeasonSec;

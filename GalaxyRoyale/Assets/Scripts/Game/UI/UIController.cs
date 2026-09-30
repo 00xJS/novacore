@@ -500,7 +500,7 @@ namespace GalaxyRoyale.Game.UI
 
             Button MiniFab(Icon icon, string label, Action onTap)
             {
-                var b = Widgets.Fab(icon, label, () =>
+                void Open()
                 {
                     ToggleMoreMenu();
                     // A panel that throws while building used to just "do nothing".
@@ -510,7 +510,15 @@ namespace GalaxyRoyale.Game.UI
                         Debug.LogException(e);
                         Toast($"{label} couldn't open — the error was logged", Icon.Warning, UiTheme.Bad);
                     }
-                }, 48f, UiTheme.Stroke);
+                }
+                var b = Widgets.Fab(icon, label, Open, 48f, UiTheme.Stroke);
+                // The caption stays inside the hex (user's pick) but in Exo 2 with no
+                // tracking: Orbitron's wide letters pushed MARKET / AWARDS / EVENTS
+                // past the hex's cut sides.
+                var caption = b.Q<Label>("caption");
+                UiFonts.ApplyBody(caption);
+                caption.style.letterSpacing = 0;
+                caption.style.fontSize = 7;
                 b.style.marginBottom = 8;
                 _moreMenu.Add(b);
                 return b;
@@ -520,16 +528,24 @@ namespace GalaxyRoyale.Game.UI
             MiniFab(Icon.Warning, "BOSS", OpenBoss);
             _clanFab = MiniFab(Icon.Pact, "CLAN", OpenClan);
             MiniFab(Icon.Rotate, "MARKET", OpenMarket);
-            MiniFab(Icon.Trophy, "AWARDS", OpenAchievements);
+            // QUESTS took AWARDS' place (user 2026-09-29); awards stay under Profile › TITLES & AWARDS.
+            MiniFab(Icon.Star, "QUESTS", () => QuestPanel.Open(_ctx));
             _eventsFab = MiniFab(Icon.Bolt, "EVENTS", () => OpenEvents());
             _dailyFab = MiniFab(Icon.Check, "DAILY", OpenDaily);
             MiniFab(Icon.Chart, "RANK", () => OpenRankings());
             _root.Add(_moreMenu);
         }
 
+        public void CloseMoreMenu()
+        {
+            if (_moreOpen) ToggleMoreMenu();
+        }
+
         void ToggleMoreMenu()
         {
             _moreOpen = !_moreOpen;
+            // A selected building's quick actions draw over the HUD; clear them first.
+            if (_moreOpen) GetComponent<BuildingMarkers>()?.Deselect();
             _moreMenu.style.display = _moreOpen ? DisplayStyle.Flex : DisplayStyle.None;
             Widgets.SetButtonHighlight(_moreFab, _moreOpen);
         }
@@ -541,18 +557,10 @@ namespace GalaxyRoyale.Game.UI
             _queuesFab.style.left = 12;
             _queuesFab.style.bottom = UiTheme.NavH + TickerH + 16;
 
-            _queuesBadge = new VisualElement { pickingMode = PickingMode.Ignore };
-            _queuesBadge.style.position = Position.Absolute;
-            _queuesBadge.style.right = 4;
-            _queuesBadge.style.top = 2;
-            _queuesBadge.style.width = 16;
-            _queuesBadge.style.height = 16;
-            _queuesBadge.style.backgroundColor = UiTheme.Magenta;
-            _queuesBadge.style.justifyContent = Justify.Center;
-            _queuesBadge.style.alignItems = Align.Center;
+            _queuesBadge = Widgets.CountBubble(18f, 10, UiTheme.Magenta, out _queuesBadgeLabel);
+            _queuesBadge.style.right = 3;
+            _queuesBadge.style.top = 1;
             _queuesBadge.style.display = DisplayStyle.None;
-            _queuesBadgeLabel = Widgets.Text("", 11, Color.white, bold: true);
-            _queuesBadge.Add(_queuesBadgeLabel);
             _queuesFab.Add(_queuesBadge);
 
             _root.Add(_queuesFab);
@@ -673,7 +681,25 @@ namespace GalaxyRoyale.Game.UI
         public BaseChipLayer CreateBaseChipLayer()
         {
             EnsureBuilt();
-            return new BaseChipLayer(_root, _labelBlockers);
+            return new BaseChipLayer(_root, _labelBlockers, FrontLayer());
+        }
+
+        VisualElement? _frontLayer;
+
+        /// <summary>A full-screen layer ABOVE the HUD (under toasts and modals) for a
+        /// selected building's quick actions, so the quest / event chips and the
+        /// MORE menu never cover UPGRADE / INFO / BOOST.</summary>
+        VisualElement FrontLayer()
+        {
+            if (_frontLayer != null) return _frontLayer;
+            _frontLayer = new VisualElement { name = "base-front", pickingMode = PickingMode.Ignore };
+            _frontLayer.style.position = Position.Absolute;
+            _frontLayer.style.left = 0;
+            _frontLayer.style.right = 0;
+            _frontLayer.style.top = 0;
+            _frontLayer.style.bottom = 0;
+            _root.Insert(_root.IndexOf(_toastLayer), _frontLayer);
+            return _frontLayer;
         }
 
         /// <summary>A full-screen layer under the HUD that lets taps through: the globe's
@@ -1486,7 +1512,7 @@ namespace GalaxyRoyale.Game.UI
                 _queuesCountCache = idleCount;
                 bool show = idleCount > 0;
                 _queuesBadge.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
-                _queuesBadgeLabel.text = show ? idleCount.ToString() : "";
+                _queuesBadgeLabel.text = show ? Widgets.BubbleCount(idleCount) : "";
             }
         }
 

@@ -127,7 +127,7 @@ GR_BUNDLE_ID=com.you.galaxyroyale GR_TEAM_ID=ABCDE12345 \
   to keep. The Editor has no iCloud, so there the backup is simply off.
 - **Seasons & events** run on galaxy time (`SeasonSystem`, `EventSystem`).
   A new galaxy gets 48 quiet hours before the first event. The events repeat
-  on a weekly cycle and a season lasts 14 days.
+  on a weekly cycle and a season lasts 7 days.
 - The simulated galaxy's pacing knobs are consts on `BotSystem`
   (`Assets/Scripts/Sim/Bots/Bots.cs`) — think cadence, aggression multiplier,
   inbound raid cooldown, pre-sim head start.
