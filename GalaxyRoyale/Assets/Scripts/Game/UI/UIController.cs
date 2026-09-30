@@ -495,12 +495,9 @@ namespace GalaxyRoyale.Game.UI
             _moreMenu.style.position = Position.Absolute;
             _moreMenu.style.right = 12;
             _moreMenu.style.bottom = UiTheme.NavH + TickerH + 16 + 56;
-            _moreMenu.style.alignItems = Align.FlexEnd;
+            _moreMenu.style.alignItems = Align.Center;
             _moreMenu.style.display = DisplayStyle.None;
 
-            // Speed-dial rows: the name rides in a tag BESIDE the hex, not inside it —
-            // Orbitron captions like MARKET / AWARDS / EVENTS spilled past the hex's
-            // cut sides. The tag is tappable too.
             Button MiniFab(Icon icon, string label, Action onTap)
             {
                 void Open()
@@ -514,28 +511,16 @@ namespace GalaxyRoyale.Game.UI
                         Toast($"{label} couldn't open — the error was logged", Icon.Warning, UiTheme.Bad);
                     }
                 }
-                var row = Widgets.HBox();
-                row.style.alignItems = Align.Center;
-                row.style.justifyContent = Justify.FlexEnd;
-                row.style.marginBottom = 8;
-                row.pickingMode = PickingMode.Ignore;
-
-                var tag = new VisualElement();
-                tag.style.paddingLeft = 8;
-                tag.style.paddingRight = 8;
-                tag.style.paddingTop = 3;
-                tag.style.paddingBottom = 3;
-                tag.style.marginRight = 6;
-                Holo.Frame(tag, UiTheme.Bg, UiTheme.Stroke, 5f);
-                var name = Widgets.Heading(label, 9, UiTheme.Text, 1.1f);
-                name.pickingMode = PickingMode.Ignore;
-                tag.Add(name);
-                tag.RegisterCallback<ClickEvent>(_ => { GameAudio.Tap(); Open(); });
-                row.Add(tag);
-
-                var b = Widgets.Fab(icon, null, Open, 48f, UiTheme.Stroke);
-                row.Add(b);
-                _moreMenu.Add(row);
+                var b = Widgets.Fab(icon, label, Open, 48f, UiTheme.Stroke);
+                // The caption stays inside the hex (user's pick) but in Exo 2 with no
+                // tracking: Orbitron's wide letters pushed MARKET / AWARDS / EVENTS
+                // past the hex's cut sides.
+                var caption = b.Q<Label>("caption");
+                UiFonts.ApplyBody(caption);
+                caption.style.letterSpacing = 0;
+                caption.style.fontSize = 8;
+                b.style.marginBottom = 8;
+                _moreMenu.Add(b);
                 return b;
             }
             // Stacked bottom-up visually; add in top-down order.
@@ -550,9 +535,16 @@ namespace GalaxyRoyale.Game.UI
             _root.Add(_moreMenu);
         }
 
+        public void CloseMoreMenu()
+        {
+            if (_moreOpen) ToggleMoreMenu();
+        }
+
         void ToggleMoreMenu()
         {
             _moreOpen = !_moreOpen;
+            // A selected building's quick actions draw over the HUD; clear them first.
+            if (_moreOpen) GetComponent<BuildingMarkers>()?.Deselect();
             _moreMenu.style.display = _moreOpen ? DisplayStyle.Flex : DisplayStyle.None;
             Widgets.SetButtonHighlight(_moreFab, _moreOpen);
         }
@@ -704,7 +696,25 @@ namespace GalaxyRoyale.Game.UI
         public BaseChipLayer CreateBaseChipLayer()
         {
             EnsureBuilt();
-            return new BaseChipLayer(_root, _labelBlockers);
+            return new BaseChipLayer(_root, _labelBlockers, FrontLayer());
+        }
+
+        VisualElement? _frontLayer;
+
+        /// <summary>A full-screen layer ABOVE the HUD (under toasts and modals) for a
+        /// selected building's quick actions, so the quest / event chips and the
+        /// MORE menu never cover UPGRADE / INFO / BOOST.</summary>
+        VisualElement FrontLayer()
+        {
+            if (_frontLayer != null) return _frontLayer;
+            _frontLayer = new VisualElement { name = "base-front", pickingMode = PickingMode.Ignore };
+            _frontLayer.style.position = Position.Absolute;
+            _frontLayer.style.left = 0;
+            _frontLayer.style.right = 0;
+            _frontLayer.style.top = 0;
+            _frontLayer.style.bottom = 0;
+            _root.Insert(_root.IndexOf(_toastLayer), _frontLayer);
+            return _frontLayer;
         }
 
         /// <summary>A full-screen layer under the HUD that lets taps through: the globe's

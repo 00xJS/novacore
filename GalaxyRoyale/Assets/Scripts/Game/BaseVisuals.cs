@@ -1,6 +1,5 @@
-// The globe base's surface overlay (2026-09-28): the hologram latitude and
-// longitude grid, a deck under each district (the Spaceport's on the far side
-// since 2026-09-29), the resource lanes that run from each first mine out
+// The globe base's surface overlay (2026-09-28): a deck under each district
+// (the Spaceport's on the far side since 2026-09-29), the resource lanes that run from each first mine out
 // through the Mining Belt, the conduits between the Command Center and its
 // neighbours, and a hex pad under every building spot.
 // Everything is parented to the planet, so it turns with it, and sits on the
@@ -90,14 +89,6 @@ namespace GalaxyRoyale.Game
             return pts;
         }
 
-        static List<Vector3> Meridian(double lon, double lat0, double lat1, float r, double step = 3)
-        {
-            var pts = new List<Vector3>();
-            int n = Mathf.Max(2, (int)System.Math.Ceiling(System.Math.Abs(lat1 - lat0) / step));
-            for (int i = 0; i <= n; i++) pts.Add(Point(lat0 + (lat1 - lat0) * i / n, lon, r));
-            return pts;
-        }
-
         static List<Vector3> Arc(double lat0, double lon0, double lat1, double lon1, float r, int n = 20)
         {
             var a = Point(lat0, lon0, 1f);
@@ -174,14 +165,8 @@ namespace GalaxyRoyale.Game
             float thin = radius * 0.0032f;
             var accent = UiTheme.Accent;
 
-            var grid = new GameObject("Hologram Grid").transform;
-            grid.SetParent(root, false);
-            // A light touch (user 2026-09-29: the 15° lattice read as time zones):
-            // the equator, a ring at ±45° and six meridians keep the hologram feel.
-            foreach (int lat in new[] { -45, 0, 45 })
-                Line(grid, $"Lat {lat}", Parallel(lat, -180, 180, r, 4), UiTheme.A(accent, lat == 0 ? 0.2f : 0.07f), thin, loop: false);
-            for (int lon = -180; lon < 180; lon += 60)
-                Line(grid, $"Lon {lon}", Meridian(lon, -88, 88, r, 4), UiTheme.A(accent, 0.06f), thin);
+            // No lat/lon grid (user 2026-09-29: it read as time zones and wasn't
+            // needed); the district decks, conduits and lanes carry the hologram look.
 
             var decks = new GameObject("District Decks").transform;
             decks.SetParent(root, false);

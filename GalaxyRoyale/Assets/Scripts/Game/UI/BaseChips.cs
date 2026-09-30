@@ -39,9 +39,13 @@ namespace GalaxyRoyale.Game.UI
         readonly Dictionary<string, Chip> _bubbles = new();
         readonly Dictionary<string, Action> _bubbleTaps = new();
 
-        public BaseChipLayer(VisualElement root, IReadOnlyList<VisualElement>? blockers)
+        /// <summary>Where the quick-action ring lives: over the HUD when given.</summary>
+        readonly VisualElement? _front;
+
+        public BaseChipLayer(VisualElement root, IReadOnlyList<VisualElement>? blockers, VisualElement? front = null)
         {
             _blockers = blockers;
+            _front = front;
             _layer = new VisualElement { name = "base-chips", pickingMode = PickingMode.Ignore };
             _layer.style.position = Position.Absolute;
             _layer.style.left = 0;
@@ -306,7 +310,7 @@ namespace GalaxyRoyale.Game.UI
             _info = RingButton(Icon.Info, "INFO", RingW * 0.5f - 29f, 0f, () => _onInfo?.Invoke(), out _);
             _boost = RingButton(Icon.Bolt, "BOOST", RingW - 60f, 14f, () => _onBoost?.Invoke(), out _);
             _ring.style.display = DisplayStyle.None;
-            _layer.Add(_ring);
+            (_front ?? _layer).Add(_ring);
 
             // Price and time: level, then gold, quartz and helium with their icons, then time.
             _costRow = new VisualElement { name = "quick-cost", pickingMode = PickingMode.Ignore };
@@ -350,7 +354,7 @@ namespace GalaxyRoyale.Game.UI
             _costHelium = Part(Icon.Drop, UiTheme.Helium);
             _costTime = Part(Icon.Clock, UiTheme.Dim);
             _costRow.style.display = DisplayStyle.None;
-            _layer.Add(_costRow);
+            (_front ?? _layer).Add(_costRow);
         }
 
         /// <summary>Chips and bubbles made after the quick-action ring (a pad turning into a
@@ -358,7 +362,7 @@ namespace GalaxyRoyale.Game.UI
         /// UPGRADE / INFO / BOOST hid behind neighbouring name chips. New ones go under it.</summary>
         void AddUnderRing(VisualElement anchor)
         {
-            if (_ring != null) _layer.Insert(_layer.IndexOf(_ring), anchor);
+            if (_ring != null && _ring.parent == _layer) _layer.Insert(_layer.IndexOf(_ring), anchor);
             else _layer.Add(anchor);
         }
 

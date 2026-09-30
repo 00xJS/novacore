@@ -759,6 +759,7 @@ namespace GalaxyRoyale.Game
             if (_selected == id) { RingInfo(BaseLayout.BuildingPad(id), null); return; }
             _selected = id;
             _selectedMine = null;
+            UIController.Instance?.CloseMoreMenu(); // the ring draws over the HUD
             GameAudio.Play(Sfx.Toggle);
             RefreshAll(_ctx.State);
         }
@@ -776,11 +777,12 @@ namespace GalaxyRoyale.Game
             }
             _selected = null;
             _selectedMine = mineId;
+            UIController.Instance?.CloseMoreMenu();
             GameAudio.Play(Sfx.Toggle);
             RefreshAll(state);
         }
 
-        void Deselect()
+        public void Deselect()
         {
             if (_selected == null && _selectedMine == null) return;
             _selected = null;
