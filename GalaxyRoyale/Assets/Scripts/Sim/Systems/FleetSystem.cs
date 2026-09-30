@@ -18,7 +18,7 @@ namespace GalaxyRoyale.Sim.Systems
         public static int ShipBuildTime(GameState state, HullId hull)
         {
             var def = Ships.Defs[hull];
-            return Math.Max(1, (int)Math.Ceiling(def.BuildTimeSec * ResearchSystem.ShipTimeMult(state)));
+            return Math.Max(1, (int)Math.Ceiling(def.BuildTimeSec * ResearchSystem.ShipTimeMult(state) * TwistSystem.ShipTimeMult(state)));
         }
 
         /// <summary>First unmet unlock requirement for a hull, or null when buildable.</summary>

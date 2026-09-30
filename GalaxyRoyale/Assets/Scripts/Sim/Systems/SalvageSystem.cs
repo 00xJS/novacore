@@ -17,7 +17,7 @@ namespace GalaxyRoyale.Sim.Systems
             state.Buildings.TryGetValue(BuildingId.SalvageYard, out var b) ? b.Level : 0;
 
         /// <summary>Share of a wreck's cost that comes back.</summary>
-        public static float Rate(GameState state) => Balance.SalvageRate(Level(state));
+        public static float Rate(GameState state) => Math.Min(0.9f, Balance.SalvageRate(Level(state)) * TwistSystem.SalvageMult(state));
 
         /// <summary>How much the yard holds before it has to be collected (milli, per resource).</summary>
         public static long CapacityMilli(GameState state) => Balance.SalvageCapacity(Level(state)) * 1000L;

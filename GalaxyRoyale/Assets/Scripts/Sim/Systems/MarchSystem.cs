@@ -49,6 +49,7 @@ namespace GalaxyRoyale.Sim.Systems
         /// bonus; the Galactic Core's holder gets Galactic Command).</summary>
         public static double EffSpeed(GameState state, Dictionary<HullId, int> ships) =>
             FleetSpeed(ships) * ResearchSystem.MarchSpeedMult(state) * RadarSystem.FleetSpeedMult(state, ships)
+                * TwistSystem.SpeedMult(state) // Low Gravity (weekly twists, 2026-09-30)
             * (state.Buffs.CoreHolder ? CoreSystem.CommandSpeedMult : 1.0)
             * JumpGateSystem.SpeedMult(state);
 
@@ -651,7 +652,7 @@ namespace GalaxyRoyale.Sim.Systems
                     UpsertOverride(state, node.Id, o => o.Cleared = true);
                     var loot = CampLoot(state, node);
                     // Pirate Armada (galaxy event): camps carry double loot.
-                    float armada = EventSystem.CampLootMult(state);
+                    float armada = EventSystem.CampLootMult(state) * TwistSystem.CampLootMult(state); // + Pirate Uprising
                     // Ion Storm (map events, 2026-09-30): its camps carry more, and count for its goal.
                     if (EventSites.InStorm(state, node.Tile, state.Tick))
                     {
@@ -754,7 +755,7 @@ namespace GalaxyRoyale.Sim.Systems
             march.LegTo = march.Node;
             march.DepartedAtTick = state.Tick;
             march.ArrivesAtTick = state.Tick +
-                (int)Math.Ceiling(gatherable / (node.RatePerSec * (double)ResearchSystem.GatherRateMult(state)
+                (int)Math.Ceiling(gatherable / (node.RatePerSec * (double)ResearchSystem.GatherRateMult(state) * TwistSystem.GatherMult(state)
                     * NovaRateMult(state, node)));
             events.Emit(new MarchPhaseChanged(march.Id, MarchPhase.Gathering));
         }
@@ -802,7 +803,7 @@ namespace GalaxyRoyale.Sim.Systems
             int remaining = ov?.Remaining ?? node.Amount;
             int elapsed = state.Tick - march.DepartedAtTick;
             long free = FreeCargo(state, march); // pre-loaded launch cargo takes space
-            long harvested = (long)Math.Floor(elapsed * (double)node.RatePerSec * ResearchSystem.GatherRateMult(state)
+            long harvested = (long)Math.Floor(elapsed * (double)node.RatePerSec * ResearchSystem.GatherRateMult(state) * TwistSystem.GatherMult(state)
                 * NovaRateMult(state, node));
             int gathered = (int)Math.Min(Math.Min(remaining, free), harvested);
             if (gathered <= 0) return;

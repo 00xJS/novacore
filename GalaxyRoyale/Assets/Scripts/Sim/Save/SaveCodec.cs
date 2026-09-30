@@ -525,6 +525,7 @@ namespace GalaxyRoyale.Sim.Save
             }
             if (s.QuestStep > 0) root["questStep"] = (long)s.QuestStep;
             if (s.CareerWindow >= 0) root["careerWindow"] = (long)s.CareerWindow; // rivals (Bots/BotCareer)
+            if (s.TwistWeek > 0) root["twistWeek"] = (long)s.TwistWeek;
             if (s.Achievements.Count > 0)
             {
                 var ids = new List<string>(s.Achievements);
@@ -749,6 +750,7 @@ namespace GalaxyRoyale.Sim.Save
                 TestMode = !d.TryGetValue("testMode", out var tm) || tm is not bool tmb || tmb,
                 QuestStep = d.TryGetValue("questStep", out var qs) && qs != null ? ToI32(qs) : 0,
                 CareerWindow = d.TryGetValue("careerWindow", out var cw) && cw != null ? ToI32(cw) : -1,
+                TwistWeek = d.TryGetValue("twistWeek", out var tw) && tw != null ? ToI32(tw) : 0,
                 Difficulty = d.TryGetValue("difficulty", out var df) && df is string dfs
                     ? DifficultyFrom(dfs) : Difficulty.Standard,
             };

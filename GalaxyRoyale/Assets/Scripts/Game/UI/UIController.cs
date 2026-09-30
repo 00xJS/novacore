@@ -98,7 +98,7 @@ namespace GalaxyRoyale.Game.UI
         // Top-left stack on the BASE view: quest tracker, then the event chip.
         VisualElement _leftStack = null!;
         VisualElement _eventChip = null!;
-        Label _eventChipTitle = null!, _eventChipInfo = null!, _eventClaimPill = null!;
+        Label _eventChipTitle = null!, _eventChipInfo = null!, _eventClaimPill = null!, _eventChipTwist = null!;
         string _eventKey = "";
         int _eventSeenInstance = -1, _eventNudgedInstance = -1;
         // Commander's Path tracker (top left of the BASE view).
@@ -1149,6 +1149,18 @@ namespace GalaxyRoyale.Game.UI
                     GameAudio.Feedback(Sfx.Victory, Haptic.Success);
                     break;
                 }
+                case TwistBegan tb:
+                {
+                    var t = Twists.Def(tb.Kind);
+                    Toast($"This week's twist: {t.Name}. {t.Effect}. {t.Flavor}", Icon.Bolt, UiTheme.Accent);
+                    GameAudio.Feedback(tb.Kind switch
+                    {
+                        TwistKind.SolarMaximum or TwistKind.RichVeins => Sfx.Coins,
+                        TwistKind.HuntersMoon or TwistKind.PirateUprising => Sfx.Taunt,
+                        _ => Sfx.Discovery,
+                    }, Haptic.Light);
+                    break;
+                }
                 case LordReturns back:
                 {
                     var lord = PirateLords.Def(back.Lord);
@@ -1477,8 +1489,12 @@ namespace GalaxyRoyale.Game.UI
             _eventChipTitle.pickingMode = PickingMode.Ignore;
             _eventChipInfo = Widgets.Text("", 9, UiTheme.Dim);
             _eventChipInfo.pickingMode = PickingMode.Ignore;
+            // The week's twist rides along under the event (2026-09-30).
+            _eventChipTwist = Widgets.Text("", 9, UiTheme.Accent);
+            _eventChipTwist.pickingMode = PickingMode.Ignore;
             col.Add(_eventChipTitle);
             col.Add(_eventChipInfo);
+            col.Add(_eventChipTwist);
             c.Add(col);
             _eventClaimPill = Widgets.Heading("CLAIM", 9, UiTheme.Ink, 1.2f);
             _eventClaimPill.pickingMode = PickingMode.Ignore;
@@ -1501,7 +1517,8 @@ namespace GalaxyRoyale.Game.UI
             bool claimable = EventSystem.CanClaim(state);
             bool claimed = state.EventClaimed && live.Instance == state.EventInstance;
             int left = live.EndTick - state.Tick;
-            string key = $"{live.Instance}|{have}|{claimable}|{claimed}|{(left >= 3600 ? left / 3600 : left / 60)}";
+            var twist = TwistSystem.At(state.Tick);
+            string key = $"{live.Instance}|{have}|{claimable}|{claimed}|{(left >= 3600 ? left / 3600 : left / 60)}|{twist.Kind}";
             if (key == _eventKey) return;
             bool firstLook = _eventKey.Length == 0;
             _eventKey = key;
@@ -1519,6 +1536,8 @@ namespace GalaxyRoyale.Game.UI
                     : $"{live.Def.Goal}: {have} / {need}";
             }
             _eventChipInfo.style.color = claimable ? UiTheme.Good : UiTheme.Dim;
+            _eventChipTwist.text = twist.Kind == TwistKind.None ? "" : $"This week's twist: {twist.Name}";
+            _eventChipTwist.style.display = twist.Kind == TwistKind.None ? DisplayStyle.None : DisplayStyle.Flex;
             _eventClaimPill.style.display = claimable ? DisplayStyle.Flex : DisplayStyle.None;
             Widgets.SetBorder(_eventChip, claimable ? UiTheme.Good : UiTheme.Stroke, 1.2f);
 

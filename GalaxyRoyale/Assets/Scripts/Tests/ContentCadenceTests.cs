@@ -94,6 +94,8 @@ namespace GalaxyRoyale.Sim.Tests
                 d[$"event:{live.Def.Kind}"] = (Tier.Major, "event", live.Def.Name);
                 d[$"eventrun:{live.Instance}"] = (Tier.Notable, "event", $"{live.Def.Name} (again)");
             }
+            if (TwistSystem.KindAt(s.Tick) is var tk && tk != TwistKind.None)
+                d[$"twist:{tk}"] = (Tier.Major, "twist", $"Twist: {Twists.Def(tk).Name}");
             if (galaxy.Boss.Visit > 0)
             {
                 var v = BossSystem.VariantFor(galaxy.Boss.Visit);
