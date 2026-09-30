@@ -14,6 +14,7 @@ namespace GalaxyRoyale.Data
         NemesesDefeated, // 2026-09-30
         LordsDefeated, ChaptersDone, // the campaign (2026-09-30)
         MegaprojectsDone, // mega-projects (2026-09-30)
+        CodexCategory,    // a codex collection filled (AchievementDef.Codex names it)
     }
 
     public sealed class AchievementDef
@@ -27,6 +28,8 @@ namespace GalaxyRoyale.Data
         public int RewardDM;
         /// <summary>Title the achievement unlocks (null = none).</summary>
         public string? Title;
+        /// <summary>CodexCategory goals: which collection (Data/Codex id).</summary>
+        public string? Codex;
     }
 
     public static class Achievements
@@ -34,6 +37,11 @@ namespace GalaxyRoyale.Data
         static AchievementDef A(string id, string name, string detail, AchievementGoal goal, long target,
             int dm, string? title = null) =>
             new() { Id = id, Name = name, Detail = detail, Goal = goal, Target = target, RewardDM = dm, Title = title };
+
+        /// <summary>A codex collection: its target is the collection's size.</summary>
+        static AchievementDef C(string id, string name, string detail, string codex, int dm, string title) =>
+            new() { Id = id, Name = name, Detail = detail, Goal = AchievementGoal.CodexCategory, Codex = codex,
+                Target = Data.Codex.ById(codex)!.Entries.Count, RewardDM = dm, Title = title };
 
         public static readonly IReadOnlyList<AchievementDef> All = new[]
         {
@@ -76,6 +84,15 @@ namespace GalaxyRoyale.Data
             // Mega-projects (2026-09-30).
             A("wonder-builder", "Wonder-Builder", "Complete a mega-project", AchievementGoal.MegaprojectsDone, 1, 300, "Wonder-Builder"),
             A("architect-of-worlds", "Architect of Worlds", "Complete all four mega-projects", AchievementGoal.MegaprojectsDone, 4, 600, "Architect of Worlds"),
+            // The codex (2026-09-30): a title for each full collection.
+            C("cartographer", "Cartographer", "Visit every kind of world", "worlds", 200, "Cartographer"),
+            C("master-shipwright", "Master Shipwright", "Build every hull", "fleet", 300, "Master Shipwright"),
+            C("curator", "Curator", "Own every kind of relic", "relics", 200, "Curator"),
+            C("chief-engineer", "Chief Engineer", "Find every module blueprint", "blueprints", 250, "Chief Engineer"),
+            C("storm-chaser", "Storm Chaser", "Live through every galaxy event", "events", 200, "Storm Chaser"),
+            C("weathered", "Weathered", "Live through every weekly twist", "twists", 250, "Weathered"),
+            C("giant-hunter", "Hunter of Giants", "Strike every kind of dreadnought", "dreadnoughts", 200, "Hunter of Giants"),
+            C("wayfarer", "Wayfarer", "Bring every kind of expedition home", "expeditions", 200, "Wayfarer"),
         };
 
         public static AchievementDef? ById(string id)

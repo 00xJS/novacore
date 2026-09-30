@@ -59,6 +59,10 @@ namespace GalaxyRoyale.Game.UI
             titles.style.width = Length.Percent(49f);
             idButtons.Add(titles);
             card.Add(idButtons);
+            // The codex (2026-09-30).
+            var codex = Widgets.IconButton(Icon.Planet, "CODEX & COLLECTIONS", () => CodexPanel.Open(ctx), 10);
+            codex.style.marginTop = 6;
+            card.Add(codex);
 
             // Commander level, XP and the way into the skill tree.
             var cmdBox = Widgets.HBox(Justify.SpaceBetween);

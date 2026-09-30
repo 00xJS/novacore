@@ -641,6 +641,13 @@ namespace GalaxyRoyale.Sim.Save
                     ["humbled"] = IntMap(nm.Humbled),
                 };
             }
+            // The codex (2026-09-30).
+            if (s.Codex.Count > 0)
+            {
+                var keys = new List<string>(s.Codex);
+                keys.Sort(StringComparer.Ordinal);
+                root["codex"] = Arr(keys, k => (object?)k);
+            }
             // Ship modules, blueprints and presets (2026-09-30).
             var md = s.Modules;
             bool anyPreset = false;
@@ -1082,6 +1089,8 @@ namespace GalaxyRoyale.Sim.Save
                 ReadMap("grudges", n.Grudges);
                 ReadMap("humbled", n.Humbled);
             }
+            if (d.TryGetValue("codex", out var cxo) && cxo is List<object?> cxl)
+                foreach (var k in cxl) if (k is string ks) s.Codex.Add(ks);
             if (d.TryGetValue("modules", out var mdo) && mdo is Dictionary<string, object?> mdd)
             {
                 if (mdd.TryGetValue("blueprints", out var bpo) && bpo is Dictionary<string, object?> bpd)
