@@ -64,6 +64,9 @@ namespace GalaxyRoyale.Game.UI
 
         public IPanel? Panel => _layer.panel;
 
+        /// <summary>The layer's height in panel points (0 before layout).</summary>
+        public float Height => float.IsNaN(_layer.layout.height) ? 0f : _layer.layout.height;
+
         /// <summary>Screen pixels (y up) to panel points; null when behind the camera.</summary>
         public Vector2? ToPanel(Vector3 screenPx)
         {

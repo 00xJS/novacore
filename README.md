@@ -78,6 +78,20 @@ Portrait-mode mobile 4X, built in **Unity 6** (URP + UI Toolkit, pure-C# UI):
   time to find gold seams, crystal fields and helium vents for your harvester
   drones, supply caches and Dark Matter relics. Drained deposits refill and
   claimed finds drift back under the fog, so the Wilds never run out.
+- **The Citadel.** Tip the planet north for five buildings round the pole: an
+  Academy (your commander leads a fleet into battle), a Relic Vault (the
+  Wilds' relics as permanent bonuses), a Trade Consulate (delivery contracts
+  from rival commanders), a Missile Silo (shoot down part of an inbound raid)
+  and a Terraformer (reshape the planet down one of four paths).
+- **Events on the map.** A two-week rotation of galaxy events, several of them
+  put something near you: a comet to mine before the rivals do, a caravan to
+  rob or escort, an ion storm that blinds your radar, a star about to go
+  supernova, a bounty on the rim's worst raider, a tournament for the Core —
+  and the Pirate Dreadnought comes as a Carrier, a Siege ship or a Stealth ship.
+- **Expeditions.** Send a fleet past the edge of the map; halfway there, make
+  the call (bold or safe), and read how it went when it comes home.
+- **A nemesis.** Trade enough blows with one rival and they remember: they hunt
+  you, taunt you on the news wire and come back stronger — until you break them.
 - **Battles you can watch.** Every hull has its own art. Battle reports show
   the outcome, both flagships and each hull's losses, and the replay plays the
   fight out with the real ships: bolts, fireballs and wrecks, round by round.

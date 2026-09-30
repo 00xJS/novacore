@@ -192,6 +192,10 @@ namespace GalaxyRoyale.Game.UI
             _leftStack.style.alignItems = Align.FlexStart;
             _root.Add(_leftStack);
             BuildQuestTracker();
+            // The alert chips share a box that turns into a row of icons when crowded (2026-09-30).
+            _alertBox = new VisualElement();
+            _alertBox.style.alignItems = Align.FlexStart;
+            _leftStack.Add(_alertBox);
             BuildEventChip();
             BuildCoreChip();
             BuildBossChip();
@@ -1414,7 +1418,7 @@ namespace GalaxyRoyale.Game.UI
             _eventClaimPill.style.display = DisplayStyle.None;
             c.Add(_eventClaimPill);
             c.RegisterCallback<ClickEvent>(_ => OpenEvents());
-            _leftStack.Add(c);
+            _alertBox.Add(c);
         }
 
         void RefreshEventChip(GameState state)
@@ -1526,7 +1530,7 @@ namespace GalaxyRoyale.Game.UI
             c.Add(col);
             c.style.display = DisplayStyle.None;
             c.RegisterCallback<ClickEvent>(_ => CorePanel.Open(_ctx));
-            _leftStack.Add(c);
+            _alertBox.Add(c);
         }
 
         void RefreshCoreChip(GameState state)
@@ -1553,6 +1557,34 @@ namespace GalaxyRoyale.Game.UI
                 : $"Next tribute in {UiTheme.FmtDuration(tribute)}";
             _coreChipInfo.style.color = underAttack ? UiTheme.Bad : UiTheme.Dim;
             Widgets.SetBorder(_coreChip, underAttack ? UiTheme.Bad : UiTheme.Good, 1.2f);
+        }
+
+        // ---------- the alert chips' compact mode (2026-09-30) ----------
+        // With three or more showing, or over the Citadel or the Wilds (whose
+        // buildings reach the top of the screen), the chips shrink to their icons
+        // in a row. Each still opens its panel.
+
+        VisualElement _alertBox = null!;
+        bool? _alertsCompact;
+
+        void CompactAlerts()
+        {
+            var chips = new[] { _eventChip, _coreChip, _bossChip, _nemesisChip };
+            int shown = 0;
+            foreach (var c in chips) if (c.resolvedStyle.display == DisplayStyle.Flex) shown++;
+            var district = BaseGlobe.Instance?.District;
+            bool compact = shown >= 3 || district is Sim.BaseDistrict.Citadel or Sim.BaseDistrict.Wilds;
+            if (compact == _alertsCompact) return;
+            _alertsCompact = compact;
+            _alertBox.style.flexDirection = compact ? FlexDirection.Row : FlexDirection.Column;
+            foreach (var c in chips)
+            {
+                if (c.childCount > 1) c[1].style.display = compact ? DisplayStyle.None : DisplayStyle.Flex;
+                if (c.childCount > 0) c[0].style.marginRight = compact ? 0 : 7;
+                c.style.paddingLeft = compact ? 8 : 10;
+                c.style.paddingRight = compact ? 8 : 14;
+                c.style.marginRight = compact ? 6 : 0;
+            }
         }
 
         // ---------- Nemesis chip (base view, 2026-09-30) ----------
@@ -1592,7 +1624,7 @@ namespace GalaxyRoyale.Game.UI
                 var s = _ctx.State;
                 if (s != null && NemesisSystem.Active(s)) PlayerProfilePanel.Open(_ctx, s.Nemesis.BotId, s.Nemesis.Name);
             });
-            _leftStack.Add(c);
+            _alertBox.Add(c);
         }
 
         void RefreshNemesisChip(GameState state)
@@ -1643,7 +1675,7 @@ namespace GalaxyRoyale.Game.UI
             c.Add(col);
             c.style.display = DisplayStyle.None;
             c.RegisterCallback<ClickEvent>(_ => BossPanel.Open(_ctx));
-            _leftStack.Add(c);
+            _alertBox.Add(c);
         }
 
         Label? _bossChipTitle;
@@ -1677,6 +1709,7 @@ namespace GalaxyRoyale.Game.UI
             RefreshCoreChip(state);
             RefreshBossChip(state);
             RefreshNemesisChip(state);
+            CompactAlerts();
             for (int i = 0; i < 3; i++)
             {
                 var res = Resources_All[i];

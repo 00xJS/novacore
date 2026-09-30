@@ -454,9 +454,13 @@ namespace GalaxyRoyale.Game
             Vector3 centre = _planet.position;
             Vector3 toCamera = (cam.transform.position - centre).normalized;
             _chips.Begin();
+            // The Citadel's pads peek over the top of the band districts: label them only
+            // once the view is tipped towards the pole (2026-09-30).
+            bool northView = (BaseGlobe.Instance?.Tilt ?? 0f) > 45f;
             foreach (var view in _pads.Values)
             {
                 var pad = view.Pad;
+                if (pad.District == BaseDistrict.Citadel && !northView) continue;
                 var world = view.PadObject.transform.position;
                 float facing = Vector3.Dot((world - centre).normalized, toCamera);
                 if (facing < chipFacing) continue;
@@ -471,7 +475,11 @@ namespace GalaxyRoyale.Game
                     var t = view.ArtQuad.transform;
                     var topWorld = t.position + cam.transform.up * (t.lossyScale.y * 0.5f);
                     top = _chips.ToPanel(cam.WorldToScreenPoint(topWorld));
+                    // Collect bubbles only on pads well in view: not on the planet's rim, and
+                    // not down behind the district tabs and the nav bar (2026-09-30).
                 }
+                float floor = _chips.Height - (UiTheme.NavH + 22f + 16f + 46f + 8f);
+                Vector2? bubbleTop = fade < 0.6f || (top is { } tb && _chips.Height > 0f && tb.y > floor) ? null : top;
 
                 var order = FindOrder(state, pad, view.MineId);
                 SetScaffold(view, order != null);
@@ -528,21 +536,21 @@ namespace GalaxyRoyale.Game
 
                 // Ready to collect: clan supplies at the Warehouse, salvage at the Salvage Yard.
                 if (pad.Kind == PadKind.Building && pad.Building == BuildingId.Warehouse
-                    && state.ClanSupplyRuns > 0 && top is { } wt)
+                    && state.ClanSupplyRuns > 0 && bubbleTop is { } wt)
                     _chips.Bubble("supplies", new Vector2(wt.x, wt.y - 2f), Icon.Pact,
                         $"+{UiTheme.FmtAmount(state.ClanSupplyPending.Total)}", CollectSupplies);
                 if (pad.Kind == PadKind.Building && pad.Building == BuildingId.SalvageYard && view.Level > 0
-                    && state.SalvageStored.Total >= 1000 && top is { } st)
+                    && state.SalvageStored.Total >= 1000 && bubbleTop is { } st)
                     _chips.Bubble("salvage", new Vector2(st.x, st.y - 2f), Icon.Crate,
                         $"+{UiTheme.FmtAmount(state.SalvageStored.Total)}", CollectSalvage);
                 // Supply drops wait at the Command Center (balance pass 2026-09-30).
                 if (pad.Kind == PadKind.Building && pad.Building == BuildingId.CommandCenter
-                    && state.SupplyCrates > 0 && top is { } ct)
+                    && state.SupplyCrates > 0 && bubbleTop is { } ct)
                     _chips.Bubble("supplydrop", new Vector2(ct.x, ct.y - 2f), Icon.Crate,
                         state.SupplyCrates > 1 ? $"SUPPLY ×{state.SupplyCrates}" : "SUPPLY", CollectSupplyDrop);
                 // Waiting for you: damaged hulls at the Repair Dock, a charged Jump Gate.
                 if (pad.Kind == PadKind.Building && pad.Building == BuildingId.RepairDock && view.Level > 0
-                    && state.Repair == null && state.DamagedHulls.Count > 0 && top is { } rt)
+                    && state.Repair == null && state.DamagedHulls.Count > 0 && bubbleTop is { } rt)
                 {
                     int hulls = 0;
                     foreach (var kv in RepairSystem.Waiting(state)) hulls += kv.Value;
@@ -551,7 +559,7 @@ namespace GalaxyRoyale.Game
                             () => OpenPanel(BuildingId.RepairDock));
                 }
                 if (pad.Kind == PadKind.Building && pad.Building == BuildingId.JumpGate && view.Level > 0
-                    && JumpGateSystem.Ready(state) && top is { } jt)
+                    && JumpGateSystem.Ready(state) && bubbleTop is { } jt)
                     _chips.Bubble("jump", new Vector2(jt.x, jt.y - 2f), Icon.Orbit, "JUMP READY",
                         () => OpenPanel(BuildingId.JumpGate));
             }

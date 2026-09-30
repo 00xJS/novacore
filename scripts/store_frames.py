@@ -5,7 +5,7 @@ a headline and a line under it in the game's own fonts, the screen below in a
 glowing orange frame — and saved as JPEG (App Store Connect takes no alpha).
 
 usage: scripts/store_frames.py <out dir> <capture.png>=<caption key> ...
-  caption keys: colony, wilds, replay, port, galaxy, report, core, galaxyfull, frontier
+  caption keys: colony, wilds, replay, port, galaxy, report, core, galaxyfull, frontier, citadel, comet, explore
   e.g. scripts/store_frames.py store/screenshots raw/base.png=colony raw/wilds.png=wilds
 
 Needs python3, Google Chrome and sips (macOS).
@@ -33,6 +33,10 @@ CAPTIONS = {
     "core": ("SEIZE THE CORE", "Hold the sun at the galaxy's heart"),
     "galaxyfull": ("A GALAXY OF WORLDS", "Thousands of worlds, 249 rival commanders"),
     "frontier": ("EXPAND YOUR FRONTIER", "Jump gates, repair docks and observatories"),
+    # The content expansion (2026-09-30).
+    "citadel": ("RAISE THE CITADEL", "Five great works crown your planet's pole"),
+    "comet": ("CHASE THE COMET", "Galaxy events put riches on the map near you"),
+    "explore": ("VENTURE BEYOND", "Send fleets past the edge of the map"),
 }
 
 
