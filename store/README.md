@@ -21,7 +21,7 @@ The app icon (`GalaxyRoyale/Assets/icon1024.png`) and the launch screen's logo (
 2. **Game Center** (optional; the in-game switch is off by default):
    - Enable Game Center on the app.
    - Create the leaderboard **`galaxyroyale.might`**: "Might", integer, high to low.
-   - Create the 30 achievements listed in `game-center.md` (ids, names, descriptions and a points split). Achievements that don't exist in App Store Connect are skipped quietly.
+   - Create the 34 achievements listed in `game-center.md` (ids, names, descriptions and a points split). Achievements that don't exist in App Store Connect are skipped quietly.
 3. **Screenshots:** upload `screenshots/*.jpg` (6.9", 1320 × 2868, in order).
    - **Privacy manifests** ship in the build (`GalaxyRoyale/iOSPrivacy/` for the app, `GalaxyRoyale/iOSWidget/` for the widget): no tracking, no data collected, and the UserDefaults reasons. Keep them in step with `privacy.md` if the app ever starts collecting anything. To make fresh ones, run `scripts/screenshots.sh` on the 6.9" Simulator (iPhone Pro Max) with a save that has something to show, then `scripts/store_frames.py`.
 4. **Web pages:** GitHub Pages serves `docs/` from `main` at https://00xjs.github.io/novacore/ (enabled 2026-09-30). Pages on a private repo need a paid GitHub plan, so if you make the repo private, move `docs/` to another static host and update `Links` in `GalaxyRoyale/Assets/Scripts/Game/UI/Panels/CreditsPanel.cs`.

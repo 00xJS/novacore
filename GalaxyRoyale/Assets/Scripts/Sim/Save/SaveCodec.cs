@@ -639,6 +639,26 @@ namespace GalaxyRoyale.Sim.Save
                     ["humbled"] = IntMap(nm.Humbled),
                 };
             }
+            // The campaign and the Pirate Lords (2026-09-30).
+            var cp = s.Campaign;
+            if (cp.Chapter > 0 || cp.Open || cp.LordWins.Count > 0 || cp.RematchId.Length > 0)
+            {
+                var wins = new Dictionary<string, object?>();
+                foreach (var kv in cp.LordWins) wins[kv.Key.ToString(System.Globalization.CultureInfo.InvariantCulture)] = (long)kv.Value;
+                root["campaign"] = new Dictionary<string, object?>
+                {
+                    ["chapter"] = (long)cp.Chapter,
+                    ["open"] = cp.Open,
+                    ["opened"] = (long)cp.OpenedTick,
+                    ["baseline"] = Arr(cp.Baseline, v => (object?)v),
+                    ["announced"] = (long)cp.Announced,
+                    ["lair"] = cp.LairId,
+                    ["wins"] = wins,
+                    ["rematch"] = cp.RematchId,
+                    ["nextRematch"] = (long)cp.NextRematchTick,
+                    ["cursor"] = (long)cp.RematchCursor,
+                };
+            }
             if (s.Daily.Day.Length > 0)
             {
                 var claimed = new List<string>(s.Daily.Claimed);
@@ -1031,6 +1051,25 @@ namespace GalaxyRoyale.Sim.Save
                 }
                 ReadMap("grudges", n.Grudges);
                 ReadMap("humbled", n.Humbled);
+            }
+            if (d.TryGetValue("campaign", out var cpo) && cpo is Dictionary<string, object?> cpd)
+            {
+                var cp = s.Campaign;
+                cp.Chapter = I32(cpd, "chapter");
+                cp.Open = cpd.TryGetValue("open", out var op) && op is bool opb && opb;
+                cp.OpenedTick = I32(cpd, "opened");
+                if (cpd.TryGetValue("baseline", out var bl) && bl is List<object?> bll)
+                    foreach (var v in bll) if (v != null) cp.Baseline.Add(ToI64(v));
+                cp.Announced = I32(cpd, "announced");
+                cp.LairId = cpd.TryGetValue("lair", out var lr) && lr is string lrs ? lrs : "";
+                if (cpd.TryGetValue("wins", out var wn) && wn is Dictionary<string, object?> wnd)
+                    foreach (var kv in wnd)
+                        if (kv.Value != null && int.TryParse(kv.Key, System.Globalization.NumberStyles.Integer,
+                                System.Globalization.CultureInfo.InvariantCulture, out int lord))
+                            cp.LordWins[lord] = ToI32(kv.Value);
+                cp.RematchId = cpd.TryGetValue("rematch", out var rm) && rm is string rms ? rms : "";
+                cp.NextRematchTick = I32(cpd, "nextRematch");
+                cp.RematchCursor = I32(cpd, "cursor");
             }
             if (d.TryGetValue("daily", out var dyo) && dyo is Dictionary<string, object?> dy)
             {

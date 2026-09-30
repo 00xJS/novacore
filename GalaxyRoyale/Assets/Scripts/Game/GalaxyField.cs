@@ -80,7 +80,8 @@ namespace GalaxyRoyale.Game
             }
             foreach (var node in MapLookup.AllNodes(state))
                 if ((node.Id.StartsWith("dyn-", System.StringComparison.Ordinal)
-                     || node.Id.StartsWith(EventSites.IdPrefix, System.StringComparison.Ordinal))
+                     || node.Id.StartsWith(EventSites.IdPrefix, System.StringComparison.Ordinal)
+                     || LairSystem.IsLair(node))
                     && MapLookup.IsLive(state, node)) Add(node);
 
             int n = _centres.Count;
@@ -114,7 +115,7 @@ namespace GalaxyRoyale.Game
         {
             if (!Show(node.Kind)) return;
             _centres.Add(_tileToWorld(node.Tile));
-            _cells.Add(Cell(node.Kind));
+            _cells.Add(LairSystem.IsLair(node) ? 8 : Cell(node.Kind)); // a Pirate Lord's fortress world
         }
 
         Quaternion _lastFacing = Quaternion.identity;

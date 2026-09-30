@@ -110,6 +110,7 @@ namespace GalaxyRoyale.Sim.Systems
 
         public static Dictionary<HullId, int> CampGarrison(MapNode node)
         {
+            if (LairSystem.IsLair(node)) return LairSystem.Garrison(node); // a Pirate Lord's fleet
             var copy = new Dictionary<HullId, int>();
             if (Nodes.CampTemplates.TryGetValue(node.CampLevel, out var tmpl))
                 foreach (var kv in tmpl) copy[kv.Key] = kv.Value;
@@ -639,7 +640,8 @@ namespace GalaxyRoyale.Sim.Systems
                     CampGarrison(node),
                     ResearchSystem.CombatModsFor(state, march.Id));
                 report.Location = march.Node;
-                report.DefenderName = $"Pirate camp Lv{node.CampLevel}";
+                bool lair = LairSystem.IsLair(node);
+                report.DefenderName = lair ? LairSystem.LordOf(node).FullName : $"Pirate camp Lv{node.CampLevel}";
                 march.Ships = report.AttackerSurvivors;
 
                 if (report.Winner == BattleWinner.Attacker)
@@ -673,7 +675,7 @@ namespace GalaxyRoyale.Sim.Systems
                     state.Stats.LootMilli += taken.Total;
                     // The first win at each camp level pays its stockpile again,
                     // delivered home, and some Dark Matter (balance pass 2026-09-30).
-                    if (state.CampFirstClears.Add(node.CampLevel))
+                    if (!lair && state.CampFirstClears.Add(node.CampLevel))
                     {
                         long stock = Nodes.CampStockpile(node.CampLevel, state.Buildings[BuildingId.CommandCenter].Level) * 1000;
                         var bonus = new ResourceBag(stock * 45 / 100, stock * 35 / 100, stock * 20 / 100);
@@ -711,6 +713,8 @@ namespace GalaxyRoyale.Sim.Systems
                 // Emit AFTER the report is filed: the UI pops Mailbox[0] on this
                 // event, and emitting first showed the PREVIOUS battle's report.
                 events.Emit(new BattleResolved(report));
+                // A Pirate Lord's lair: the lord falls, pays out and leaves the map.
+                if (lair && report.Winner == BattleWinner.Attacker) LairSystem.OnDefeated(state, node, events);
 
                 if (FleetCount(march.Ships) == 0)
                 {

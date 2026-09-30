@@ -538,6 +538,7 @@ namespace GalaxyRoyale.Game.UI
                 return b;
             }
             // Each column is added top-down.
+            _storyFab = MiniFab(Icon.Star, "STORY", () => CampaignPanel.Open(_ctx)); // the campaign (2026-09-30)
             MiniFab(Icon.Target, "CORE", () => CorePanel.Open(_ctx));
             MiniFab(Icon.Warning, "BOSS", OpenBoss);
             _clanFab = MiniFab(Icon.Pact, "CLAN", OpenClan);
@@ -552,7 +553,7 @@ namespace GalaxyRoyale.Game.UI
             _root.Add(_moreMenu);
         }
 
-        Button? _exploreFab;
+        Button? _exploreFab, _storyFab;
 
         public bool MoreOpen => _moreOpen;
 
@@ -1122,6 +1123,39 @@ namespace GalaxyRoyale.Game.UI
                     }
                     break;
                 }
+                // The campaign and the Pirate Lords (2026-09-30).
+                case ChapterBegan began:
+                {
+                    var ch = Campaign.Chapters[began.Chapter];
+                    Toast($"New chapter: {ch.Title}. {PirateLords.Def(ch.Lord).FullName} is waiting. MORE › STORY",
+                        Icon.Star, UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Discovery, Haptic.Success);
+                    break;
+                }
+                case CampaignObjectiveDone od:
+                    Toast($"Objective complete: {Campaign.Chapters[od.Chapter].Objectives[od.Objective].Text}", Icon.Check, UiTheme.Good);
+                    GameAudio.Play(Sfx.Confirm);
+                    break;
+                case ChapterReady ready:
+                    Toast($"Chapter {Campaign.Chapters[ready.Chapter].Number} complete: claim it in MORE › STORY", Icon.Star, UiTheme.Good);
+                    GameAudio.Feedback(Sfx.Quest, Haptic.Success);
+                    break;
+                case LordDefeated fell:
+                {
+                    var lord = PirateLords.Def(fell.Lord);
+                    string relic = fell.Relic is { } rk ? $" · a {Relics.Def(rk).Name}" : "";
+                    Toast($"{lord.FullName} is defeated: \"{lord.Last}\" +{UiTheme.FmtAmount(fell.PayMilli.Total)} · +{fell.DarkMatter} DM{relic}",
+                        Icon.Trophy, UiTheme.Good);
+                    GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                    break;
+                }
+                case LordReturns back:
+                {
+                    var lord = PirateLords.Def(back.Lord);
+                    Toast($"{lord.FullName} has returned with a bigger fleet: \"{lord.Boast}\" MORE › STORY", Icon.Swords, UiTheme.Bad);
+                    GameAudio.Feedback(Sfx.Taunt, Haptic.Warning);
+                    break;
+                }
                 // Expeditions (2026-09-30).
                 case ExpeditionMoment moment:
                     Toast($"Your {Expeditions.Def(moment.Kind).Name} expedition needs your call. MORE › EXPLORE",
@@ -1341,7 +1375,8 @@ namespace GalaxyRoyale.Game.UI
             _districts.SetVisible(View == ViewId.Base && _modal == null && !calloutUp);
             _leftStack.style.display = View == ViewId.Base && _modal == null && !calloutUp
                 ? DisplayStyle.Flex : DisplayStyle.None;
-            _questTracker.style.display = QuestSystem.Current(state) != null ? DisplayStyle.Flex : DisplayStyle.None;
+            _questTracker.style.display = QuestSystem.Current(state) != null || state.Campaign.Open
+                ? DisplayStyle.Flex : DisplayStyle.None;
 
             // Slow-cadence chores: ticker headline + daily-reward glow on the MORE FAB.
             if (Time.time >= _nextDailyGlowPoll)
@@ -1352,7 +1387,9 @@ namespace GalaxyRoyale.Game.UI
                 bool eventReady = EventSystem.CanClaim(state);
                 bool supplies = state.ClanSupplyRuns > 0 || state.ClanInviteId != 0;
                 bool call = state.Expeditions.Exists(e => e.Choice < 0 && state.Tick >= e.MidTick);
-                Widgets.SetBorder(_moreFab, daily || eventReady || supplies || call ? UiTheme.Good : UiTheme.Accent, 2f);
+                bool story = CampaignSystem.CanClaim(state);
+                Widgets.SetBorder(_moreFab, daily || eventReady || supplies || call || story ? UiTheme.Good : UiTheme.Accent, 2f);
+                if (_storyFab != null) Widgets.SetBorder(_storyFab, story ? UiTheme.Good : UiTheme.Stroke, 2f);
                 if (_exploreFab != null) Widgets.SetBorder(_exploreFab, call ? UiTheme.Good : UiTheme.Stroke, 2f);
                 Widgets.SetBorder(_dailyFab, daily ? UiTheme.Good : UiTheme.Stroke, 2f);
                 Widgets.SetBorder(_eventsFab, eventReady ? UiTheme.Good : UiTheme.Stroke, 2f);
@@ -1406,7 +1443,12 @@ namespace GalaxyRoyale.Game.UI
             _questClaimPill.style.backgroundColor = UiTheme.Good;
             _questClaimPill.style.display = DisplayStyle.None;
             t.Add(_questClaimPill);
-            t.RegisterCallback<ClickEvent>(_ => QuestPanel.Open(_ctx));
+            // After the Path, the tracker follows the campaign (2026-09-30).
+            t.RegisterCallback<ClickEvent>(_ =>
+            {
+                if (_ctx.State is { } st && QuestSystem.Current(st) == null) CampaignPanel.Open(_ctx);
+                else QuestPanel.Open(_ctx);
+            });
             t.style.display = DisplayStyle.None;
             _leftStack.Add(t);
         }
@@ -1505,7 +1547,7 @@ namespace GalaxyRoyale.Game.UI
         void RefreshQuestTracker(GameState state)
         {
             var quest = QuestSystem.Current(state);
-            if (quest == null) return;
+            if (quest == null) { RefreshStoryTracker(state); return; }
             var (have, need) = QuestSystem.Progress(state, quest);
             bool complete = have >= need;
             string key = $"{state.QuestStep}|{have}|{need}";
@@ -1525,6 +1567,26 @@ namespace GalaxyRoyale.Game.UI
                 Toast($"Quest complete: {quest.Title} — tap the quest card to claim", Icon.Star, UiTheme.Energy);
                 GameAudio.Feedback(Sfx.Quest, Haptic.Success);
             }
+        }
+
+        /// <summary>The quest card after the Path: the open chapter's next objective.</summary>
+        void RefreshStoryTracker(GameState state)
+        {
+            if (!state.Campaign.Open || CampaignSystem.Current(state) is not { } ch) return;
+            int next = -1;
+            for (int i = 0; i < ch.Objectives.Count && next < 0; i++) if (!CampaignSystem.Done(state, i)) next = i;
+            bool complete = next < 0;
+            var (have, need) = complete ? (1L, 1L) : CampaignSystem.Progress(state, next);
+            string key = $"story|{state.Campaign.Chapter}|{next}|{have}";
+            if (key == _questKey) return;
+            _questKey = key;
+            _questTitle.text = $"CHAPTER {ch.Number} · {ch.Title}";
+            _questGoal.text = complete ? "Chapter complete — tap to claim"
+                : need > 1 ? $"{ch.Objectives[next].Text}: {UiTheme.FmtCount(have)} / {UiTheme.FmtCount(need)}"
+                : ch.Objectives[next].Text;
+            _questGoal.style.color = complete ? UiTheme.Good : UiTheme.Dim;
+            _questClaimPill.style.display = complete ? DisplayStyle.Flex : DisplayStyle.None;
+            Widgets.SetBorder(_questTracker, complete ? UiTheme.Good : UiTheme.Accent, 1.2f);
         }
 
         /// <summary>QuestPanel after a successful claim: coins, a tap, and refresh the tracker now.</summary>

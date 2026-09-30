@@ -9,8 +9,10 @@ small world, the Galactic Core is a sun with a clear zone around it.
                  dark matter field (a glowing violet world, bright ring) /
                  comet (an icy nucleus with a long glowing tail), trade
                  caravan (three freighters in an escort ring) — the map events,
-                 2026-09-30. The map's galaxy field draws every world from this
-                 one sheet.
+                 2026-09-30 — and a Pirate Lord's fortress world (a black planet
+                 ringed by red battlements, a skull sigil on its face; the
+                 campaign, 2026-09-30). The map's galaxy field draws every world
+                 from this one sheet.
   map-badge-*    64 x 64 type badges shown beside a world when zoomed in.
   core-sun       1024 x 1024: the sun, its corona and the station ring.
   core-zone      1024 x 1024: the Core Zone's dashed boundary.
@@ -197,7 +199,31 @@ def caravan(cx, cy):
     return d, "".join(g)
 
 
-for fn, cell in ((comet, 6), (caravan, 7)):
+def lair(cx, cy):
+    """A Pirate Lord's fortress: a black world, red battlements around it, a skull sigil."""
+    d = ('<radialGradient id="lrW" cx="0.38" cy="0.34" r="0.75"><stop offset="0" stop-color="#6B2230"/>'
+         '<stop offset="0.55" stop-color="#2A0C14"/><stop offset="1" stop-color="#0B0307"/></radialGradient>'
+         '<radialGradient id="lrG"><stop offset="0.45" stop-color="#FF2E4D" stop-opacity="0.55"/>'
+         '<stop offset="1" stop-color="#FF2E4D" stop-opacity="0"/></radialGradient>')
+    g = [f'<circle cx="{cx}" cy="{cy}" r="116" fill="url(#lrG)"/>',
+         f'<circle cx="{cx}" cy="{cy}" r="70" fill="url(#lrW)" stroke="#FF2E4D" stroke-width="4"/>']
+    # Battlements: a toothed ring of armour around the world.
+    for k in range(16):
+        a = k / 16 * math.tau
+        x, y = cx + math.cos(a) * 90, cy + math.sin(a) * 90
+        g.append(f'<rect x="{f(x - 9)}" y="{f(y - 9)}" width="18" height="18" rx="2" fill="#2A0C14" '
+                 f'stroke="#FF4D6A" stroke-width="3" transform="rotate({f(math.degrees(a))} {f(x)} {f(y)})"/>')
+    g.append(f'<circle cx="{cx}" cy="{cy}" r="90" fill="none" stroke="#FF4D6A" stroke-width="5" stroke-opacity="0.8"/>')
+    # The skull sigil.
+    g.append(f'<g fill="#FFD0D6" fill-opacity="0.9"><circle cx="{cx}" cy="{cy - 8}" r="24"/>'
+             f'<rect x="{cx - 14}" y="{cy + 8}" width="28" height="16" rx="4"/></g>'
+             f'<g fill="#0B0307"><circle cx="{cx - 9}" cy="{cy - 8}" r="7"/><circle cx="{cx + 9}" cy="{cy - 8}" r="7"/>'
+             f'<path d="M{cx},{cy + 1} l-4,7 h8 z"/><rect x="{cx - 8}" y="{cy + 14}" width="3" height="9"/>'
+             f'<rect x="{cx - 1.5}" y="{cy + 14}" width="3" height="9"/><rect x="{cx + 5}" y="{cy + 14}" width="3" height="9"/></g>')
+    return d, "".join(g)
+
+
+for fn, cell in ((comet, 6), (caravan, 7), (lair, 8)):
     d, b = fn((cell % 3) * 256 + 128, (cell // 3) * 256 + 128)
     defs_all.append(d)
     body_all.append(b)
@@ -214,8 +240,10 @@ GLYPHS = {
     "dmfield": '<path d="M12 3l7 9-7 9-7-9z"/>',
     "comet": '<circle cx="8" cy="16" r="4"/><path d="M11 13l9-9M12 17l8-5M7 12l6-8"/>',
     "caravan": '<path d="M3 9h11l3 3-3 3H3z"/><path d="M8 17h9l3 2-3 2H8z"/><path d="M8 5h8"/>',
+    "lair": '<path d="M12 3a7 7 0 0 0-7 7c0 2.5 1.2 4.2 3 5.2V19h8v-3.8c1.8-1 3-2.7 3-5.2a7 7 0 0 0-7-7z"/>'
+            '<circle cx="9" cy="10" r="1.6"/><circle cx="15" cy="10" r="1.6"/><path d="M10 19v-2M14 19v-2"/>',
 }
-EVENT_BADGES = [("comet", "#8FF4FF"), ("caravan", "#FFC857")]
+EVENT_BADGES = [("comet", "#8FF4FF"), ("caravan", "#FFC857"), ("lair", "#FF2E4D")]
 for kind, rim in [(k[0], k[1]) for k in KINDS] + EVENT_BADGES:
     write(f"map-badge-{kind}", 64,
           f'<circle cx="32" cy="32" r="28" fill="#0D0820"/>'

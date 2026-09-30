@@ -212,6 +212,17 @@ namespace GalaxyRoyale.Data
             },
             new HandbookTopic
             {
+                Title = "The Long Night", Summary = "The campaign and the Pirate Lords",
+                Paragraphs = new[]
+                {
+                    "The Long Night is the story of your commander, told by HALCYON, your colony's ship-mind. Its ten chapters open one at a time as your colony grows: each needs a Command Center level and a number of days since you founded the colony. Open it from MORE › STORY.",
+                    "Each chapter sets three objectives, counted from the moment it opens, and ends with a Pirate Lord in their lair. When all three are done, claim the chapter for resources and Dark Matter. After the Commander's Path, the quest card follows the chapter.",
+                    "Lairs are marked with a skull on the map. Each lord has a doctrine, the kind of fleet they fly, and their fleet grows with yours, so read it before you attack. Beating a lord pays well, and the first time also brings a relic home.",
+                    "Beaten lords don't stay down: every few days one of them returns with a bigger fleet, for another fight and another reward.",
+                },
+            },
+            new HandbookTopic
+            {
                 Title = "Items and settings", Summary = "The shop, speed-ups, codes and help",
                 Paragraphs = new[]
                 {

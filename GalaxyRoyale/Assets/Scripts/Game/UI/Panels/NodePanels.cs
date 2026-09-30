@@ -39,7 +39,9 @@ namespace GalaxyRoyale.Game.UI
 
             var head = Widgets.HBox(Justify.SpaceBetween);
             int displayLv = isCamp ? node.CampLevel : node.Tier + 1;
-            string title = isCamp ? $"Pirate Camp  Lv{displayLv}"
+            bool isLair = LairSystem.IsLair(node);
+            string title = isLair ? LairSystem.LordOf(node).FullName
+                : isCamp ? $"Pirate Camp  Lv{displayLv}"
                 : isCaravan ? $"Trade Caravan  ·  escort Lv{node.CampLevel}"
                 : node.Kind == NodeKind.Comet ? "Passing Comet"
                 : $"{Nodes.Defs[node.Kind].Name}  ·  Lv.{displayLv}";
@@ -52,7 +54,14 @@ namespace GalaxyRoyale.Game.UI
             state.Map.NodeOverrides.TryGetValue(node.Id, out var ov);
             long remaining = ov?.Remaining ?? node.Amount;
             string detail;
-            if (isCamp)
+            if (isLair)
+            {
+                var lord = LairSystem.LordOf(node);
+                int ships = 0;
+                foreach (var kv in MarchSystem.CampGarrison(node)) ships += kv.Value;
+                detail = $"Pirate Lord's lair · {ships:N0} ships\n{lord.Doctrine}.\n\"{lord.Boast}\"";
+            }
+            else if (isCamp)
             {
                 if (MarchSystem.HasSpyIntel(state, node.Tile))
                 {
@@ -179,10 +188,13 @@ namespace GalaxyRoyale.Game.UI
             bool isCamp = node.Kind == NodeKind.Camp || (isCaravan && !escort);
             bool isDerelict = node.Kind == NodeKind.Derelict;
             Dictionary<HullId, int> Garrison() => isCaravan ? EventSites.CaravanEscort(node) : MarchSystem.CampGarrison(node);
-            bool Intel() => isCaravan || MarchSystem.HasSpyIntel(state, node.Tile);
+            // A Pirate Lord's fleet is no secret (the campaign, 2026-09-30).
+            bool lair = LairSystem.IsLair(node);
+            bool Intel() => isCaravan || lair || MarchSystem.HasSpyIntel(state, node.Tile);
 
             int displayLv = isCamp ? node.CampLevel : node.Tier + 1;
             string title = isCaravan ? (escort ? "ESCORT THE CARAVAN" : "INTERCEPT THE CARAVAN")
+                : lair ? LairSystem.LordOf(node).Name.ToUpperInvariant()
                 : isCamp ? $"PIRATE CAMP Lv{displayLv}" : Nodes.Defs[node.Kind].Name.ToUpper();
             var (blocker, content) = Widgets.ModalPanel(title, () =>
             {
