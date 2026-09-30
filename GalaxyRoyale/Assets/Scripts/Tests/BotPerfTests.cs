@@ -62,5 +62,29 @@ namespace GalaxyRoyale.Sim.Tests
             Assert.Less(json.Length, 4_000_000, "save text ballooned");
             Assert.Less(gzipMs + loadMs, 3000, "packing or loading the save ballooned");
         }
+
+        /// <summary>The player's own 8 h catch-up tick by tick (2026-09-30): the content
+        /// expansion added a dozen systems to TickEngine's step — a developed colony
+        /// with fleets out, an expedition away and a map event live.</summary>
+        [Test]
+        public void DevelopedColony_EightHourCatchUp_StaysCheap()
+        {
+            var s = GameState.CreateNewGame(Spawn.GalaxySeed, testMode: true);
+            foreach (var id in Buildings.All) s.Buildings[id].Level = 12;
+            s.Ships[HullId.Hauler] = 40;
+            s.Ships[HullId.Cruiser] = 200;
+            var comet = System.Linq.Enumerable.First(System.Linq.Enumerable.Range(GalaxyEvents.LeadInSec, 400 * 3600),
+                t => Systems.EventSystem.Current(t).Def.Kind == GalaxyEventKind.CometPass);
+            s.Tick = comet;
+            var engine = new TickEngine(s, new SimEventBus { Suppressed = true });
+            engine.Advance(1);
+            var board = Systems.ExpeditionSystem.Board(s);
+            Systems.ExpeditionSystem.Send(s, board[0], new System.Collections.Generic.Dictionary<HullId, int> { [HullId.Cruiser] = 50 }, false, out _);
+            var sw = Stopwatch.StartNew();
+            engine.Advance(Balance.OfflineCapHours * 3600);
+            long ms = sw.ElapsedMilliseconds;
+            TestContext.Out.WriteLine($"PACE colony catch-up(8h, {Balance.OfflineCapHours * 3600} ticks)={ms}ms");
+            Assert.Less(ms, 3000, "the colony's 8 h catch-up ballooned");
+        }
     }
 }

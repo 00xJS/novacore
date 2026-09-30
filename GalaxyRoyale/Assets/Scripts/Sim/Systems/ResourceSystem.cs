@@ -149,11 +149,45 @@ namespace GalaxyRoyale.Sim.Systems
 
         public static void Tick(GameState state, SimEventBus events)
         {
-            var rates = GetRates(state);
+            // GetRates is the costliest thing in a tick (every producer's curve, the
+            // research totals, energy): an 8 h offline catch-up spent 90% of its
+            // time here. The rates only change when one of their inputs does, so
+            // they're kept until RatesKey moves (2026-09-30).
+            long key = RatesKey(state);
+            if (state.RatesCache == null || key != state.RatesCacheKey)
+            {
+                state.RatesCache = GetRates(state);
+                state.RatesCacheKey = key;
+            }
+            var rates = state.RatesCache;
             foreach (var res in Resources.All)
             {
                 long gain = ProducedBetween(rates.Get(res), state.Tick - 1, state.Tick);
                 if (gain > 0) state.Resources.Set(res, state.Resources.Get(res) + (int)gain);
+            }
+        }
+
+        /// <summary>A fingerprint of everything GetRates reads: building and mine levels,
+        /// research and commander skills, relics, the Terraformer, the timed boosts,
+        /// the live galaxy event and the docked fleet.</summary>
+        public static long RatesKey(GameState state)
+        {
+            unchecked
+            {
+                long h = 17;
+                void Mix(long v) => h = h * 1_000_003 + v;
+                foreach (var kv in state.Buildings) Mix(kv.Value.Level);
+                foreach (var m in state.ExtraMines) { Mix(m.Level); Mix((int)m.Type); }
+                foreach (var kv in state.Research) { Mix((int)kv.Key); Mix(kv.Value); }
+                foreach (var kv in state.Commander.Skills) { Mix(kv.Key.Length); Mix(kv.Key[0]); Mix(kv.Value); }
+                foreach (var kv in state.Relics) { Mix((int)kv.Key); Mix(kv.Value); }
+                Mix((int)state.Terraform.Path);
+                Mix(state.Terraform.Stage);
+                Mix(state.Buffs.ProdBoostUntilTick > state.Tick ? 1 : 0);
+                Mix(state.Buffs.EnergyBoostUntilTick > state.Tick ? 1 : 0);
+                Mix((int)EventSystem.KindAt(state.Tick));
+                foreach (var kv in state.Ships) { Mix((int)kv.Key); Mix(kv.Value); }
+                return h;
             }
         }
 
