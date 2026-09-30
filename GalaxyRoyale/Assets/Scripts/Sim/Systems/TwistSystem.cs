@@ -29,12 +29,13 @@ namespace GalaxyRoyale.Sim.Systems
 
         // ---- the rules it bends ----
         public static float SpeedMult(GameState s) => Is(s, TwistKind.LowGravity) ? 1.25f : 1f;
-        public static float CampLootMult(GameState s) => Is(s, TwistKind.PirateUprising) ? 1.5f : 1f;
-        public static float GatherMult(GameState s) => Is(s, TwistKind.RichVeins) ? 1.5f : 1f;
-        public static float ShipTimeMult(GameState s) => Is(s, TwistKind.ShipwrightsWeek) ? 0.7f : 1f;
+        // (Seasonal festivals, 2026-09-30, fold their rule in here too.)
+        public static float CampLootMult(GameState s) => (Is(s, TwistKind.PirateUprising) ? 1.5f : 1f) * FestivalSystem.CampLootMult;
+        public static float GatherMult(GameState s) => (Is(s, TwistKind.RichVeins) ? 1.5f : 1f) * FestivalSystem.GatherMult;
+        public static float ShipTimeMult(GameState s) => (Is(s, TwistKind.ShipwrightsWeek) ? 0.7f : 1f) * FestivalSystem.ShipTimeMult;
         public static float BuildTimeMult(GameState s) => Is(s, TwistKind.BuildersBoom) ? 0.8f : 1f;
-        public static float ResearchTimeMult(GameState s) => Is(s, TwistKind.ScholarsWeek) ? 0.75f : 1f;
-        public static float ProductionMult(GameState s) => Is(s, TwistKind.SolarMaximum) ? 1.2f : 1f;
+        public static float ResearchTimeMult(GameState s) => (Is(s, TwistKind.ScholarsWeek) ? 0.75f : 1f) * FestivalSystem.ResearchTimeMult;
+        public static float ProductionMult(GameState s) => (Is(s, TwistKind.SolarMaximum) ? 1.2f : 1f) * FestivalSystem.ProductionMult;
         public static float SalvageMult(GameState s) => Is(s, TwistKind.SalvageStorm) ? 2f : 1f;
         public static float LordRewardMult(GameState s) => Is(s, TwistKind.HuntersMoon) ? 1.5f : 1f;
         public static float SupplyIntervalMult(GameState s) => Is(s, TwistKind.SupplySurge) ? 0.5f : 1f;

@@ -103,6 +103,7 @@ namespace GalaxyRoyale.Sim.Tests
                 for (int st = 1; st <= MegaprojectSystem.Stage(s, def.Kind); st++)
                     d[$"megastage:{def.Kind}:{st}"] = (Tier.Notable, "project", $"{def.Name} stage {st}");
             }
+            if (FestivalSystem.Active is { } fest) d[$"festival:{fest.Id}"] = (Tier.Major, "festival", fest.Name);
             if (TwistSystem.KindAt(s.Tick) is var tk && tk != TwistKind.None)
                 d[$"twist:{tk}"] = (Tier.Major, "twist", $"Twist: {Twists.Def(tk).Name}");
             if (galaxy.Boss.Visit > 0)
@@ -306,7 +307,11 @@ namespace GalaxyRoyale.Sim.Tests
         }
 
         [TearDown]
-        public void RestoreScript() => StandardPacingTests.FakeClan = true;
+        public void RestoreScript()
+        {
+            StandardPacingTests.FakeClan = true;
+            FestivalSystem.Today = null;
+        }
 
         [Test, Explicit("a 90-day full-galaxy run: run it by name")]
         public void ContentCadence_ScriptedCommander_FullGalaxy()
@@ -336,6 +341,8 @@ namespace GalaxyRoyale.Sim.Tests
             while (s.Tick < days * Day)
             {
                 bool awake = s.Tick % Day < 16 * Hour;
+                // A calendar for the seasonal festivals: the run starts on October 1.
+                FestivalSystem.Today = new DateTime(2026, 10, 1).AddDays(s.Tick / Day);
                 if (awake)
                 {
                     Curious(s, galaxy);

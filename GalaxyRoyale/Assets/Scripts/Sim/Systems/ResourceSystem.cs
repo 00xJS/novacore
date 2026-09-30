@@ -188,6 +188,8 @@ namespace GalaxyRoyale.Sim.Systems
                 Mix(state.Buffs.EnergyBoostUntilTick > state.Tick ? 1 : 0);
                 Mix((int)EventSystem.KindAt(state.Tick));
                 Mix((int)TwistSystem.KindAt(state.Tick));
+                Mix(FestivalSystem.Active?.Id.Length ?? 0); // festival ids differ in length
+                Mix(FestivalSystem.Active?.Id[0] ?? 0);
                 foreach (var kv in state.Mega.Stages) { Mix(100 + (int)kv.Key); Mix(kv.Value); }
                 foreach (var kv in state.Ships) { Mix((int)kv.Key); Mix(kv.Value); }
                 return h;

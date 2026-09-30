@@ -122,6 +122,38 @@ namespace GalaxyRoyale.Game.UI
                 tw.Add(Wrap(Widgets.Text($"Next week: {nextTwist.Name} · {nextTwist.Effect}", 10, UiTheme.Dim), 6));
                 body.Add(tw);
 
+                // ---- the seasonal festival (2026-09-30) ----
+                if (FestivalSystem.Current() is { } fest)
+                {
+                    var f = fest.def;
+                    body.Add(Section("FESTIVAL"));
+                    var fc = Card(UiTheme.Energy);
+                    var fh = Widgets.HBox(Justify.SpaceBetween);
+                    fh.Add(Widgets.IconText(Icon.Star, f.Name.ToUpperInvariant(), 13, UiTheme.Energy, bold: true));
+                    fh.Add(Widgets.Text($"{FestivalSystem.DaysLeft()} DAYS LEFT", 10, UiTheme.Energy, bold: true));
+                    fc.Add(fh);
+                    fc.Add(Wrap(Widgets.Text(f.Blurb, 11, UiTheme.Dim), 3));
+                    fc.Add(Wrap(Widgets.Text(f.Effect, 12, UiTheme.Text), 4));
+                    var (fHave, fNeed) = FestivalSystem.Progress(state);
+                    fc.Add(Wrap(Widgets.Text($"{f.GoalText}: {UiTheme.FmtCount(fHave)} / {UiTheme.FmtCount(fNeed)}", 11,
+                        fHave >= fNeed ? UiTheme.Good : UiTheme.Accent), 4));
+                    bool fClaimed = FestivalSystem.Claimed(state);
+                    var claim = Widgets.Primary(Widgets.TextButton(fClaimed ? "CLAIMED" : $"CLAIM · +{f.RewardDM} DM · {f.SkinName} skin", () =>
+                    {
+                        if (!FestivalSystem.Claim(ctx.State!).Ok) return;
+                        GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                        UIController.Instance?.Toast($"{f.SkinName} is yours: wear it from the codex (Profile)", Icon.Star, UiTheme.Good);
+                        LocalBootstrap.RequestSync();
+                    }, 10));
+                    claim.style.marginTop = 8;
+                    claim.style.height = 34;
+                    Widgets.SetButtonEnabled(claim, FestivalSystem.CanClaim(state));
+                    fc.Add(claim);
+                    body.Add(fc);
+                }
+                else if (FestivalSystem.Next() is { } nextFest)
+                    body.Add(Wrap(Widgets.Text($"Next festival: {nextFest.def.Name}, from {nextFest.start:MMMM d}. {nextFest.def.Effect}.", 10, UiTheme.Dim), 10));
+
                 // ---- the season ----
                 body.Add(Section("SEASON"));
                 var season = Card(UiTheme.Accent);
