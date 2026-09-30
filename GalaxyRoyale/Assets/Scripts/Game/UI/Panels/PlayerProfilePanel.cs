@@ -28,6 +28,23 @@ namespace GalaxyRoyale.Game.UI
                 body.Add(unknown);
                 return;
             }
+            // Nemesis rivals (2026-09-30).
+            if (ctx.State is { } me && NemesisSystem.Is(me, botId))
+            {
+                var n = me.Nemesis;
+                var tag = Widgets.Text($"YOUR NEMESIS · tier {NemesisSystem.TierName(n.Tier)} · beaten {n.YourWins}/{NemesisSystem.BeatsToDefeat}. " +
+                    $"Break them for {UiTheme.FmtAmount(NemesisSystem.Bounty(me).pay.Total)} and {NemesisSystem.Bounty(me).darkMatter} DM.",
+                    11, UiTheme.Bad, bold: true);
+                tag.style.whiteSpace = WhiteSpace.Normal;
+                tag.style.marginBottom = 6;
+                body.Add(tag);
+            }
+            else if (ctx.State is { } me2 && me2.Nemesis.Grudges.TryGetValue(botId, out var grudge) && grudge > 0)
+            {
+                var tag = Widgets.Text($"Holds a grudge against you ({grudge}/{NemesisSystem.GrudgeToNemesis})", 11, UiTheme.Energy);
+                tag.style.marginBottom = 6;
+                body.Add(tag);
+            }
 
             string name = bot.Name.Length > 0 ? bot.Name : fallbackName;
             var personality = BotSystem.PersonalityOf(ctx.State!.Seed, bot.Id);

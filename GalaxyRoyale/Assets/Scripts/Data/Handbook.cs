@@ -169,6 +169,16 @@ namespace GalaxyRoyale.Data
             },
             new HandbookTopic
             {
+                Title = "Your nemesis", Summary = "The rival who remembers you",
+                Paragraphs = new[]
+                {
+                    "Trade enough blows with one rival — beating their raids, raiding them back — and they become your nemesis. The NEMESIS chip on the base screen shows who.",
+                    "Your nemesis hunts you: they come back for revenge sooner than other rivals, taunt you on the news wire, and every time you beat them they escalate, up to tier III, with fresh ships.",
+                    "Beat them three times — raids won on them or raids of theirs repelled — and they break: a big reward, and they leave you alone for a week. Ignore them for five days and they lose interest.",
+                },
+            },
+            new HandbookTopic
+            {
                 Title = "Clans", Summary = "Allies, strikes and supplies",
                 Paragraphs = new[]
                 {

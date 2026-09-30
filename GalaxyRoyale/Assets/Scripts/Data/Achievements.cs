@@ -11,6 +11,7 @@ namespace GalaxyRoyale.Data
         CommandCenter, ResearchLevels, DefenseResearchLevels, QuestsDone,
         ClanJoined, ClanSize, ClanWarsWon, SeasonTop, EventsCompleted, Might,
         CoresSeized, CoreHoursHeld, BossDamage, BossFinalBlows, MarketTrades,
+        NemesesDefeated, // 2026-09-30
     }
 
     public sealed class AchievementDef
@@ -64,6 +65,7 @@ namespace GalaxyRoyale.Data
             A("dreadnought-hunter", "Dreadnought Hunter", "Deal 500,000 damage to Pirate Dreadnoughts", AchievementGoal.BossDamage, 500_000, 200, "Dreadnought Hunter"),
             A("final-blow", "Leviathan Slayer", "Land the final blow on a Pirate Dreadnought", AchievementGoal.BossFinalBlows, 1, 300, "Leviathan Slayer"),
             A("trader", "Merchant Prince", "Make 25 trades on the galactic market", AchievementGoal.MarketTrades, 25, 100, "Merchant Prince"),
+            A("nemesis-slayer", "Nemesis Slayer", "Break a nemesis", AchievementGoal.NemesesDefeated, 1, 200, "Nemesis Slayer"),
         };
 
         public static AchievementDef? ById(string id)

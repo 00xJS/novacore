@@ -350,6 +350,7 @@ namespace GalaxyRoyale.Sim
         public int MissileKills;
         public int ContractsDone;
         public int ExpeditionsDone;
+        public int NemesesDefeated;
     }
 
     /// <summary>Your mark on the galactic market (MarketSystem): how far your own
@@ -452,6 +453,8 @@ namespace GalaxyRoyale.Sim
         public List<Systems.ExpeditionLog> ExpeditionLog = new();
         public HashSet<int> ExpeditionsTaken = new();
         public int NextExpeditionId;
+        /// <summary>Nemesis rivals (2026-09-30): your nemesis, and grudges building up.</summary>
+        public Systems.NemesisState Nemesis = new();
         public string EventSiteId = "";
         public int PendingNova = -1;
         /// <summary>Bounty Board (2026-09-30): the marked commander for event instance
