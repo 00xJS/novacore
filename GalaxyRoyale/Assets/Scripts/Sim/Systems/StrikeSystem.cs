@@ -225,7 +225,7 @@ namespace GalaxyRoyale.Sim.Systems
 
             // RaidPanel's forecast makes the same call at launch — keep the inputs in step.
             var report = CombatResolver.Resolve(ClanSystem.Combine(attackLines), ClanSystem.Combine(defenseLines),
-                ResearchSystem.CombatMods(state), ResearchSystem.DefenseMods(bot.State));
+                ResearchSystem.CombatModsFor(state, marchId), ResearchSystem.DefenseMods(bot.State));
             report.Location = tile;
             report.DefenderName = snapshot.CommanderName;
             bool won = report.Winner == BattleWinner.Attacker;

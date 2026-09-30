@@ -134,7 +134,7 @@ namespace GalaxyRoyale.Game.UI
             tour.style.marginTop = 6;
             content.Add(tour);
             content.Add(Note("Half a minute round your globe: the colony, the Mining Belt, the Frontier, the Spaceport, " +
-                "the Wilds and the galaxy.", 4));
+                "the Wilds, the Citadel and the galaxy.", 4));
             var report = Widgets.IconButton(Icon.Warning, "REPORT A PROBLEM", () =>
             {
                 bool shared = ProblemReport.Share(ctx.State);

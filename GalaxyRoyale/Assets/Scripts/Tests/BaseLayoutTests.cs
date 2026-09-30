@@ -41,7 +41,8 @@ namespace GalaxyRoyale.Sim.Tests
             foreach (var id in Buildings.All)
             {
                 var pad = BaseLayout.BuildingPad(id);
-                Assert.AreEqual(Buildings.IsFrontier(id) ? BaseDistrict.Frontier : BaseDistrict.Command, pad.District, id.ToString());
+                Assert.AreEqual(Buildings.IsCitadel(id) ? BaseDistrict.Citadel
+                    : Buildings.IsFrontier(id) ? BaseDistrict.Frontier : BaseDistrict.Command, pad.District, id.ToString());
                 Assert.AreEqual(Buildings.Defs[id].UnlockCc, pad.UnlockCc, id.ToString());
             }
             Assert.AreEqual(9, BaseLayout.Pads.Count(p => p.District == BaseDistrict.Command));
@@ -77,7 +78,8 @@ namespace GalaxyRoyale.Sim.Tests
                 for (int j = i + 1; j < pads.Count; j++)
                     Assert.Greater(Apart(pads[i], pads[j]), 9.5, $"{pads[i].Key} and {pads[j].Key} are too close"); // the belt's gold row is the tightest
             foreach (var p in pads)
-                Assert.That(p.Lat, Is.InRange(0.0, 60.0), $"{p.Key}: the base keeps to the northern half");
+                Assert.That(p.Lat, p.District == BaseDistrict.Citadel ? Is.InRange(60.0, 90.0) : Is.InRange(0.0, 60.0),
+                    $"{p.Key}: the band keeps below 60°, the Citadel crowns the pole");
         }
 
         [Test]

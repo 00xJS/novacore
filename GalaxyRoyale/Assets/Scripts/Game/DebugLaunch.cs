@@ -72,6 +72,13 @@ namespace GalaxyRoyale.Game
             if (ui == null) yield break;
             try
             {
+                // GR_OPEN=building:Academy — any building's panel (2026-09-30).
+                if (open!.StartsWith("building:", StringComparison.OrdinalIgnoreCase)
+                    && Enum.TryParse<Data.BuildingId>(open.Substring(9).Trim(), true, out var bid))
+                {
+                    UI.BuildingPanel.Open(ctx, bid);
+                    yield break;
+                }
                 switch (open!.Trim().ToLowerInvariant())
                 {
                     case "core": UI.CorePanel.Open(ctx); break;
@@ -125,6 +132,7 @@ namespace GalaxyRoyale.Game
                         break;
                     // The globe base's views (any boot-time panel closed first).
                     case "command": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Command); break;
+                    case "citadel": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Citadel); break;
                     case "mines": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.MiningBelt); break;
                     case "frontier": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Frontier); break;
                     case "orbit": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Command, orbit: true); break;

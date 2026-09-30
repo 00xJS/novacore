@@ -129,14 +129,19 @@ namespace GalaxyRoyale.Sim.Systems
         }
 
         /// <summary>Claim a cache's resources or a relic's Dark Matter.</summary>
-        public static SimResult Claim(GameState s, int index)
+        public static SimResult Claim(GameState s, int index) => Claim(s, index, out _);
+
+        /// <summary>…and, for a relic, the relic that comes home for the Relic Vault (2026-09-30).</summary>
+        public static SimResult Claim(GameState s, int index, out RelicKind? relic)
         {
+            relic = null;
             var sector = Sector(s, index);
             if (sector == null || sector.Find is not (WildsFind.Cache or WildsFind.Relic))
                 return SimResult.Fail("Nothing to claim here");
             if (sector.Claimed) return SimResult.Fail("Already claimed");
             ResourceSystem.Add(s, sector.Reward);
             s.Premium.DarkMatter += sector.RewardDM;
+            if (sector.Find == WildsFind.Relic) relic = RelicSystem.Grant(s, index, sector.Surveys);
             sector.Claimed = true;
             sector.FogTick = s.Tick + Balance.WildsShiftSec;
             return SimResult.Success;

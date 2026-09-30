@@ -39,11 +39,14 @@ namespace GalaxyRoyale.Sim
             BuildingSystem.Tick(_state, _events);
             ProtectionSystem.Tick(_state, _events); // after buildings: CC 5 ends it
             SupplySystem.Tick(_state, _events);
+            TerraformSystem.Tick(_state, _events);
             ResearchSystem.Tick(_state, _events);
             FleetSystem.Tick(_state, _events);
             RepairSystem.Tick(_state, _events);
             ResourceSystem.Tick(_state, _events);
             MarchSystem.Tick(_state, _events);
+            AcademySystem.Tick(_state, _events); // after the marches: a led fleet lost this tick
+            ConsulateSystem.Tick(_state, _events); // deliveries that landed this tick
             MapSystem.Tick(_state, _events);
             // The Wilds (2026-09-29) go last: surveys and the drones' haul read the
             // resources and buildings as this tick left them, and nothing above

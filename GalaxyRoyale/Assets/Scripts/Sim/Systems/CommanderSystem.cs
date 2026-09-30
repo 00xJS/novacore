@@ -109,7 +109,8 @@ namespace GalaxyRoyale.Sim.Systems
                 // Command Doctrine research adds its % on top (balance pass 2026-09-30).
                 int halves = (int)Math.Round(Difficulties.XpMult(s.Difficulty) * 2);
                 long gained = (score - c.ScoreSeen)
-                    * (100 + (int)Math.Round(ResearchSystem.EffectTotal(s, TechEffectKind.XpMult) * 100)) / 100;
+                    * (100 + (int)Math.Round((ResearchSystem.EffectTotal(s, TechEffectKind.XpMult)
+                        + AcademySystem.XpBonus(s)) * 100)) / 100;
                 long scaled = gained * halves + c.XpCarry;
                 c.Xp += scaled / 2;
                 c.XpCarry = (int)(scaled % 2);
@@ -184,7 +185,8 @@ namespace GalaxyRoyale.Sim.Systems
             return SimResult.Success;
         }
 
-        public static int RespecCost(GameState s) => s.Commander.Respecs == 0 ? 0 : RespecDarkMatter;
+        public static int RespecCost(GameState s) => s.Commander.Respecs == 0 ? 0
+            : (int)Math.Round(RespecDarkMatter * AcademySystem.RespecMult(s)); // the Academy (2026-09-30)
 
         /// <summary>Hand back every point (the first reset is free).</summary>
         public static SimResult Respec(GameState s)

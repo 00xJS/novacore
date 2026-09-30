@@ -945,7 +945,7 @@ namespace GalaxyRoyale.Game.UI
                     var held = _ctx.State?.Marches.Find(m => m.Id == mpc.MarchId);
                     // The battle report (or the garrison merge) follows at once.
                     if (held?.Mission == MarchMission.Intercept || held?.Mission == MarchMission.Core
-                        || held?.Mission == MarchMission.Boss) break;
+                        || held?.Mission == MarchMission.Boss || held?.Mission == MarchMission.Trade) break;
                     Toast(held?.Mission == MarchMission.Garrison
                         ? $"Your garrison is on guard at {_ctx.Bots?.Find(held.GuardEmpireId)?.Name ?? "your clanmate"}'s colony"
                         : "Fleet on station — gathering",
@@ -1074,6 +1074,21 @@ namespace GalaxyRoyale.Game.UI
                 case CampFirstClear first:
                     Toast($"First Lv {first.CampLevel} camp beaten: bonus +{UiTheme.FmtAmount(first.BonusMilli.Total)} " +
                           $"sent home · +{first.DarkMatter} DM", Icon.Trophy, UiTheme.Energy);
+                    break;
+                // The Citadel (2026-09-30).
+                case TerraformStageDone done:
+                    Toast($"Terraforming: {TerraformSystem.Name(done.Path)} stage {done.Stage} complete · " +
+                          TerraformSystem.Bonus(done.Path, done.Stage), Icon.Planet, UiTheme.Good);
+                    break;
+                case CommanderWounded:
+                    Toast("The fleet your commander led was destroyed. They'll recover in 6 hours", Icon.Warning, UiTheme.Bad);
+                    break;
+                case SiloFired fired:
+                    Toast($"Missile salvo: {fired.Destroyed:N0} of {fired.Attacker}'s ships destroyed", Icon.Target, UiTheme.Good);
+                    break;
+                case ContractDelivered delivered:
+                    Toast($"{delivered.Client} paid for your delivery: {UiTheme.FmtAmount(delivered.PayMilli.Total)} + " +
+                          $"{delivered.DarkMatter} DM flying home", Icon.Crate, UiTheme.Good);
                     break;
                 // Rival events (2026-09-30).
                 case BountyPosted posted:

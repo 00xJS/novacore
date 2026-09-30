@@ -497,7 +497,7 @@ namespace GalaxyRoyale.Game
                     case PadKind.Building when view.Level == 0 && !BaseLayout.Unlocked(state, pad):
                         _chips.Place(pad.Key, BaseChipLayer.Kind.Planned, below, null, pad.Name, $"CC {pad.UnlockCc}", alpha: fade);
                         break;
-                    case PadKind.Building when view.Level == 0 && Buildings.IsFrontier(pad.Building):
+                    case PadKind.Building when view.Level == 0 && Buildings.Defs[pad.Building].UnlockCc > 0:
                         _chips.Place(pad.Key, BaseChipLayer.Kind.Online, below, null, pad.Name, "BUILD", alpha: fade);
                         break;
                     case PadKind.Building:
@@ -697,6 +697,10 @@ namespace GalaxyRoyale.Game
                 }
                 Label($"district-{d}", 62, BaseLayout.DistrictLon(d), BaseLayout.DistrictName(d), count);
             }
+            // The Citadel's label sits by the pole, turned to the view.
+            var (cb, ct) = BaseLayout.Count(state, BaseDistrict.Citadel);
+            Label("district-Citadel", BaseLayout.CitadelRing - 13, BaseGlobe.Instance != null ? BaseGlobe.Instance.Yaw : 0f,
+                BaseLayout.DistrictName(BaseDistrict.Citadel), $"{cb}/{ct}");
             // The Wilds' label rides round with the view, over the southern cap.
             var globe = BaseGlobe.Instance;
             Label("district-Wilds", -58, globe != null ? globe.Yaw : 0f, BaseLayout.DistrictName(BaseDistrict.Wilds),

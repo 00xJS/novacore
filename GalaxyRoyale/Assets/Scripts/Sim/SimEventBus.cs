@@ -78,6 +78,14 @@ namespace GalaxyRoyale.Sim
     public sealed record CoreTournament(bool Began, bool Won, ResourceBag PrizeMilli, int DarkMatter, string Holder) : SimEvent;
     /// <summary>The Siege Dreadnought shelled your colony: what it destroyed (milli).</summary>
     public sealed record SiegeShelled(ResourceBag LostMilli) : SimEvent;
+    /// <summary>The Citadel (2026-09-30): a Terraformer stage finished.</summary>
+    public sealed record TerraformStageDone(Systems.TerraformPath Path, int Stage) : SimEvent;
+    /// <summary>The fleet your commander led was destroyed; they recover until UntilTick.</summary>
+    public sealed record CommanderWounded(int UntilTick) : SimEvent;
+    /// <summary>The Missile Silo fired on a raid: Destroyed ships of Attacker's.</summary>
+    public sealed record SiloFired(int Destroyed, string Attacker) : SimEvent;
+    /// <summary>A Trade Consulate delivery landed: its payout rides home (milli + DM).</summary>
+    public sealed record ContractDelivered(string Client, ResourceBag PayMilli, int DarkMatter) : SimEvent;
 
     public sealed class SimEventBus
     {

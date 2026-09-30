@@ -307,6 +307,7 @@ namespace GalaxyRoyale.Game.UI
             content.Add(preview);
             content.Add(status);
             if (isCamp) content.Add(forecast.Root);
+            if (CaptainToggle.Build(state) is { } lead) content.Add(lead); // the Academy (2026-09-30)
 
             var launchRow = Widgets.HBox(Justify.SpaceAround);
             launchRow.style.marginTop = 8;
@@ -361,8 +362,9 @@ namespace GalaxyRoyale.Game.UI
                     CargoLoadPanel.Open(ctx, node, fleet, mission);
                     return;
                 }
-                var res = MarchSystem.SendMarch(state, fleet, node.Tile, mission, out _);
+                var res = MarchSystem.SendMarch(state, fleet, node.Tile, mission, out int sentId);
                 if (!res.Ok) { status.text = res.Reason ?? "Cannot launch"; GameAudio.Feedback(Sfx.Error, Haptic.Error); return; }
+                CaptainToggle.Apply(state, sentId);
                 GameAudio.Feedback(Sfx.Launch, Haptic.Medium);
                 ui.Toast(mission switch
                 {
@@ -497,6 +499,7 @@ namespace GalaxyRoyale.Game.UI
             {
                 var res = MarchSystem.SendMarch(state, fleet, node.Tile, mission, out int marchId);
                 if (!res.Ok) { status.text = res.Reason ?? "Cannot launch"; GameAudio.Feedback(Sfx.Error, Haptic.Error); return; }
+                CaptainToggle.Apply(state, marchId);
                 GameAudio.Feedback(Sfx.Launch, Haptic.Medium);
                 var load = Picked();
                 if (withCargo && load.Total > 0)

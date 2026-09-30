@@ -550,6 +550,31 @@ namespace GalaxyRoyale.Sim.Save
                 ["crates"] = (long)s.SupplyCrates,
                 ["nextTick"] = (long)s.NextSupplyDropTick,
             };
+            // The Citadel (2026-09-30).
+            var citadel = new Dictionary<string, object?>();
+            if (s.Relics.Count > 0)
+            {
+                var relics = new Dictionary<string, object?>();
+                foreach (var kv in s.Relics) relics[kv.Key.ToString()] = (long)kv.Value;
+                citadel["relics"] = relics;
+            }
+            if (s.Terraform.Path != Systems.TerraformPath.None || s.Terraform.ProjectEndsTick > 0)
+                citadel["terraform"] = new Dictionary<string, object?>
+                {
+                    ["path"] = s.Terraform.Path.ToString(),
+                    ["stage"] = (long)s.Terraform.Stage,
+                    ["ends"] = (long)s.Terraform.ProjectEndsTick,
+                };
+            if (s.CaptainMarchId != 0) citadel["captain"] = (long)s.CaptainMarchId;
+            if (s.CaptainWoundedUntilTick != 0) citadel["wounded"] = (long)s.CaptainWoundedUntilTick;
+            if (s.SiloReadyTick != 0) citadel["silo"] = (long)s.SiloReadyTick;
+            if (s.ContractsTaken.Count > 0)
+            {
+                var taken = new List<int>(s.ContractsTaken);
+                taken.Sort();
+                citadel["contracts"] = Arr(taken, x => (object?)(long)x);
+            }
+            if (citadel.Count > 0) root["citadel"] = citadel;
             if (s.EventSiteId.Length > 0) root["eventSite"] = s.EventSiteId;
             if (s.PendingNova >= 0) root["pendingNova"] = (long)s.PendingNova;
             if (s.BountyInstance >= 0)
@@ -825,6 +850,8 @@ namespace GalaxyRoyale.Sim.Save
                 NovaHauled = stats.TryGetValue("novaHauled", out var nh) && nh != null ? ToI64(nh) : 0,
                 BountiesClaimed = Opt("bounties"),
                 TournamentsWon = Opt("tournamentsWon"),
+                MissileKills = Opt("missileKills"),
+                ContractsDone = Opt("contracts"),
             };
 
             if (d.TryGetValue("achievements", out var ach) && ach != null)
@@ -838,6 +865,26 @@ namespace GalaxyRoyale.Sim.Save
             {
                 s.SupplyCrates = supply.TryGetValue("crates", out var cr) && cr != null ? ToI32(cr) : 0;
                 s.NextSupplyDropTick = supply.TryGetValue("nextTick", out var nt) && nt != null ? ToI32(nt) : 0;
+            }
+            if (d.TryGetValue("citadel", out var cit) && cit is Dictionary<string, object?> citadel)
+            {
+                if (citadel.TryGetValue("relics", out var rl) && rl is Dictionary<string, object?> relics)
+                    foreach (var kv in relics)
+                        if (kv.Value != null && Enum.TryParse<RelicKind>(kv.Key, out var rk)) s.Relics[rk] = ToI32(kv.Value);
+                if (citadel.TryGetValue("terraform", out var tfo) && tfo is Dictionary<string, object?> terra)
+                {
+                    s.Terraform.Path = terra.TryGetValue("path", out var tp) && tp is string tps
+                        && Enum.TryParse<Systems.TerraformPath>(tps, out var path) ? path : Systems.TerraformPath.None;
+                    s.Terraform.Stage = I32(terra, "stage");
+                    s.Terraform.ProjectEndsTick = I32(terra, "ends");
+                }
+                int C(string key) => citadel.TryGetValue(key, out var v) && v != null ? ToI32(v) : 0;
+                s.CaptainMarchId = C("captain");
+                s.CaptainWoundedUntilTick = C("wounded");
+                s.SiloReadyTick = C("silo");
+                if (citadel.TryGetValue("contracts", out var cc) && cc != null)
+                    foreach (var raw in AsArr(cc, "citadel.contracts"))
+                        if (raw != null) s.ContractsTaken.Add(ToI32(raw));
             }
             s.EventSiteId = d.TryGetValue("eventSite", out var es) && es is string esId ? esId : "";
             s.PendingNova = d.TryGetValue("pendingNova", out var pn) && pn != null ? ToI32(pn) : -1;
@@ -924,10 +971,29 @@ namespace GalaxyRoyale.Sim.Save
                 d["engageTick"] = (long)m.EngageTick;
             }
             if (m.GuardEmpireId != 0) d["guard"] = (long)m.GuardEmpireId;
+            if (m.ContractPay != null)
+                d["contract"] = new Dictionary<string, object?>
+                {
+                    ["pay"] = Bag(m.ContractPay),
+                    ["dm"] = (long)m.ContractDm,
+                    ["client"] = m.ContractClient,
+                };
             return d;
         }
 
-        static March DecodeMarch(Dictionary<string, object?> o) => new()
+        static March DecodeMarch(Dictionary<string, object?> o)
+        {
+            var m = DecodeMarchCore(o);
+            if (o.TryGetValue("contract", out var ct) && ct is Dictionary<string, object?> c)
+            {
+                m.ContractPay = c.TryGetValue("pay", out var p) && p is Dictionary<string, object?> pd ? DecBag(pd) : new ResourceBag();
+                m.ContractDm = c.TryGetValue("dm", out var dm) && dm != null ? ToI32(dm) : 0;
+                m.ContractClient = c.TryGetValue("client", out var cl) && cl is string cls ? cls : "";
+            }
+            return m;
+        }
+
+        static March DecodeMarchCore(Dictionary<string, object?> o) => new()
         {
             Id = I32(o, "id"),
             Phase = PhaseFrom(Str(o, "phase")),
@@ -1260,6 +1326,8 @@ namespace GalaxyRoyale.Sim.Save
             Opt("novaHauled", st.NovaHauled);
             Opt("bounties", st.BountiesClaimed);
             Opt("tournamentsWon", st.TournamentsWon);
+            Opt("missileKills", st.MissileKills);
+            Opt("contracts", st.ContractsDone);
             return d;
         }
 
@@ -1382,6 +1450,11 @@ namespace GalaxyRoyale.Sim.Save
             BuildingId.JumpGate => "jumpGate",
             BuildingId.ClanEmbassy => "clanEmbassy",
             BuildingId.Observatory => "observatory",
+            BuildingId.RelicVault => "relicVault",
+            BuildingId.Academy => "academy",
+            BuildingId.MissileSilo => "missileSilo",
+            BuildingId.TradeConsulate => "tradeConsulate",
+            BuildingId.Terraformer => "terraformer",
             _ => throw new InvalidOperationException($"unknown BuildingId {id}"),
         };
 
@@ -1403,6 +1476,11 @@ namespace GalaxyRoyale.Sim.Save
             "jumpGate" => BuildingId.JumpGate,
             "clanEmbassy" => BuildingId.ClanEmbassy,
             "observatory" => BuildingId.Observatory,
+            "relicVault" => BuildingId.RelicVault,
+            "academy" => BuildingId.Academy,
+            "missileSilo" => BuildingId.MissileSilo,
+            "tradeConsulate" => BuildingId.TradeConsulate,
+            "terraformer" => BuildingId.Terraformer,
             _ => throw new FormatException($"unknown building '{s}'"),
         };
 
@@ -1637,6 +1715,7 @@ namespace GalaxyRoyale.Sim.Save
             MarchMission.Garrison => "garrison",
             MarchMission.Core => "core",
             MarchMission.Boss => "boss",
+            MarchMission.Trade => "trade",
             _ => throw new InvalidOperationException($"unknown MarchMission {m}"),
         };
 
@@ -1649,6 +1728,7 @@ namespace GalaxyRoyale.Sim.Save
             "garrison" => MarchMission.Garrison,
             "core" => MarchMission.Core,
             "boss" => MarchMission.Boss,
+            "trade" => MarchMission.Trade,
             _ => throw new FormatException($"unknown mission '{s}'"),
         };
 

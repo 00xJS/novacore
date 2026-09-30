@@ -216,6 +216,7 @@ namespace GalaxyRoyale.Game.UI
             m.Mission == MarchMission.Attack && m.Ships.Count == 1 && m.Ships.ContainsKey(HullId.Probe) ? "Spy"
             : m.Mission == MarchMission.Core ? (m.GuardEmpireId == CoreSystem.CoreGuardId ? "Core garrison" : "Core assault")
             : m.Mission == MarchMission.Boss ? "Dreadnought strike"
+            : m.Mission == MarchMission.Trade ? $"Delivery to {m.ContractClient}"
             : m.Mission.ToString();
 
         public static void Open(GameContext ctx, int marchId, Action onClose)
