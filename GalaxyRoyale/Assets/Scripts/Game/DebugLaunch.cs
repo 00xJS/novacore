@@ -19,7 +19,7 @@ namespace GalaxyRoyale.Game
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
             "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail, " +
             "command, mines, frontier, port, wilds, sector, find, orbit, orbitsouth, mapcore, mapall, report, replay, demoreport, demoreplay, " +
-            "tour, fxdemo, handbook, recap, story, lair, projects, refits";
+            "tour, fxdemo, handbook, recap, story, lair, projects, refits, codex";
 
         public static void Run(GameContext ctx)
         {
@@ -133,6 +133,7 @@ namespace GalaxyRoyale.Game
                     case "story": UI.CampaignPanel.Open(ctx); break;
                     case "projects": UI.MegaprojectsPanel.Open(ctx); break;
                     case "refits": UI.RefitsPanel.Open(ctx); break;
+                    case "codex": UI.CodexPanel.Open(ctx); break;
                     case "lair": // the campaign lair (with GR_CAMPAIGN), as SHOW THE LAIR does
                         if (ctx.State != null && Sim.Systems.LairSystem.Find(ctx.State, ctx.State.Campaign.LairId) is { } lairNode)
                             UI.EventsPanel.ShowOnMap(ctx, lairNode.Tile, lairNode);

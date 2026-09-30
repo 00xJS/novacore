@@ -627,6 +627,8 @@ namespace GalaxyRoyale.Game
             // saves) — they must keep mapping to the same art as the shop ids.
             "skin-crimson" or "crimson" => "crimson",
             "skin-emerald" or "emerald" => "emerald",
+            // Earned skins (the codex, 2026-09-30).
+            _ when Codex.SkinTints.ContainsKey(skinId) => skinId,
             _ => "default",
         };
 
@@ -634,6 +636,7 @@ namespace GalaxyRoyale.Game
         {
             "crimson" => new Color(1.00f, 0.42f, 0.45f),
             "emerald" => new Color(0.45f, 1.00f, 0.55f),
+            var earned when Codex.SkinTints.TryGetValue(earned, out var hex) && ColorUtility.TryParseHtmlString(hex, out var c) => c,
             _ => new Color(0.45f, 0.75f, 1.00f),
         };
 

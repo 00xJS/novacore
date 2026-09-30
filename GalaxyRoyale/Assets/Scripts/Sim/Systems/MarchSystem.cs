@@ -595,6 +595,8 @@ namespace GalaxyRoyale.Sim.Systems
             NodeOverride? overrideForNode = null;
             if (node != null) state.Map.NodeOverrides.TryGetValue(node.Id, out overrideForNode);
 
+            if (node != null) CodexSystem.OnArrive(state, node, events); // the codex (2026-09-30)
+
             if (march.Mission == MarchMission.Spy)
             {
                 var report = BuildSpyReport(state, node, overrideForNode);

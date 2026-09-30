@@ -105,6 +105,9 @@ namespace GalaxyRoyale.Sim
     public sealed record MegaprojectStageDone(MegaprojectKind Kind, int Stage) : SimEvent;
     // Ship modules (2026-09-30).
     public sealed record BlueprintFound(ModuleKind Kind, int Mark) : SimEvent;
+    // The codex (2026-09-30).
+    public sealed record CodexEntryFound(string Category, string Label) : SimEvent;
+    public sealed record CodexCategoryComplete(string Category) : SimEvent;
 
     public sealed class SimEventBus
     {

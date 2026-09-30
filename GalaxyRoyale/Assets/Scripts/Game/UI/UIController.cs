@@ -1151,6 +1151,15 @@ namespace GalaxyRoyale.Game.UI
                     GameAudio.Feedback(Sfx.Victory, Haptic.Success);
                     break;
                 }
+                case CodexCategoryComplete full:
+                {
+                    var cat = Codex.ById(full.Category)!;
+                    Toast(cat.SkinName != null
+                        ? $"Codex collection complete: {cat.Name}. The {cat.SkinName} planet skin is yours (Profile › CODEX)"
+                        : $"Codex collection complete: {cat.Name}", Icon.Trophy, UiTheme.Good);
+                    GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                    break;
+                }
                 case BlueprintFound bp:
                 {
                     var def = Modules.Def(bp.Kind);

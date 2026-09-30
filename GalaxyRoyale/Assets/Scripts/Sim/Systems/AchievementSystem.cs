@@ -45,6 +45,7 @@ namespace GalaxyRoyale.Sim.Systems
                 AchievementGoal.LordsDefeated => LairSystem.LordsBeaten(state),
                 AchievementGoal.ChaptersDone => CampaignSystem.ChaptersDone(state),
                 AchievementGoal.MegaprojectsDone => MegaprojectSystem.Completed(state),
+                AchievementGoal.CodexCategory => a.Codex != null ? CodexSystem.Found(state, a.Codex) : 0,
                 _ => 0,
             };
             return (Math.Min(have, a.Target), a.Target);
