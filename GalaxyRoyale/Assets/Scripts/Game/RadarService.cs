@@ -78,7 +78,7 @@ namespace GalaxyRoyale.Game
             int level = RadarSystem.Level(state);
             if (level < 1) { _detected.Clear(); return; } // no radar, no ears
 
-            int leadSec = RadarSystem.WarnLeadSeconds(level);
+            int leadSec = RadarSystem.WarnLeadSeconds(state);
             int tier = RadarSystem.DetailTier(level);
             int now = state.Tick;
 

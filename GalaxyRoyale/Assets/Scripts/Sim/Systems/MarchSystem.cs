@@ -49,7 +49,8 @@ namespace GalaxyRoyale.Sim.Systems
         /// bonus; the Galactic Core's holder gets Galactic Command).</summary>
         public static double EffSpeed(GameState state, Dictionary<HullId, int> ships) =>
             FleetSpeed(ships) * ResearchSystem.MarchSpeedMult(state) * RadarSystem.FleetSpeedMult(state, ships)
-            * (state.Buffs.CoreHolder ? CoreSystem.CommandSpeedMult : 1.0);
+            * (state.Buffs.CoreHolder ? CoreSystem.CommandSpeedMult : 1.0)
+            * JumpGateSystem.SpeedMult(state);
 
         /// <summary>Research-adjusted cargo capacity, milli-units.</summary>
         public static long EffCargoCap(GameState state, Dictionary<HullId, int> ships) =>
@@ -200,7 +201,7 @@ namespace GalaxyRoyale.Sim.Systems
             {
                 Ok = true,
                 TravelSec = rawSpeed == int.MaxValue ? 0 : Balance.TravelSeconds(dist, (int)speed),
-                HeliumCost = (int)Math.Ceiling(rawHelium * ResearchSystem.HeliumMult(state)),
+                HeliumCost = (int)Math.Ceiling(rawHelium * ResearchSystem.HeliumMult(state) * JumpGateSystem.HeliumMult(state)),
                 CargoCap = EffCargoCap(state, ships),
                 Distance = dist,
             };
@@ -677,6 +678,7 @@ namespace GalaxyRoyale.Sim.Systems
                     Favorite = false,
                 };
                 SalvageSystem.OnMail(state, mail); // the Salvage Yard strips the wrecks
+                RepairSystem.OnMail(state, mail);  // the Repair Dock tows hulls home
                 state.Mailbox.Insert(0, mail);
                 TrimMailbox(state);
                 // Emit AFTER the report is filed: the UI pops Mailbox[0] on this

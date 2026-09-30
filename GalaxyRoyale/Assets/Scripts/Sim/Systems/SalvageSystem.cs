@@ -50,7 +50,7 @@ namespace GalaxyRoyale.Sim.Systems
 
         /// <summary>The player's own losses in a report: their side's losses, less the
         /// share of any clanmates' ships fighting beside them.</summary>
-        static Dictionary<HullId, int> OwnLosses(BattleMailReport mail)
+        internal static Dictionary<HullId, int> OwnLosses(BattleMailReport mail)
         {
             var r = mail.Report;
             var before = mail.Defending ? r.Defender : r.Attacker;

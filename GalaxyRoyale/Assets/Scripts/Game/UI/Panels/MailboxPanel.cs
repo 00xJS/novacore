@@ -368,6 +368,19 @@ namespace GalaxyRoyale.Game.UI
                     content.Add(yard);
                 }
 
+                if (battle.Towed is { Count: > 0 } towed)
+                {
+                    content.Add(Section("REPAIR DOCK", UiTheme.Quartz));
+                    var parts = new List<string>();
+                    foreach (var hull in Ships.All)
+                        if (towed.TryGetValue(hull, out var n) && n > 0) parts.Add($"{Ships.Defs[hull].Name} ×{n:N0}");
+                    var dock = Widgets.Text($"Towed home damaged: {string.Join(" · ", parts)}. Repair them at your Repair Dock " +
+                        "within 72 hours.", 11, UiTheme.Text);
+                    dock.style.whiteSpace = WhiteSpace.Normal;
+                    dock.style.marginTop = 2;
+                    content.Add(dock);
+                }
+
                 if (r.DefenderBattery > 0 || r.DefenderTurret > 0)
                 {
                     content.Add(Section(defending ? "YOUR PLANETARY GUNS" : "THEIR PLANETARY GUNS", UiTheme.Magenta));

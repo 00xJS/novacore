@@ -39,6 +39,7 @@ namespace GalaxyRoyale.Sim
             BuildingSystem.Tick(_state, _events);
             ResearchSystem.Tick(_state, _events);
             FleetSystem.Tick(_state, _events);
+            RepairSystem.Tick(_state, _events);
             ResourceSystem.Tick(_state, _events);
             MarchSystem.Tick(_state, _events);
             MapSystem.Tick(_state, _events);

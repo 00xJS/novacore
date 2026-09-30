@@ -72,6 +72,10 @@ namespace GalaxyRoyale.Sim.Systems
 
         public static int SurveySeconds(int index) => Balance.WildsSurveySec[WildsLayout.RingOf(index)];
 
+        /// <summary>A survey's time for this colony (the Deep Space Observatory shortens it).</summary>
+        public static int SurveySeconds(GameState s, int index) =>
+            System.Math.Max(10, (int)System.Math.Round(SurveySeconds(index) * ObservatorySystem.SurveyMult(s)));
+
         /// <summary>Seconds left on the survey under way (0 = none).</summary>
         public static int SurveyLeft(GameState s) =>
             s.Wilds.Surveying < 0 ? 0 : Math.Max(0, s.Wilds.SurveyDoneTick - s.Tick);
@@ -92,7 +96,7 @@ namespace GalaxyRoyale.Sim.Systems
             if (!check.Ok) return check;
             ResourceSystem.Spend(s, SurveyCost(index));
             s.Wilds.Surveying = index;
-            s.Wilds.SurveyDoneTick = s.Tick + SurveySeconds(index);
+            s.Wilds.SurveyDoneTick = s.Tick + SurveySeconds(s, index);
             return SimResult.Success;
         }
 

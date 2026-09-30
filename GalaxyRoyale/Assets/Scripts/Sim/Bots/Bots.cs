@@ -1630,6 +1630,7 @@ namespace GalaxyRoyale.Sim.Bots
         public static void InsertMail(GameState state, MailItem item)
         {
             SalvageSystem.OnMail(state, item); // the Salvage Yard strips the wrecks
+            RepairSystem.OnMail(state, item);  // the Repair Dock tows hulls home
             state.Mailbox.Insert(0, item);
             if (state.Mailbox.Count <= 50) return;
             for (int i = state.Mailbox.Count - 1; i >= 0 && state.Mailbox.Count > 50; i--)

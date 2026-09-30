@@ -366,7 +366,7 @@ namespace GalaxyRoyale.Sim.Systems
             ResourceSystem.Add(holder.State, HourShare(holder.State, TributeShare));
             if (ClanSystem.SameClanAsPlayer(player, holder))
             {
-                var bag = HourShare(player, ClanTributeShare);
+                var bag = HourShare(player, EmbassySystem.ClanTributeShare(player));
                 ResourceSystem.Add(player, bag);
                 events.Emit(new CoreTributePaid(bag, 0, Clan: true));
             }

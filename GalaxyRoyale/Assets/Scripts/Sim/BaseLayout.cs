@@ -135,22 +135,22 @@ namespace GalaxyRoyale.Sim
                 Key = b.ToString(), Kind = PadKind.Planned, District = BaseDistrict.Frontier,
                 Lat = lat, Lon = lon, Planned = b, UnlockCc = cc, Name = name,
             });
-            Plan(PlannedBuilding.ExchangeTerminal, "Exchange Terminal", TopRow, -109, 5);
+            Plan(PlannedBuilding.ExchangeTerminal, "Exchange Terminal", TopRow, -114, 5); // top row spread for the Jump Gate
             void Frontier(BuildingId id, double lat, double lon) => pads.Add(new BasePad
             {
                 Key = id.ToString(), Kind = PadKind.Building, District = BaseDistrict.Frontier,
                 Lat = lat, Lon = lon, Building = id, Name = Buildings.Defs[id].Name,
                 UnlockCc = Buildings.Defs[id].UnlockCc,
             });
-            Frontier(BuildingId.CommandBastion, TopRow, -71);
+            Frontier(BuildingId.CommandBastion, TopRow, -66);
             Frontier(BuildingId.DroneFactory, BottomRow, -106);
             Frontier(BuildingId.SalvageYard, BottomRow, -74);
-            foreach (double lon in new[] { -112.0, -90.0, -68.0 })
-                pads.Add(new BasePad
-                {
-                    Key = $"Reserved{lon}", Kind = PadKind.Reserved, District = BaseDistrict.Frontier,
-                    Lat = MiddleRow, Lon = lon, Name = "Reserved",
-                });
+            // The Frontier completed (2026-09-29): the three reserved pads of the
+            // middle row and the top row's gap (App Store rule: nothing "coming soon").
+            Frontier(BuildingId.JumpGate, TopRow, -90);
+            Frontier(BuildingId.ClanEmbassy, MiddleRow, -112);
+            Frontier(BuildingId.Observatory, MiddleRow, -90);
+            Frontier(BuildingId.RepairDock, MiddleRow, -68);
             return pads;
         }
 

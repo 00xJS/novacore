@@ -487,6 +487,20 @@ namespace GalaxyRoyale.Sim.Save
                     ["at"] = (long)mk.ImpactTick,
                 };
             if (s.SalvageStored.Total > 0) root["salvage"] = Bag(s.SalvageStored);
+            // The Frontier's last four buildings (2026-09-29).
+            if (s.DamagedHulls.Count > 0)
+                root["damaged"] = Arr(s.DamagedHulls, b => (object?)new Dictionary<string, object?>
+                {
+                    ["ships"] = Comp(b.Ships),
+                    ["expires"] = (long)b.ExpiresAtTick,
+                });
+            if (s.Repair != null)
+                root["repair"] = new Dictionary<string, object?>
+                {
+                    ["ships"] = Comp(s.Repair.Ships),
+                    ["ends"] = (long)s.Repair.EndsAtTick,
+                };
+            if (s.JumpGateReadyTick > 0) root["jumpGateReady"] = (long)s.JumpGateReadyTick;
             var wilds = s.Wilds;
             if (wilds.Sectors.Count > 0 || wilds.Surveying >= 0 || wilds.HarvestTick > 0)
             {
@@ -597,6 +611,23 @@ namespace GalaxyRoyale.Sim.Save
 
             if (d.TryGetValue("salvage", out var svRaw) && svRaw is Dictionary<string, object?> svo)
                 s.SalvageStored = DecBag(svo);
+            if (d.TryGetValue("damaged", out var dmRaw) && dmRaw != null)
+                foreach (var raw in AsArr(dmRaw, "damaged"))
+                {
+                    var o = AsObj(raw, "damaged[]");
+                    s.DamagedHulls.Add(new DamagedBatch
+                    {
+                        Ships = o.TryGetValue("ships", out var dmShips) && dmShips is Dictionary<string, object?> dmd ? DecComp(dmd) : new(),
+                        ExpiresAtTick = I32(o, "expires"),
+                    });
+                }
+            if (d.TryGetValue("repair", out var rpRaw) && rpRaw is Dictionary<string, object?> rp)
+                s.Repair = new RepairJob
+                {
+                    Ships = rp.TryGetValue("ships", out var rs) && rs is Dictionary<string, object?> rsd ? DecComp(rsd) : new(),
+                    EndsAtTick = I32(rp, "ends"),
+                };
+            if (d.TryGetValue("jumpGateReady", out var jg) && jg != null) s.JumpGateReadyTick = ToI32(jg);
             if (d.TryGetValue("wilds", out var wRaw) && wRaw is Dictionary<string, object?> wo)
                 s.Wilds = DecodeWilds(wo);
 
@@ -983,6 +1014,7 @@ namespace GalaxyRoyale.Sim.Save
             d["read"] = item.Read;
             d["favorite"] = item.Favorite;
             if (item.Salvaged is { Total: > 0 } salvaged) d["salvaged"] = Bag(salvaged);
+            if (item.Towed is { Count: > 0 } towed) d["towed"] = Comp(towed);
             return d;
         }
 
@@ -1078,6 +1110,7 @@ namespace GalaxyRoyale.Sim.Save
             item.Read = d.TryGetValue("read", out var rd) && rd is bool rb && rb;
             item.Favorite = d.TryGetValue("favorite", out var f) && f is bool fb && fb;
             if (d.TryGetValue("salvaged", out var sg) && sg is Dictionary<string, object?> sgd) item.Salvaged = DecBag(sgd);
+            if (d.TryGetValue("towed", out var tw) && tw is Dictionary<string, object?> twd) item.Towed = DecComp(twd);
             if (item is BattleMailReport mail)
             {
                 mail.Defending = IsDefenseReport(mail,
@@ -1261,6 +1294,10 @@ namespace GalaxyRoyale.Sim.Save
             BuildingId.CommandBastion => "commandBastion",
             BuildingId.SalvageYard => "salvageYard",
             BuildingId.DroneFactory => "droneFactory",
+            BuildingId.RepairDock => "repairDock",
+            BuildingId.JumpGate => "jumpGate",
+            BuildingId.ClanEmbassy => "clanEmbassy",
+            BuildingId.Observatory => "observatory",
             _ => throw new InvalidOperationException($"unknown BuildingId {id}"),
         };
 
@@ -1278,6 +1315,10 @@ namespace GalaxyRoyale.Sim.Save
             "commandBastion" => BuildingId.CommandBastion,
             "salvageYard" => BuildingId.SalvageYard,
             "droneFactory" => BuildingId.DroneFactory,
+            "repairDock" => BuildingId.RepairDock,
+            "jumpGate" => BuildingId.JumpGate,
+            "clanEmbassy" => BuildingId.ClanEmbassy,
+            "observatory" => BuildingId.Observatory,
             _ => throw new FormatException($"unknown building '{s}'"),
         };
 

@@ -363,7 +363,7 @@ namespace GalaxyRoyale.Game
                 if (state.Wilds.Surveying == tile.Index)
                 {
                     int left = WildsSystem.SurveyLeft(state);
-                    int total = Mathf.Max(1, WildsSystem.SurveySeconds(tile.Index));
+                    int total = Mathf.Max(1, WildsSystem.SurveySeconds(state, tile.Index));
                     var ringAt = top is { } tp ? new Vector2(tp.x, tp.y + 18f) : new Vector2(p.x, p.y - 30f);
                     _chips.Place(key, BaseChipLayer.Kind.Timer, below, ringAt, UiTheme.FmtDuration(left),
                         progress: Mathf.Clamp01(1f - left / (float)total), alpha: fade);

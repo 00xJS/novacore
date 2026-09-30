@@ -20,6 +20,11 @@ namespace GalaxyRoyale.Sim.Systems
         /// 0 = nothing (no radar) · 1 = unknown contact + ETA · 2 = contact type (spy vs fleet)
         /// · 3 = + fleet size and attacker name · 4 = + full hull composition.
         /// </summary>
+        /// <summary>This colony's warning lead: the Radar Station's, stretched by the
+        /// Deep Space Observatory.</summary>
+        public static int WarnLeadSeconds(GameState state) =>
+            (int)System.Math.Round(WarnLeadSeconds(Level(state)) * ObservatorySystem.RadarLeadMult(state));
+
         public static int DetailTier(int radarLevel) =>
             radarLevel < 1 ? 0
             : radarLevel < 5 ? 1
