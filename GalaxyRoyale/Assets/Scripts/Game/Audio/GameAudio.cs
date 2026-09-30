@@ -15,6 +15,8 @@ namespace GalaxyRoyale.Game
     {
         Tap, Open, Close, Toggle, Confirm, Success, Coins, Error, Alert,
         Launch, Laser, Explosion, Victory, Defeat, Quest,
+        // The events and systems of 2026-09-30.
+        Comet, Nova, Missile, Taunt, Discovery, Storm,
     }
 
     public enum Haptic { Selection, Light, Medium, Heavy, Success, Warning, Error }
@@ -124,6 +126,8 @@ namespace GalaxyRoyale.Game
             Sfx.Close => 0.24f,
             Sfx.Laser => 0.16f,
             Sfx.Explosion => 0.42f,
+            Sfx.Nova => 0.5f,
+            Sfx.Storm => 0.4f,
             Sfx.Error => 0.35f,
             _ => 0.45f,
         };
@@ -153,6 +157,13 @@ namespace GalaxyRoyale.Game
             Sfx.Explosion => Explosion(),
             Sfx.Victory => Notes("victory", new[] { 523f, 659f, 784f, 1047f }, 0.11f, 0.5f),
             Sfx.Defeat => Notes("defeat", new[] { 392f, 311f, 262f }, 0.17f, 0.55f, dark: true),
+            Sfx.Comet => Comet(),
+            Sfx.Nova => Nova(),
+            Sfx.Missile => Missile(),
+            Sfx.Taunt => Notes("taunt", new[] { 147f, 139f, 110f }, 0.14f, 0.6f, dark: true),
+            // A rising, open fifth-and-octave figure: something found out there.
+            Sfx.Discovery => Notes("discovery", new[] { 587f, 880f, 1175f, 1760f }, 0.09f, 0.6f),
+            Sfx.Storm => Storm(),
             _ => Tone("blank", 0.01f, t => 0f, t => 0f, 0f),
         };
 
@@ -243,6 +254,65 @@ namespace GalaxyRoyale.Game
                 float env = Mathf.Min(1f, t / 0.06f)
                     * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 1f, k)));
                 return (0.55f * Mathf.Sin(phase) + 0.45f * low) * env * 0.7f;
+            });
+        }
+
+        /// <summary>A bright glissando with a shimmering tail: the comet streaks in.</summary>
+        static AudioClip Comet()
+        {
+            float phase = 0f;
+            return Build("comet", 0.9f, (i, t) =>
+            {
+                float k = t / 0.9f;
+                phase += Tau * Mathf.Lerp(2400f, 900f, Mathf.Sqrt(k)) / Rate;
+                float shimmer = 0.6f + 0.4f * Mathf.Sin(Tau * 18f * t);
+                return (Mathf.Sin(phase) + 0.3f * Mathf.Sin(3f * phase)) * shimmer
+                    * Decay(t, 0.02f, 0.3f) * 0.45f;
+            });
+        }
+
+        /// <summary>A long, deep boom that swells before it breaks: the star goes off.</summary>
+        static AudioClip Nova()
+        {
+            var noise = new System.Random(23);
+            float low = 0f;
+            return Build("nova", 1.6f, (i, t) =>
+            {
+                float swell = t < 0.35f ? t / 0.35f : Mathf.Exp(-(t - 0.35f) / 0.45f);
+                low += (((float)noise.NextDouble() * 2f - 1f) - low) * Mathf.Lerp(0.2f, 0.02f, Mathf.Clamp01(t / 1.2f));
+                float sub = Mathf.Sin(Tau * Mathf.Lerp(70f, 38f, Mathf.Clamp01(t / 1.6f)) * t);
+                return (low * 1.5f + sub * 0.9f) * swell * 0.6f;
+            });
+        }
+
+        /// <summary>A falling whistle, then a sharp crack: the silo's salvo lands.</summary>
+        static AudioClip Missile()
+        {
+            var noise = new System.Random(5);
+            float phase = 0f, low = 0f;
+            return Build("missile", 0.7f, (i, t) =>
+            {
+                if (t < 0.4f)
+                {
+                    phase += Tau * Mathf.Lerp(1800f, 700f, t / 0.4f) / Rate;
+                    return Mathf.Sin(phase) * Mathf.Min(1f, t / 0.05f) * 0.3f;
+                }
+                float local = t - 0.4f;
+                low += (((float)noise.NextDouble() * 2f - 1f) - low) * 0.5f;
+                return (low * 1.2f + Mathf.Sin(Tau * 80f * local) * 0.6f) * Decay(local, 0.002f, 0.08f) * 0.7f;
+            });
+        }
+
+        /// <summary>Crackling static over a low hum: the ion storm rolls in.</summary>
+        static AudioClip Storm()
+        {
+            var noise = new System.Random(31);
+            return Build("storm", 1.1f, (i, t) =>
+            {
+                float env = Mathf.Min(1f, t / 0.15f) * Mathf.Exp(-t / 0.55f);
+                float crackle = noise.NextDouble() < 0.012 ? (float)noise.NextDouble() * 2f - 1f : 0f;
+                float hum = Mathf.Sin(Tau * 60f * t) + 0.5f * Mathf.Sin(Tau * 120f * t + Mathf.Sin(Tau * 3f * t));
+                return (crackle * 1.6f + hum * 0.35f) * env * 0.6f;
             });
         }
 

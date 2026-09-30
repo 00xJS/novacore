@@ -686,10 +686,13 @@ namespace GalaxyRoyale.Sim.Save
                 {
                     ["number"] = (long)s.Season,
                     ["startMight"] = s.SeasonStartMight,
+                    ["startTally"] = LongMap(s.SeasonStartTally),
                     ["history"] = Arr(s.SeasonHistory, h => (object?)new Dictionary<string, object?>
                     {
                         ["season"] = (long)h.Season, ["rank"] = (long)h.Rank, ["of"] = (long)h.Of,
                         ["gain"] = h.Gain, ["reward"] = (long)h.RewardDM,
+                        ["champ"] = h.Champion, ["champGain"] = h.ChampionGain,
+                        ["hl"] = LongMap(h.Highlights),
                     }),
                 };
             if (s.ClanId != 0 || s.ClanInviteId != 0 || s.ClanNextInviteTick != 0 || s.ClanGarrisonReadyTick != 0)
@@ -1071,6 +1074,7 @@ namespace GalaxyRoyale.Sim.Save
                 var o = AsObj(se, "season");
                 s.Season = I32(o, "number");
                 s.SeasonStartMight = I64(o, "startMight");
+                s.SeasonStartTally = DecLongMap(o, "startTally");
                 foreach (var raw in AsArr(o["history"], "season.history"))
                 {
                     var h = AsObj(raw, "season.history[]");
@@ -1078,6 +1082,9 @@ namespace GalaxyRoyale.Sim.Save
                     {
                         Season = I32(h, "season"), Rank = I32(h, "rank"), Of = I32(h, "of"),
                         Gain = I64(h, "gain"), RewardDM = I32(h, "reward"),
+                        Champion = h.TryGetValue("champ", out var champ) && champ is string cs ? cs : "",
+                        ChampionGain = h.TryGetValue("champGain", out var cg) && cg != null ? ToI64(cg) : 0,
+                        Highlights = DecLongMap(h, "hl"),
                     });
                 }
             }
@@ -1994,6 +2001,22 @@ namespace GalaxyRoyale.Sim.Save
         }
 
         // ---------- JSON access helpers ----------
+
+        static Dictionary<string, object?> LongMap(Dictionary<string, long> m)
+        {
+            var o = new Dictionary<string, object?>();
+            foreach (var (k, v) in m) o[k] = v;
+            return o;
+        }
+
+        /// <summary>An optional string → number map (absent → empty).</summary>
+        static Dictionary<string, long> DecLongMap(Dictionary<string, object?> d, string key)
+        {
+            var m = new Dictionary<string, long>();
+            if (d.TryGetValue(key, out var raw) && raw is Dictionary<string, object?> o)
+                foreach (var (k, v) in o) if (v != null) m[k] = ToI64(v);
+            return m;
+        }
 
         static Dictionary<string, object?> AsObj(object? v, string what) =>
             v as Dictionary<string, object?> ?? throw new FormatException($"expected object for {what}");

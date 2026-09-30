@@ -497,8 +497,20 @@ namespace GalaxyRoyale.Game.UI
             _moreMenu.style.position = Position.Absolute;
             _moreMenu.style.right = 12;
             _moreMenu.style.bottom = UiTheme.NavH + TickerH + 16 + 56;
-            _moreMenu.style.alignItems = Align.Center;
+            // Two columns (2026-09-30): nine hexes stacked in one column reached the
+            // header on smaller phones. The busiest entries sit in the right column,
+            // next to the thumb and the MORE button.
+            _moreMenu.style.flexDirection = FlexDirection.Row;
+            _moreMenu.style.alignItems = Align.FlexEnd;
             _moreMenu.style.display = DisplayStyle.None;
+            var leftCol = new VisualElement();
+            leftCol.style.alignItems = Align.Center;
+            leftCol.style.marginRight = 10;
+            var rightCol = new VisualElement();
+            rightCol.style.alignItems = Align.Center;
+            _moreMenu.Add(leftCol);
+            _moreMenu.Add(rightCol);
+            VisualElement col = leftCol;
 
             Button MiniFab(Icon icon, string label, Action onTap)
             {
@@ -522,14 +534,15 @@ namespace GalaxyRoyale.Game.UI
                 caption.style.letterSpacing = 0;
                 caption.style.fontSize = 7;
                 b.style.marginBottom = 8;
-                _moreMenu.Add(b);
+                col.Add(b);
                 return b;
             }
-            // Stacked bottom-up visually; add in top-down order.
+            // Each column is added top-down.
             MiniFab(Icon.Target, "CORE", () => CorePanel.Open(_ctx));
             MiniFab(Icon.Warning, "BOSS", OpenBoss);
             _clanFab = MiniFab(Icon.Pact, "CLAN", OpenClan);
             MiniFab(Icon.Rotate, "MARKET", OpenMarket);
+            col = rightCol;
             _exploreFab = MiniFab(Icon.Compass, "EXPLORE", () => ExpeditionsPanel.Open(_ctx)); // expeditions (2026-09-30)
             // QUESTS took AWARDS' place (user 2026-09-29); awards stay under Profile › TITLES & AWARDS.
             MiniFab(Icon.Star, "QUESTS", () => QuestPanel.Open(_ctx));
@@ -1091,7 +1104,7 @@ namespace GalaxyRoyale.Game.UI
                     {
                         case "sworn":
                             Toast($"{n.Name} is now your NEMESIS: \"{n.Line}\"", Icon.Swords, UiTheme.Bad);
-                            GameAudio.Feedback(Sfx.Alert, Haptic.Warning);
+                            GameAudio.Feedback(Sfx.Taunt, Haptic.Warning);
                             break;
                         case "broken":
                             Toast($"You broke {n.Name}! +{UiTheme.FmtAmount(n.Reward?.Total ?? 0)} · +{n.DarkMatter} DM — \"{n.Line}\"",
@@ -1100,9 +1113,11 @@ namespace GalaxyRoyale.Game.UI
                             break;
                         case "escalate":
                             Toast($"{n.Name} escalates to tier {NemesisSystem.TierName(n.Tier)}: \"{n.Line}\"", Icon.Swords, UiTheme.Energy);
+                            GameAudio.Feedback(Sfx.Taunt, Haptic.Medium);
                             break;
                         default:
                             Toast($"{n.Name}: \"{n.Line}\"", Icon.Swords, UiTheme.Bad);
+                            GameAudio.Play(Sfx.Taunt, 0.7f);
                             break;
                     }
                     break;
@@ -1111,7 +1126,7 @@ namespace GalaxyRoyale.Game.UI
                 case ExpeditionMoment moment:
                     Toast($"Your {Expeditions.Def(moment.Kind).Name} expedition needs your call. MORE › EXPLORE",
                         Icon.Compass, UiTheme.Energy);
-                    GameAudio.Feedback(Sfx.Alert, Haptic.Light);
+                    GameAudio.Feedback(Sfx.Discovery, Haptic.Light);
                     break;
                 case ExpeditionReturned back:
                 {
@@ -1120,27 +1135,33 @@ namespace GalaxyRoyale.Game.UI
                     Toast($"{Expeditions.Def(log.Kind).Name}: home with +{UiTheme.FmtAmount(log.LootMilli.Total)} · +{log.DarkMatter} DM{relic}" +
                           (log.ShipsLost > 0 ? $" · {log.ShipsLost:N0} ships lost" : ""), Icon.Compass,
                         log.ShipsLost > 0 ? UiTheme.Energy : UiTheme.Good);
+                    GameAudio.Feedback(log.Relic != null ? Sfx.Discovery : Sfx.Coins, Haptic.Success);
                     break;
                 }
                 // The Citadel (2026-09-30).
                 case TerraformStageDone done:
                     Toast($"Terraforming: {TerraformSystem.Name(done.Path)} stage {done.Stage} complete · " +
                           TerraformSystem.Bonus(done.Path, done.Stage), Icon.Planet, UiTheme.Good);
+                    GameAudio.Feedback(Sfx.Success, Haptic.Success);
                     break;
                 case CommanderWounded:
                     Toast("The fleet your commander led was destroyed. They'll recover in 6 hours", Icon.Warning, UiTheme.Bad);
+                    GameAudio.Feedback(Sfx.Defeat, Haptic.Error);
                     break;
                 case SiloFired fired:
                     Toast($"Missile salvo: {fired.Destroyed:N0} of {fired.Attacker}'s ships destroyed", Icon.Target, UiTheme.Good);
+                    GameAudio.Feedback(Sfx.Missile, Haptic.Heavy);
                     break;
                 case ContractDelivered delivered:
                     Toast($"{delivered.Client} paid for your delivery: {UiTheme.FmtAmount(delivered.PayMilli.Total)} + " +
                           $"{delivered.DarkMatter} DM flying home", Icon.Crate, UiTheme.Good);
+                    GameAudio.Play(Sfx.Coins, 0.7f);
                     break;
                 // Rival events (2026-09-30).
                 case BountyPosted posted:
                     Toast($"Bounty posted on {posted.Name}: win a raid on them before the rivals do. MORE › EVENTS",
                         Icon.Target, UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Alert, Haptic.Light);
                     break;
                 case BountyTaken taken:
                     Toast($"{taken.Hunter} collected the bounty on {taken.Target} first", Icon.Target, UiTheme.Dim);
@@ -1148,27 +1169,32 @@ namespace GalaxyRoyale.Game.UI
                 case CoreTournament tour when tour.Began:
                     Toast("The Core Tournament begins: the Galactic Core is open to all. Hold it when it ends to win",
                         Icon.Trophy, UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Launch, Haptic.Medium);
                     break;
                 case CoreTournament tour:
                     Toast(tour.Won
                         ? $"You won the Core Tournament: +{UiTheme.FmtAmount(tour.PrizeMilli.Total)} · +{tour.DarkMatter} DM"
                         : tour.DarkMatter > 0 ? $"Your clanmate {tour.Holder} won the Core Tournament · +{tour.DarkMatter} DM"
                         : $"{tour.Holder} won the Core Tournament", Icon.Trophy, tour.Won ? UiTheme.Good : UiTheme.Dim);
+                    if (tour.Won) GameAudio.Feedback(Sfx.Victory, Haptic.Success);
                     break;
                 case SiegeShelled shelled:
                     Toast($"The Siege Dreadnought shelled your colony: {UiTheme.FmtAmount(shelled.LostMilli.Total)} lost. " +
                           "An Aegis Shield keeps it off", Icon.Warning, UiTheme.Bad);
+                    GameAudio.Feedback(Sfx.Explosion, Haptic.Heavy);
                     break;
                 // Map events (2026-09-30).
                 case CaravanEscorted paid:
                     Toast($"The caravan moved on and paid your escort: +{UiTheme.FmtAmount(paid.PayMilli.Total)}" +
                           (paid.DarkMatter > 0 ? $" · +{paid.DarkMatter} DM" : ""), Icon.Crate, UiTheme.Good);
+                    GameAudio.Feedback(Sfx.Coins, Haptic.Success);
                     break;
                 case SupernovaDetonated nova:
                     Toast(nova.ShipsLost > 0
                         ? $"The supernova went off: {nova.ShipsLost:N0} of your ships were still in the sector and were lost"
                         : "The supernova went off. Its sector's worlds are stripped bare", Icon.Warning,
                         nova.ShipsLost > 0 ? UiTheme.Bad : UiTheme.Energy);
+                    GameAudio.Feedback(Sfx.Nova, Haptic.Heavy);
                     break;
                 case ProtectionEnded ended:
                     Toast(ended.Reason switch
@@ -1191,9 +1217,14 @@ namespace GalaxyRoyale.Game.UI
                 case SeasonEnded ended:
                 {
                     var rec = ended.Record;
-                    Toast($"Season {rec.Season} is over — you placed #{rec.Rank} of {rec.Of} · +{rec.RewardDM} DM",
-                        Icon.Trophy, UiTheme.Energy);
-                    GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                    // The recap card, unless the player is busy in another panel.
+                    if (!HasModal) SeasonRecapPanel.Open(_ctx, rec, justEnded: true);
+                    else
+                    {
+                        Toast($"Season {rec.Season} is over — you placed #{rec.Rank} of {rec.Of} · +{rec.RewardDM} DM. " +
+                              "Recap in MORE › EVENTS", Icon.Trophy, UiTheme.Energy);
+                        GameAudio.Feedback(Sfx.Victory, Haptic.Success);
+                    }
                     break;
                 }
                 case ClanSuppliesArrived:
@@ -1453,7 +1484,14 @@ namespace GalaxyRoyale.Game.UI
             if (!firstLook && _eventSeenInstance != live.Instance && !EventSystem.IsQuiet(live))
             {
                 Toast($"New galaxy event: {live.Def.Name} — {live.Def.Effect}", Icon.Bolt, UiTheme.Energy);
-                GameAudio.Feedback(Sfx.Alert, Haptic.Light);
+                GameAudio.Feedback(live.Def.Kind switch
+                {
+                    GalaxyEventKind.CometPass => Sfx.Comet,
+                    GalaxyEventKind.IonStorm => Sfx.Storm,
+                    GalaxyEventKind.Supernova => Sfx.Alert,
+                    GalaxyEventKind.TradeCaravan => Sfx.Coins,
+                    _ => Sfx.Alert,
+                }, Haptic.Light);
             }
             _eventSeenInstance = live.Instance;
             if (claimable && !firstLook && _eventNudgedInstance != live.Instance)
@@ -1592,7 +1630,9 @@ namespace GalaxyRoyale.Game.UI
 
         VisualElement _nemesisChip = null!;
         Label _nemesisTitle = null!, _nemesisInfo = null!;
+        VisualElement _nemesisFace = null!;
         string _nemesisKey = "";
+        int _nemesisFaceOf = -1;
 
         void BuildNemesisChip()
         {
@@ -1606,9 +1646,12 @@ namespace GalaxyRoyale.Game.UI
             c.style.paddingTop = 5;
             c.style.paddingBottom = 5;
             Holo.Frame(c, UiTheme.A(UiTheme.Bg, 0.9f), UiTheme.Bad, 9f, 1.2f);
-            var icon = Icons.Make(Icon.Swords, 14f, UiTheme.Bad);
-            icon.style.marginRight = 7;
-            c.Add(icon);
+            // Their face (2026-09-30), with crossed swords pinned to its corner.
+            _nemesisFace = new VisualElement { pickingMode = PickingMode.Ignore };
+            _nemesisFace.style.width = 28;
+            _nemesisFace.style.height = 28;
+            _nemesisFace.style.marginRight = 8;
+            c.Add(_nemesisFace);
             var col = new VisualElement { pickingMode = PickingMode.Ignore };
             col.style.flexShrink = 1f;
             _nemesisTitle = Widgets.Heading("", 10, UiTheme.Bad, 0.8f);
@@ -1636,6 +1679,22 @@ namespace GalaxyRoyale.Game.UI
             bool on = NemesisSystem.Active(state);
             _nemesisChip.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
             if (!on) return;
+            if (_nemesisFaceOf != n.BotId)
+            {
+                _nemesisFaceOf = n.BotId;
+                _nemesisFace.Clear();
+                int seed = _ctx.Bots?.Find(n.BotId)?.State.Profile.AvatarSeed ?? n.BotId;
+                var face = Portraits.Avatar(seed, n.Name, 28);
+                face.pickingMode = PickingMode.Ignore;
+                Widgets.SetBorder(face, UiTheme.Bad, 1.5f);
+                _nemesisFace.Add(face);
+                var swords = Icons.Make(Icon.Swords, 11f, UiTheme.Bad);
+                swords.pickingMode = PickingMode.Ignore;
+                swords.style.position = Position.Absolute;
+                swords.style.right = -4;
+                swords.style.bottom = -3;
+                _nemesisFace.Add(swords);
+            }
             _nemesisTitle.text = $"NEMESIS · {n.Name.ToUpperInvariant()} · {NemesisSystem.TierName(n.Tier)}";
             _nemesisInfo.text = $"Beaten {n.YourWins}/{NemesisSystem.BeatsToDefeat} · they've won {n.TheirWins}";
         }
