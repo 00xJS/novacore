@@ -112,6 +112,10 @@ namespace GalaxyRoyale.Game
                     case "queues": ui.OpenQueues(); break;
                     case "shop": ui.OpenShop(); break;
                     case "explore": UI.ExpeditionsPanel.Open(ctx); break;
+                    case "eventsite": // the live map event's spot (with GR_EVENT), as SHOW ON MAP does
+                        if (ctx.State != null && Sim.Systems.EventSites.Focus(ctx.State) is { } spot)
+                            UI.EventsPanel.ShowOnMap(ctx, spot.tile, spot.node);
+                        break;
                     case "darkmatter": ui.OpenDarkMatterShop(); break;
                     case "research": ui.OpenResearch(); break;
                     case "profile": ui.OpenProfile(); break;

@@ -7,7 +7,8 @@ Drafts and a checklist for putting Galaxy Royale on the App Store. Nothing here 
 | `listing.md` | Name, subtitle, promotional text, description, keywords, category, age-rating answers — within Apple's limits |
 | `privacy.md` | App Privacy answers ("no data collected") and why |
 | `review-notes.md` | Notes for App Review |
-| `screenshots/` | Six captioned 6.9" App Store screenshots (1320 × 2868 JPEG, retaken 2026-09-30): the colony, the Galactic Core, the Frontier, the whole galaxy, the Wilds and a battle report |
+| `screenshots/` | Nine captioned 6.9" App Store screenshots (1320 × 2868 JPEG, 2026-09-30): the colony, the Citadel, the Galactic Core, a comet, the Frontier, expeditions, the whole galaxy, the Wilds and a battle report |
+| `game-center.md` | Every Game Center achievement id to create, with names, descriptions and a points split |
 | `../docs/` | The privacy policy, support and home pages, ready for GitHub Pages or any web host |
 | `../scripts/screenshots.sh` | Screenshot tour: opens each screen in the Simulator and saves a raw 6.9" PNG (`screenshots/raw/`, not committed) |
 | `../scripts/store_frames.py` | Sets raw captures in the captioned frames above |
@@ -20,7 +21,7 @@ The app icon (`GalaxyRoyale/Assets/icon1024.png`) and the launch screen's logo (
 2. **Game Center** (optional; the in-game switch is off by default):
    - Enable Game Center on the app.
    - Create the leaderboard **`galaxyroyale.might`**: "Might", integer, high to low.
-   - Create an achievement for each id in `GalaxyRoyale/Assets/Scripts/Game/GameCenter.cs` (`galaxyroyale.<achievement-id>`, 100 points total or your own split). Achievements that don't exist in App Store Connect are skipped quietly.
+   - Create the 30 achievements listed in `game-center.md` (ids, names, descriptions and a points split). Achievements that don't exist in App Store Connect are skipped quietly.
 3. **Screenshots:** upload `screenshots/*.jpg` (6.9", 1320 × 2868, in order).
    - **Privacy manifests** ship in the build (`GalaxyRoyale/iOSPrivacy/` for the app, `GalaxyRoyale/iOSWidget/` for the widget): no tracking, no data collected, and the UserDefaults reasons. Keep them in step with `privacy.md` if the app ever starts collecting anything. To make fresh ones, run `scripts/screenshots.sh` on the 6.9" Simulator (iPhone Pro Max) with a save that has something to show, then `scripts/store_frames.py`.
 4. **Web pages:** GitHub Pages serves `docs/` from `main` at https://00xjs.github.io/novacore/ (enabled 2026-09-30). Pages on a private repo need a paid GitHub plan, so if you make the repo private, move `docs/` to another static host and update `Links` in `GalaxyRoyale/Assets/Scripts/Game/UI/Panels/CreditsPanel.cs`.

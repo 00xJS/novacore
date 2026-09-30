@@ -67,6 +67,8 @@ namespace GalaxyRoyale.Game
         /// <summary>0 = on a district, 1 = in orbit.</summary>
         public float Zoom => _zoom;
         public bool InOrbit => _zoomTarget > 0.5f;
+        /// <summary>How far the view is tipped north (+) or south (−), degrees.</summary>
+        public float Tilt => _tilt;
         /// <summary>The longitude facing the camera.</summary>
         public float Yaw => _yaw;
         /// <summary>True while the view is (or is settling) on the southern hemisphere.</summary>
