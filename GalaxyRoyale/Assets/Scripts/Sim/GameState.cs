@@ -473,6 +473,8 @@ namespace GalaxyRoyale.Sim
         public Systems.NemesisState Nemesis = new();
         /// <summary>The campaign and the Pirate Lords (2026-09-30).</summary>
         public Systems.CampaignState Campaign = new();
+        /// <summary>Rivals only: the last decision window their career ran in (Bots/BotCareer).</summary>
+        public int CareerWindow = -1;
         /// <summary>Today's daily objectives (Game/DailyObjectives; in the save since 2026-09-30).</summary>
         public DailyState Daily = new();
         /// <summary>Not saved: ResourceSystem.Tick's production rates and the inputs'

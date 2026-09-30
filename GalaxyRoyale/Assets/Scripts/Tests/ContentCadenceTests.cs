@@ -147,6 +147,128 @@ namespace GalaxyRoyale.Sim.Tests
 
         static int Count(GameState s, HullId h) => s.Ships.TryGetValue(h, out var n) ? n : 0;
 
+        // ---------- the veteran (user 2026-09-30: scripted players use every feature) ----------
+
+        sealed class RaidOut
+        {
+            public int BotId;
+            public Dictionary<HullId, int> Sent = new();
+            public TileXY Tile;
+        }
+
+        static readonly Dictionary<int, RaidOut> s_raids = new();
+        static int s_nextRaidTick, s_nextCoreTick;
+
+        static Dictionary<HullId, int> WarFleet(GameState s) =>
+            s.Ships.Where(kv => kv.Value > 0 && ResourceSystem.IsWarship(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        /// <summary>What a seasoned player does on top of the week-one script: spends
+        /// the surplus on a real fleet, joins a clan that asks, raids rivals it can
+        /// beat (the bounty first), takes a swing at the Core, hauls from the comet and
+        /// escorts the caravan, and lets the commander lead the big fights.</summary>
+        static void Veteran(GameState s, BotGalaxy galaxy)
+        {
+            if (s.ClanId == 0 && s.ClanInviteId != 0) ClanSystem.Join(s, galaxy, s.ClanInviteId);
+            SpendSurplus(s);
+            RaidRival(s, galaxy);
+            AssaultCore(s, galaxy);
+            MapEvents(s);
+        }
+
+        static void SpendSurplus(GameState s)
+        {
+            if (s.ShipQueue.Count >= Balance.ShipQueueSlots || s.Buildings[BuildingId.CommandCenter].Level < 8) return;
+            // Construction first: only a surplus left over with both build queues busy.
+            if (s.BuildQueue.Count < BuildingSystem.BuildSlots(s)) return;
+            long hourly = ResourceSystem.GetRates(s).Total;
+            if (s.Resources.Total < hourly * 6) return;
+            // The three strongest hulls the shipyard can build, a tenth of what's affordable each.
+            var best = Ships.All.Where(h => ResourceSystem.IsWarship(h) && h != HullId.Aegis && FleetSystem.UnlockBlocker(s, h) == null)
+                .Reverse().Take(3).ToList();
+            foreach (var h in best)
+            {
+                if (s.ShipQueue.Count >= Balance.ShipQueueSlots) return;
+                int n = FleetSystem.MaxBuildable(s, h) / 10;
+                if (n >= 1) FleetSystem.QueueShips(s, h, n);
+            }
+        }
+
+        static void RaidRival(GameState s, BotGalaxy galaxy)
+        {
+            if (s_raids.Count > 0 || s.Tick < s_nextRaidTick) return;
+            s_nextRaidTick = s.Tick + 24 * Hour;
+            var fleet = WarFleet(s);
+            if (fleet.Count == 0) return;
+            var mods = ResearchSystem.CombatMods(s);
+            BotEmpire? pick = null;
+            Dictionary<HullId, int>? squad = null;
+            long bestLoot = 0;
+            foreach (var bot in galaxy.Bots)
+            {
+                if (bot.CachedMight < BotSystem.PlayerShieldMight || ClanSystem.SameClanAsPlayer(s, bot)) continue;
+                var home = bot.State.HomeTile;
+                if (TileXY.Distance(home, s.HomeTile) > 600) continue;
+                var snap = BotSystem.SnapshotOf(bot);
+                // Rivals' wallets usually sit inside their Warehouse's shield, so a raid is
+                // for the fight: the bounty first, then the nemesis, then the weakest rival.
+                long score = snap.LootableMilli.Total / 1000 + (BountySystem.IsMarked(s, bot.Id) ? 1L << 40 : 0)
+                    + (NemesisSystem.Is(s, bot.Id) ? 1L << 39 : 0) + (1L << 30) - Math.Min(1L << 30, bot.CachedMight);
+                if (score <= bestLoot) continue;
+                if (StandardPacingTests.Squad(s, fleet, snap.Ships, home, ResearchSystem.CombatMods(bot.State)) is not { } sq) continue;
+                pick = bot;
+                bestLoot = score;
+                squad = sq;
+            }
+            if (pick == null || squad == null) return;
+            fleet = squad;
+            var tile = pick.State.HomeTile;
+            if (!MarchSystem.SendRaidMarch(s, fleet, tile, out int id).Ok) return;
+            BotSystem.BreakShieldForAggression(s);
+            AcademySystem.Lead(s, id);
+            s_raids[id] = new RaidOut { BotId = pick.Id, Sent = fleet, Tile = tile };
+        }
+
+        /// <summary>After each advance: a raid that reached its target fights (as RaidArrivals does in the app).</summary>
+        static void SettleRaids(GameState s, BotGalaxy galaxy)
+        {
+            foreach (var id in s_raids.Keys.ToList())
+            {
+                var march = s.Marches.Find(m => m.Id == id);
+                if (march == null) { s_raids.Remove(id); continue; }
+                if (march.Phase == MarchPhase.Outbound) continue;
+                var raid = s_raids[id];
+                s_raids.Remove(id);
+                if (galaxy.Find(raid.BotId) is { } bot) StrikeSystem.ResolveRaid(s, galaxy, bot, id, raid.Sent, raid.Tile);
+            }
+        }
+
+        static void AssaultCore(GameState s, BotGalaxy galaxy)
+        {
+            if (s.Tick < s_nextCoreTick || CoreSystem.PlayerHolds(galaxy) || !CoreSystem.CanSend(s, galaxy).Ok) return;
+            s_nextCoreTick = s.Tick + 24 * Hour;
+            if (s.Marches.Any(m => m.Mission == MarchMission.Core)) return;
+            var fleet = WarFleet(s);
+            if (fleet.Count == 0) return;
+            var d = CoreSystem.DefenceOf(s, galaxy);
+            var all = new Dictionary<HullId, int>();
+            foreach (var line in d.Lines)
+                foreach (var kv in line) all[kv.Key] = (all.TryGetValue(kv.Key, out var n) ? n : 0) + kv.Value;
+            if (StandardPacingTests.Squad(s, fleet, all, CoreSystem.CoreTile, d.Mods) is not { } squad) return;
+            if (CoreSystem.SendToCore(s, galaxy, squad, joint: true, out int id, out _).Ok) AcademySystem.Lead(s, id);
+        }
+
+        static void MapEvents(GameState s)
+        {
+            if (EventSites.Focus(s) is not { node: { } node }) return;
+            if (s.Marches.Any(m => m.Node.Equals(node.Tile))) return;
+            if (node.Kind == NodeKind.Comet && Count(s, HullId.Hauler) > 0)
+                MarchSystem.SendMarch(s, new Dictionary<HullId, int> { [HullId.Hauler] = Math.Max(1, Count(s, HullId.Hauler) / 2) },
+                    node.Tile, MarchMission.Gather, out _);
+            else if (node.Kind == NodeKind.Caravan && Count(s, HullId.Fighter) >= 20)
+                MarchSystem.SendMarch(s, new Dictionary<HullId, int> { [HullId.Fighter] = Count(s, HullId.Fighter) / 3 },
+                    node.Tile, MarchMission.Gather, out _); // escort it
+        }
+
         /// <summary>The campaign: claim a finished chapter, and storm a lord's lair with the
         /// whole docked war fleet when the forecast says it wins.</summary>
         static void Story(GameState s)
@@ -162,14 +284,15 @@ namespace GalaxyRoyale.Sim.Tests
             foreach (var id in new[] { s.Campaign.LairId, s.Campaign.RematchId })
             {
                 if (LairSystem.Find(s, id) is not { } lair) continue;
-                var fleet = s.Ships.Where(kv => kv.Value > 0 && ResourceSystem.IsWarship(kv.Key))
-                    .ToDictionary(kv => kv.Key, kv => kv.Value);
+                var fleet = WarFleet(s);
                 if (fleet.Count == 0) return;
-                var odds = Combat.BattleForecast.Predict(fleet, MarchSystem.CampGarrison(lair), ResearchSystem.CombatMods(s));
-                if (odds.Winner != Combat.BattleWinner.Attacker) continue;
-                if (MarchSystem.SendMarch(s, fleet, lair.Tile, MarchMission.Attack, out _).Ok) return;
+                if (StandardPacingTests.Squad(s, fleet, MarchSystem.CampGarrison(lair), lair.Tile) is not { } squad) continue;
+                if (MarchSystem.SendMarch(s, squad, lair.Tile, MarchMission.Attack, out int marchId).Ok) { AcademySystem.Lead(s, marchId); return; }
             }
         }
+
+        [TearDown]
+        public void RestoreScript() => StandardPacingTests.FakeClan = true;
 
         [Test, Explicit("a 90-day full-galaxy run: run it by name")]
         public void ContentCadence_ScriptedCommander_FullGalaxy()
@@ -181,6 +304,9 @@ namespace GalaxyRoyale.Sim.Tests
             var events = new SimEventBus();
             var engine = new TickEngine(s, events);
             var pace = new StandardPacingTests.Pace();
+            StandardPacingTests.FakeClan = false; // a real clan, through ClanSystem's invites
+            s_raids.Clear();
+            s_nextRaidTick = s_nextCoreTick = 0;
 
             var known = new HashSet<string>(Seen(s, galaxy).Keys);
             var firsts = new List<First>();
@@ -189,6 +315,8 @@ namespace GalaxyRoyale.Sim.Tests
             var lvlByDay = new int[days + 1];
             var campsByDay = new int[days + 1];
             var battlesByDay = new int[days + 1];
+            var mightByDay = new long[days + 1];
+            var raidsByDay = new int[days + 1];
             var clock = System.Diagnostics.Stopwatch.StartNew();
 
             while (s.Tick < days * Day)
@@ -197,10 +325,12 @@ namespace GalaxyRoyale.Sim.Tests
                 if (awake)
                 {
                     Curious(s, galaxy);
+                    Veteran(s, galaxy);
                     Story(s);
                     StandardPacingTests.CheckIn(s, pace);
                 }
                 engine.Advance(awake ? CheckInSec : Hour);
+                SettleRaids(s, galaxy);
                 BotSystem.Advance(s, galaxy, events);
                 ProgressionSystem.Advance(s, galaxy, events);
 
@@ -217,6 +347,8 @@ namespace GalaxyRoyale.Sim.Tests
                 lvlByDay[day] = s.Commander.Level;
                 campsByDay[day] = s.Stats.CampsCleared;
                 battlesByDay[day] = s.Stats.BattlesWon;
+                raidsByDay[day] = s.Stats.RaidsWon;
+                if (s.Tick % Day == 0) mightByDay[day] = PowerSystem.ComputePower(s);
             }
 
             // ---- the report ----
@@ -230,7 +362,7 @@ namespace GalaxyRoyale.Sim.Tests
                 var today = firsts.Where(f => f.Tick / Day == d0).ToList();
                 int sess = sessions.Count(x => x.tick / Day == d0), fresh = sessions.Count(x => x.tick / Day == d0 && x.notable > 0);
                 log.WriteLine($"  d{d0,-3} {today.Count(f => f.Tier == Tier.Major),2} / {today.Count(f => f.Tier == Tier.Notable),2} / " +
-                              $"{today.Count(f => f.Tier == Tier.Minor),3}   fresh sessions {fresh}/{sess}   CC {ccByDay[d0]} L{lvlByDay[d0]} camps {campsByDay[d0]} wins {battlesByDay[d0]}   " +
+                              $"{today.Count(f => f.Tier == Tier.Minor),3}   fresh sessions {fresh}/{sess}   CC {ccByDay[d0]} L{lvlByDay[d0]} camps {campsByDay[d0]} wins {battlesByDay[d0]} raids {raidsByDay[d0]} might {mightByDay[d0] / 1000}k   " +
                               string.Join(", ", today.Where(f => f.Tier == Tier.Major).Select(f => f.What)));
             }
             // Dry stretches: the longest runs of awake check-ins with nothing Notable or bigger.

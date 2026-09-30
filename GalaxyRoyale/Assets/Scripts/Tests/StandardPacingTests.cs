@@ -119,6 +119,10 @@ namespace GalaxyRoyale.Sim.Tests
 
         // ---------- the commander ----------
 
+        /// <summary>No rivals, so no real clan: the Path's clan step is ticked by hand. The
+        /// full-galaxy cadence run turns this off and joins a real clan instead.</summary>
+        internal static bool FakeClan = true;
+
         internal static void CheckIn(GameState s, Pace pace)
         {
             int day = Math.Min(7, s.Tick / Day);
@@ -153,6 +157,29 @@ namespace GalaxyRoyale.Sim.Tests
             Scout(s);
             Raid(s, pace);
             Gather(s, pace);
+        }
+
+        /// <summary>The smallest slice of <paramref name="fleet"/> (a tenth, a quarter, half,
+        /// all) that the forecast says wins against <paramref name="defenders"/> and that the
+        /// colony can fuel to <paramref name="target"/>; null when none does.</summary>
+        internal static Dictionary<HullId, int>? Squad(GameState s, Dictionary<HullId, int> fleet,
+            Dictionary<HullId, int> defenders, TileXY target, FleetMods? defMods = null)
+        {
+            var mods = ResearchSystem.CombatMods(s);
+            foreach (double share in new[] { 0.1, 0.25, 0.5, 1.0 })
+            {
+                var squad = new Dictionary<HullId, int>();
+                foreach (var kv in fleet)
+                {
+                    int n = (int)Math.Ceiling(kv.Value * share);
+                    if (n > 0) squad[kv.Key] = n;
+                }
+                if (squad.Count == 0) continue;
+                if (BattleForecast.Predict(squad, defenders, mods, defMods ?? default).Winner != BattleWinner.Attacker) continue;
+                if (!MarchSystem.PreviewMarch(s, squad, target).Ok) continue;
+                return squad;
+            }
+            return null;
         }
 
         /// <summary>The open chapter still wants camps cleared or battles won: fight for it
@@ -255,7 +282,7 @@ namespace GalaxyRoyale.Sim.Tests
             var speed = s.Inventory.FirstOrDefault(e => Shop.ById.TryGetValue(e.ItemId, out var d) && d.Effect == ShopEffect.Speedup);
             if (speed != null && s.BuildQueue.Count > 0 && ShopSystem.ConsumeItem(s, speed.ItemId).Ok)
                 s.BuildQueue[0].EndsAtTick = Math.Max(s.Tick, s.BuildQueue[0].EndsAtTick - 300);
-            if (s.ClanId == 0 && s.Buildings[BuildingId.CommandCenter].Level >= 5) s.ClanId = 1; // joins (no rivals here)
+            if (FakeClan && s.ClanId == 0 && s.Buildings[BuildingId.CommandCenter].Level >= 5) s.ClanId = 1; // joins (no rivals here)
             if (s.Stats.MarketTrades == 0 && s.Buildings[BuildingId.CommandCenter].Level >= 5)
                 MarketSystem.Trade(s, ResourceId.Gold, ResourceId.Helium, 500);
             // An expedition now and then: a squadron of fighters, the careful call.
@@ -301,8 +328,11 @@ namespace GalaxyRoyale.Sim.Tests
             int haulers = Count(s, HullId.Hauler);
             foreach (var camp in Nearby(s).Where(n => n.Kind == NodeKind.Camp && !Cleared(s, n)).Take(6))
             {
+                // The smallest squad that wins and can be fuelled (a whole late-game fleet
+                // costs more helium than a camp is worth).
+                if (Squad(s, fleet, MarchSystem.CampGarrison(camp), camp.Tile) is not { } squad) continue;
+                fleet = squad;
                 var odds = BattleForecast.Predict(fleet, MarchSystem.CampGarrison(camp), ResearchSystem.CombatMods(s));
-                if (odds.Winner != BattleWinner.Attacker) continue;
                 long lossCost = odds.YourLossesByHull.Sum(kv => (long)Ships.Defs[kv.Key].Cost.Total * kv.Value);
                 bool questFight = QuestSystem.Current(s) is { Goal: QuestGoal.BattlesWon } || CampaignWantsFights(s);
                 if (!questFight && MarchSystem.CampLoot(s, camp).Total / 1000 <= lossCost) continue;

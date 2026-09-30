@@ -524,6 +524,7 @@ namespace GalaxyRoyale.Sim.Save
                 };
             }
             if (s.QuestStep > 0) root["questStep"] = (long)s.QuestStep;
+            if (s.CareerWindow >= 0) root["careerWindow"] = (long)s.CareerWindow; // rivals (Bots/BotCareer)
             if (s.Achievements.Count > 0)
             {
                 var ids = new List<string>(s.Achievements);
@@ -747,6 +748,7 @@ namespace GalaxyRoyale.Sim.Save
                 // Saves from before the NEW GAME choice were all test games.
                 TestMode = !d.TryGetValue("testMode", out var tm) || tm is not bool tmb || tmb,
                 QuestStep = d.TryGetValue("questStep", out var qs) && qs != null ? ToI32(qs) : 0,
+                CareerWindow = d.TryGetValue("careerWindow", out var cw) && cw != null ? ToI32(cw) : -1,
                 Difficulty = d.TryGetValue("difficulty", out var df) && df is string dfs
                     ? DifficultyFrom(dfs) : Difficulty.Standard,
             };
