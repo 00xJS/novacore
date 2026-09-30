@@ -183,6 +183,21 @@ namespace GalaxyRoyale.Sim.Tests
         }
 
         [Test]
+        public void TheDoomedSector_StaysInsideTheGalaxy_EvenForARimColony()
+        {
+            int start = StartOf(GalaxyEventKind.Supernova);
+            foreach (var home in new[] { new TileXY(46, 923), new TileXY(1250, 2600), new TileXY(2400, 1250) })
+            {
+                var s = GameState.CreateNewGame(42, testMode: false);
+                s.HomeTile = home;
+                s.Tick = start;
+                var zone = EventSites.ZoneNow(s)!.Value;
+                Assert.IsTrue(Balance.InGalaxy(zone.Centre, zone.Radius), $"the whole sector is on the map ({home})");
+                Assert.IsFalse(zone.Contains(home), "and never takes the colony");
+            }
+        }
+
+        [Test]
         public void TheSupernova_SparesTheColony_SpeedsItsWorlds_ThenDestroysWhatsLeft()
         {
             int start = StartOf(GalaxyEventKind.Supernova);

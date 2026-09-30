@@ -210,10 +210,14 @@ namespace GalaxyRoyale.Data
         /// worlds around their homes.</summary>
         public const int GalaxyRadius = 1400;
 
-        public static bool InGalaxy(TileXY tile)
+        public static bool InGalaxy(TileXY tile) => InGalaxy(tile, 0);
+
+        /// <summary>At least <paramref name="margin"/> tiles inside the galaxy's rim.</summary>
+        public static bool InGalaxy(TileXY tile, int margin)
         {
             double dx = tile.X - SectorSize / 2, dy = tile.Y - SectorSize / 2;
-            return dx * dx + dy * dy <= (double)GalaxyRadius * GalaxyRadius;
+            double r = GalaxyRadius - margin;
+            return r > 0 && dx * dx + dy * dy <= r * r;
         }
 
         /// <summary>Inside the Core Zone (the Core tile itself included)?</summary>
