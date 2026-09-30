@@ -639,6 +639,22 @@ namespace GalaxyRoyale.Sim.Save
                     ["humbled"] = IntMap(nm.Humbled),
                 };
             }
+            if (s.Daily.Day.Length > 0)
+            {
+                var claimed = new List<string>(s.Daily.Claimed);
+                claimed.Sort(StringComparer.Ordinal);
+                root["daily"] = new Dictionary<string, object?>
+                {
+                    ["day"] = s.Daily.Day,
+                    ["builds"] = (long)s.Daily.Builds,
+                    ["spies"] = (long)s.Daily.Spies,
+                    ["gather"] = s.Daily.GatherWhole,
+                    ["marchesBase"] = (long)s.Daily.MarchesBase,
+                    ["battlesBase"] = (long)s.Daily.BattlesBase,
+                    ["shipsBase"] = (long)s.Daily.ShipsBase,
+                    ["claimed"] = Arr(claimed, x => (object?)x),
+                };
+            }
             if (s.EventSiteId.Length > 0) root["eventSite"] = s.EventSiteId;
             if (s.PendingNova >= 0) root["pendingNova"] = (long)s.PendingNova;
             if (s.BountyInstance >= 0)
@@ -1012,6 +1028,19 @@ namespace GalaxyRoyale.Sim.Save
                 }
                 ReadMap("grudges", n.Grudges);
                 ReadMap("humbled", n.Humbled);
+            }
+            if (d.TryGetValue("daily", out var dyo) && dyo is Dictionary<string, object?> dy)
+            {
+                s.Daily.Day = Str(dy, "day");
+                s.Daily.Builds = I32(dy, "builds");
+                s.Daily.Spies = I32(dy, "spies");
+                s.Daily.GatherWhole = dy.TryGetValue("gather", out var gw) && gw != null ? ToI64(gw) : 0;
+                s.Daily.MarchesBase = I32(dy, "marchesBase");
+                s.Daily.BattlesBase = I32(dy, "battlesBase");
+                s.Daily.ShipsBase = I32(dy, "shipsBase");
+                if (dy.TryGetValue("claimed", out var dc) && dc != null)
+                    foreach (var raw in AsArr(dc, "daily.claimed"))
+                        if (raw is string claimedId) s.Daily.Claimed.Add(claimedId);
             }
             s.EventSiteId = d.TryGetValue("eventSite", out var es) && es is string esId ? esId : "";
             s.PendingNova = d.TryGetValue("pendingNova", out var pn) && pn != null ? ToI32(pn) : -1;
