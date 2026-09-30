@@ -33,14 +33,14 @@ The app icon (`GalaxyRoyale/Assets/icon1024.png`) and the launch screen's logo (
 
      | Product id | Reference name | Suggested price |
      |---|---|---|
-     | `galaxyroyale.darkmatter.120` | Pinch of Dark Matter (120) | $0.99 |
-     | `galaxyroyale.darkmatter.650` | Pouch of Dark Matter (650) | $4.99 |
-     | `galaxyroyale.darkmatter.1400` | Crate of Dark Matter (1,400) | $9.99 |
-     | `galaxyroyale.darkmatter.3000` | Vault of Dark Matter (3,000) | $19.99 |
-     | `galaxyroyale.darkmatter.8000` | Hoard of Dark Matter (8,000) | $49.99 |
-     | `galaxyroyale.darkmatter.17500` | Trove of Dark Matter (17,500) | $99.99 |
+     | `galaxyroyale.darkmatter.600` | Pinch of Dark Matter (600) | $0.99 |
+     | `galaxyroyale.darkmatter.3250` | Pouch of Dark Matter (3,250) | $4.99 |
+     | `galaxyroyale.darkmatter.7000` | Crate of Dark Matter (7,000) | $9.99 |
+     | `galaxyroyale.darkmatter.15000` | Vault of Dark Matter (15,000) | $19.99 |
+     | `galaxyroyale.darkmatter.40000` | Hoard of Dark Matter (40,000) | $49.99 |
+     | `galaxyroyale.darkmatter.87500` | Trove of Dark Matter (87,500) | $99.99 |
 
-     Each needs a display name and description (for example "120 Dark Matter" / "Premium currency for speed-ups, shields and skins"), a price, and a review screenshot (a capture of the DARK MATTER tab works). The game shows the App Store's own localized price, so change prices freely there.
+     Each needs a display name and description (for example "600 Dark Matter" / "Premium currency for speed-ups, shields and skins"), a price, and a review screenshot (a capture of the DARK MATTER tab works). The game shows the App Store's own localized price, so change prices freely there.
    - Add the products to the version before you submit (the first in-app purchases are reviewed with the app).
    - Test with a **Sandbox** tester (Users and Access › Sandbox) on a TestFlight or development build: buy each pack, then kill the app mid-purchase once to check the purchase is delivered at the next launch.
 9. **Build:** `GR_BUNDLE_ID=… GR_TEAM_ID=… scripts/testflight.sh --upload`, then pick the build in the version and submit for review with `review-notes.md`.
