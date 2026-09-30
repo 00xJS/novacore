@@ -220,6 +220,7 @@ namespace GalaxyRoyale.Data
                     "Each chapter sets three objectives, counted from the moment it opens, and ends with a Pirate Lord in their lair. When all three are done, claim the chapter for resources and Dark Matter. After the Commander's Path, the quest card follows the chapter.",
                     "Lairs are marked with a skull on the map. Each lord has a doctrine, the kind of fleet they fly, and their fleet grows with yours, so read it before you attack. Beating a lord pays well, and the first time also brings a relic home.",
                     "Beaten lords don't stay down: every few days one of them returns with a bigger fleet, for another fight and another reward.",
+                    "Every Pirate Lord carries a ship-module blueprint. Fit modules in MORE › REFITS: one per warship class, each a trade between firepower and staying power. Beat the same lord again for another copy and the module rises to Mk II, then Mk III. The attack screen can also save three squads (SAVE, then a squad) and load them with a tap.",
                     "From Command Center 15, MORE › PROJECTS opens the mega-projects: the Dyson Swarm, the Stargate, the Planetary Shield Array and the Orbital Foundry. Each is built in five stages, one at a time, and every stage adds a bonus for good. They're big: a stage costs a day's worth of your mines' output and more.",
                 },
             },

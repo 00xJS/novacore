@@ -94,6 +94,9 @@ namespace GalaxyRoyale.Sim.Tests
                 d[$"event:{live.Def.Kind}"] = (Tier.Major, "event", live.Def.Name);
                 d[$"eventrun:{live.Instance}"] = (Tier.Notable, "event", $"{live.Def.Name} (again)");
             }
+            foreach (var kv in s.Modules.Blueprints)
+                for (int mk = 1; mk <= System.Math.Min(Modules.MaxMark, kv.Value); mk++)
+                    d[$"blueprint:{kv.Key}:{mk}"] = (mk == 1 ? Tier.Major : Tier.Notable, "module", $"{Modules.Def(kv.Key).Name} {Modules.MarkName(mk)}");
             foreach (var def in Megaprojects.All)
             {
                 if (MegaprojectSystem.Unlocked(s, def.Kind)) d[$"mega:{def.Kind}"] = (Tier.Major, "project", $"{def.Name} opens");

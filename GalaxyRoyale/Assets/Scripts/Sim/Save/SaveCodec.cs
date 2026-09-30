@@ -641,6 +641,22 @@ namespace GalaxyRoyale.Sim.Save
                     ["humbled"] = IntMap(nm.Humbled),
                 };
             }
+            // Ship modules, blueprints and presets (2026-09-30).
+            var md = s.Modules;
+            bool anyPreset = false;
+            foreach (var p in md.Presets) if (p.Count > 0) anyPreset = true;
+            if (md.Blueprints.Count > 0 || md.Fitted.Count > 0 || anyPreset)
+            {
+                var bp = new Dictionary<string, object?>();
+                foreach (var kv in md.Blueprints) bp[kv.Key.ToString()] = (long)kv.Value;
+                var fit = new Dictionary<string, object?>();
+                foreach (var kv in md.Fitted) fit[kv.Key] = kv.Value.ToString();
+                root["modules"] = new Dictionary<string, object?>
+                {
+                    ["blueprints"] = bp, ["fitted"] = fit,
+                    ["presets"] = Arr(md.Presets, p => (object?)Comp(p)),
+                };
+            }
             // Mega-projects (2026-09-30).
             if (s.Mega.Stages.Count > 0 || s.Mega.Active >= 0)
             {
@@ -1065,6 +1081,18 @@ namespace GalaxyRoyale.Sim.Save
                 }
                 ReadMap("grudges", n.Grudges);
                 ReadMap("humbled", n.Humbled);
+            }
+            if (d.TryGetValue("modules", out var mdo) && mdo is Dictionary<string, object?> mdd)
+            {
+                if (mdd.TryGetValue("blueprints", out var bpo) && bpo is Dictionary<string, object?> bpd)
+                    foreach (var kv in bpd)
+                        if (kv.Value != null && Enum.TryParse<ModuleKind>(kv.Key, out var mk2)) s.Modules.Blueprints[mk2] = ToI32(kv.Value);
+                if (mdd.TryGetValue("fitted", out var fto) && fto is Dictionary<string, object?> ftd)
+                    foreach (var kv in ftd)
+                        if (kv.Value is string fk && Enum.TryParse<ModuleKind>(fk, out var mk3)) s.Modules.Fitted[kv.Key] = mk3;
+                if (mdd.TryGetValue("presets", out var pso) && pso is List<object?> psl)
+                    for (int i = 0; i < psl.Count && i < s.Modules.Presets.Count; i++)
+                        if (psl[i] is Dictionary<string, object?> pd) s.Modules.Presets[i] = DecComp(pd);
             }
             if (d.TryGetValue("mega", out var mgo) && mgo is Dictionary<string, object?> mg)
             {

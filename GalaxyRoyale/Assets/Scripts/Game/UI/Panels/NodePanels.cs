@@ -316,6 +316,52 @@ namespace GalaxyRoyale.Game.UI
             quick.Add(clearBtn);
             content.Add(quick);
 
+            // Saved line-ups (2026-09-30): tap a squad to load it (trimmed to what's
+            // docked), or SAVE and then a squad to keep the current pick there.
+            var presets = Widgets.HBox(Justify.SpaceBetween);
+            presets.style.marginTop = 4;
+            bool saving = false;
+            var squadBtns = new List<Button>();
+            Button saveBtn = null!;
+            void PaintPresets()
+            {
+                for (int i = 0; i < squadBtns.Count; i++)
+                {
+                    int ships = 0;
+                    foreach (var v in state.Modules.Presets[i].Values) ships += v;
+                    squadBtns[i].text = saving ? $"SAVE TO {i + 1}" : ships > 0 ? $"SQUAD {i + 1} · {UiTheme.FmtCount(ships)}" : $"SQUAD {i + 1} · empty";
+                }
+                saveBtn.text = saving ? "CANCEL" : "SAVE";
+            }
+            for (int i = 0; i < 3; i++)
+            {
+                int slot = i;
+                var b = Widgets.TextButton("", () =>
+                {
+                    if (saving)
+                    {
+                        ModuleSystem.SavePreset(state, slot, Fleet());
+                        saving = false;
+                        GameAudio.Feedback(Sfx.Confirm, Haptic.Light);
+                    }
+                    else
+                    {
+                        var load = ModuleSystem.LoadPreset(state, slot);
+                        foreach (var kv in picks) kv.Value.SetValueWithoutNotify(load.TryGetValue(kv.Key, out var n) ? n : 0);
+                        Refresh();
+                    }
+                    PaintPresets();
+                }, 9);
+                b.style.width = Length.Percent(27f);
+                squadBtns.Add(b);
+                presets.Add(b);
+            }
+            saveBtn = Widgets.TextButton("SAVE", () => { saving = !saving; PaintPresets(); }, 9);
+            saveBtn.style.width = Length.Percent(16f);
+            presets.Add(saveBtn);
+            PaintPresets();
+            content.Add(presets);
+
             content.Add(preview);
             content.Add(status);
             if (isCamp) content.Add(forecast.Root);

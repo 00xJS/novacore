@@ -147,6 +147,10 @@ namespace GalaxyRoyale.Sim.Systems
                 s.Relics[kind] = RelicSystem.Count(s, kind) + 1;
                 relic = kind;
             }
+            // Every lord carries a blueprint: the same module each time, so rematches raise its Mk.
+            var blueprint = (ModuleKind)(lord % Modules.All.Count);
+            int mark = ModuleSystem.Grant(s, blueprint);
+            events.Emit(new BlueprintFound(blueprint, mark));
             if (node.Id == c.LairId) c.LairId = "";
             if (node.Id == c.RematchId) c.RematchId = "";
             Remove(s, node.Id, events);
