@@ -28,7 +28,7 @@ namespace GalaxyRoyale.Sim.Tests
         const int Hour = 3600, Day = 24 * Hour;
         const int CheckInSec = 20 * 60;
 
-        sealed class Pace
+        internal sealed class Pace
         {
             public readonly Dictionary<int, int> CommandCenterAt = new();
             public readonly List<(int step, int tick)> QuestsAt = new();
@@ -119,7 +119,7 @@ namespace GalaxyRoyale.Sim.Tests
 
         // ---------- the commander ----------
 
-        static void CheckIn(GameState s, Pace pace)
+        internal static void CheckIn(GameState s, Pace pace)
         {
             int day = Math.Min(7, s.Tick / Day);
             pace.ChecksByDay[day]++;
@@ -168,7 +168,7 @@ namespace GalaxyRoyale.Sim.Tests
             {
                 if (BuildingSystem.MineCountOfType(s, type) >= BuildingSystem.AllowedMinesForType(s)) continue;
                 if (!BuildingSystem.CheckBuildMine(s, type).Ok) continue;
-                int plot = Enumerable.Range(0, 9).First(p => s.ExtraMines.All(m => m.Plot != p));
+                int plot = Enumerable.Range(0, 64).First(p => s.ExtraMines.All(m => m.Plot != p));
                 if (BuildingSystem.BuildMine(s, type, plot, out _).Ok) return true;
             }
             // Production next: the lowest producer below the cap (extras included).
@@ -366,13 +366,15 @@ namespace GalaxyRoyale.Sim.Tests
 
         static List<MapNode>? s_nearby;
         static int s_nearbyTick = -1;
+        static GameState? s_nearbyOf;
 
         /// <summary>Live nodes within reach of home, nearest first (refreshed hourly —
         /// fields deplete and respawn elsewhere).</summary>
         static List<MapNode> Nearby(GameState s)
         {
-            if (s_nearby != null && s.Tick - s_nearbyTick < Hour) return s_nearby;
+            if (s_nearby != null && s_nearbyOf == s && s.Tick - s_nearbyTick < Hour) return s_nearby;
             s_nearbyTick = s.Tick;
+            s_nearbyOf = s;
             s_nearby = MapLookup.AllNodes(s)
                 .Where(n => TileXY.Distance(n.Tile, s.HomeTile) <= 120 && n.Tier == 0)
                 .Where(n => !(s.Map.NodeOverrides.TryGetValue(n.Id, out var o) && o.Retired))
