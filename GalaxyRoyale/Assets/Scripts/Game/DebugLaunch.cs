@@ -18,7 +18,7 @@ namespace GalaxyRoyale.Game
         /// <summary>Names GR_OPEN accepts.</summary>
         public const string Screens = "core, boss, market, commander, clan, rankings, season, mail, news, events, " +
             "awards, daily, queues, shop, research, profile, settings, fleet, map, newgame, liveactivity, hail, " +
-            "command, mines, frontier, port, wilds, sector, find, orbit, orbitsouth, mapcore, report, replay, demoreport, demoreplay, " +
+            "command, mines, frontier, port, wilds, sector, find, orbit, orbitsouth, mapcore, mapall, report, replay, demoreport, demoreplay, " +
             "tour, fxdemo";
 
         public static void Run(GameContext ctx)
@@ -102,6 +102,12 @@ namespace GalaxyRoyale.Game
                         ui.CloseModal();
                         ui.SwitchView(UI.ViewId.Map);
                         ctx.GetComponent<MapView>()?.Frame(Sim.Systems.CoreSystem.CoreTile, 520f);
+                        break;
+                    // The whole galaxy, zoomed all the way out on the Core.
+                    case "mapall":
+                        ui.CloseModal();
+                        ui.SwitchView(UI.ViewId.Map);
+                        ctx.GetComponent<MapView>()?.Frame(Sim.Systems.CoreSystem.CoreTile, 2800f);
                         break;
                     // The globe base's views (any boot-time panel closed first).
                     case "command": ui.CloseModal(); BaseGlobe.Instance?.Snap(Sim.BaseDistrict.Command); break;

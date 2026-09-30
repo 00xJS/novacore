@@ -38,15 +38,16 @@ namespace GalaxyRoyale.Game
         // little dots on the overview). The player's own planet keeps its
         // zoom-scaled prominence.
         // Map redesign (2026-09-29): every world stays visible at every zoom (the
-        // GalaxyField draws them all), so far out they keep a readable size on
-        // screen instead of shrinking to nothing.
-        static float NodeMarkerScale(float size, bool lodDot) => Mathf.Max(5f, size * 0.0062f);
+        // GalaxyField draws them all). Past mid zoom they grow with the square root
+        // of the view, so on screen they shrink slowly as you pull out (user: at a
+        // fixed screen size they looked too big fully zoomed out).
+        static float NodeMarkerScale(float size, bool lodDot) => Mathf.Max(5f, 5f * Mathf.Sqrt(size / 600f));
         static float PlayerMarkerScale(float size) =>
-            Mathf.Min(Mathf.Max(7f, 7f * Mathf.Sqrt(size / 18f)), Mathf.Max(12f, size * 0.02f));
+            Mathf.Min(Mathf.Max(7f, 7f * Mathf.Sqrt(size / 18f)), Mathf.Max(12f, 12f * Mathf.Sqrt(size / 600f)));
         /// <summary>Rival colonies: about twice a world's size at any zoom — zoomed out
         /// they were smothering the galaxy (and the Core Zone) in big planets.</summary>
         static float RivalMarkerScale(float size) =>
-            Mathf.Min(PlayerMarkerScale(size), Mathf.Max(10f, size * 0.013f));
+            Mathf.Min(PlayerMarkerScale(size), Mathf.Max(10f, 10f * Mathf.Sqrt(size / 770f)));
 
         static readonly Color[] TierTint =
         {
