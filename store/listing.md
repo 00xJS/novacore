@@ -17,45 +17,51 @@ Chase comets, escort caravans, send fleets beyond the map and face a nemesis who
 ## Description (4000)
 Build a colony at the rim of a living galaxy and rise to rule it.
 
-Galaxy Royale pits you against 249 simulated commanders who play by the same rules you do. They build, research, gather, form clans and raid each other — and you. Close the game and the galaxy keeps going: you come back to battle reports, radar alerts and planets still burning from last night's wars.
+Galaxy Royale pits you against 249 simulated commanders who play by the same rules you do. They build, research, form clans, follow their own careers and raid each other, and you. Close the game and the galaxy keeps going: you come back to battle reports, radar alerts and planets still burning from last night's wars.
 
 BUILD YOUR EMPIRE
-• Build your colony on a living globe you can spin in your hand: the Command district, the Mining Belt, the Frontier, the Spaceport where your fleet parks, and the Citadel crowning the north pole.
-• Tip the planet south into the Wilds: 58 sectors under survey fog. Survey them for gold seams, crystal fields and helium vents your drones harvest, supply caches and Dark Matter relics. The Wilds refill and shift, so they never run out.
-• Grow from a small outpost: mines, refineries, power, shipyards, research labs and a radar station, then the Frontier: a Command Bastion with railguns, a Salvage Yard, a Drone Factory, a Repair Dock, a Jump Gate, a Clan Embassy and a Deep Space Observatory.
-• Raise the Citadel: an Academy where your commander learns to lead fleets into battle, a Relic Vault for the treasures of the Wilds, a Trade Consulate, a Missile Silo that shoots down raids before they land, and a Terraformer that reshapes your world.
-• Research a 34-tech tree across economy, logistics, military, industry and defence.
-• Build a fleet from 23 hulls — fighters to dreadnoughts — each with a counter in the combat triangle.
+• Your colony sits on a living globe you can spin in your hand: the Command district, the Mining Belt, the Frontier, the Spaceport and the Citadel on the north pole.
+• Tip the planet south into the Wilds: 58 sectors of survey fog hiding mineral seams, supply caches and relics.
+• Raise railgun bastions, salvage yards, a Jump Gate, an Academy where your commander learns to lead fleets, a Missile Silo and a Terraformer that reshapes your world.
+• Research 34 technologies and build a fleet from 23 hulls, fighters to dreadnoughts, each with a counter.
+• Late in the game, build mega-projects you can see in orbit: a Dyson Swarm, a Stargate, a Planetary Shield Array and an Orbital Foundry.
+
+THE LONG NIGHT
+• A ten-chapter story starring your commander, told by HALCYON, your colony's ship-mind. Pirate lords are uniting under a hidden master; hunt them down one by one.
+• Ten Pirate Lords wait in fortress lairs, each with their own fleet doctrine. Beat them for relics and ship-module blueprints, and expect them back, stronger.
 
 FIGHT FOR THE GALAXY
-• Raid rivals, clear pirate camps, and scout targets with spy probes. Every battle has a forecast before you launch, a report after, and a replay where your real ships fight it out.
-• Join a clan of up to 15 commanders: joint strikes, intercepting fleets in flight, garrisons that guard each other's colonies, and clan wars.
-• Seize the Galactic Core at the heart of the galaxy and earn tribute every hour you hold it — if you can keep it.
-• When the Pirate Dreadnought drops out of hyperspace — or its Carrier, Siege and Stealth cousins — race the other clans to break its hull for a share of the spoils.
-• Make a nemesis. Beat a rival often enough and they'll hunt you, taunt you on the news wire and come back stronger every time — until you break them.
+• Raid rivals, clear pirate camps and scout with spy probes. Every battle has a forecast, a report and a replay with your real ships.
+• Join a clan of up to 15 commanders: joint strikes, intercepts, garrisons and clan wars.
+• Seize the Galactic Core and earn tribute every hour you hold it.
+• Race the other clans to break a Pirate Dreadnought when it drops out of hyperspace.
+• Make a nemesis who taunts you on the news wire and comes back stronger until you break them.
 
-EXPLORE AND ADVENTURE
-• Galaxy events put something on the map near you: a comet to mine before the rivals do, a trade caravan to rob or escort, an ion storm that blinds your radar, a star about to go supernova, a bounty on the rim's worst raider, a tournament for the Galactic Core.
-• Send fleets on expeditions beyond the charted galaxy. Halfway there, you make the call — the bold choice or the safe one — and the story of how it went comes home with them.
+A GALAXY THAT KEEPS CHANGING
+• Galaxy events put something on the map near you: a comet to mine, a caravan to rob or escort, an ion storm, a star about to go supernova, a bounty, a tournament for the Core.
+• Every week bends one rule for everyone, with twenty twists from Low Gravity to War Drums and Ceasefire.
+• Seasonal festivals on the real calendar, from the Void Harvest in October to the Frost Nebula in winter, each with a planet skin you can only earn there.
+• Send fleets on expeditions beyond the map, and make the call halfway there.
 
 GROW AS A COMMANDER
-• Earn XP from everything you do, level up, and spend skill points across three branches: Industry, Admiralty and Bastion.
-• A Commander's Path that always has a next goal, achievements and titles, weekly seasons with rankings and rewards, and daily objectives.
-• Trade resources on the galactic market.
+• Earn XP, level up and spend skill points across three branches.
+• A Commander's Path that always has a next goal, achievements and titles, weekly seasons with rankings, and daily objectives.
+• Refit each class of warship with modules and save your favourite fleet line-ups.
+• Fill the codex: every world, hull, lord and relic you meet, with titles and earn-only skins for full collections.
 
 PLAY YOUR WAY
-• New to strategy games? A step-by-step training walks you through your first colony, beginner protection keeps raiders away while you learn, and the Commander's Handbook explains every system.
-• Choose Easy, Standard or Brutal — how hard the galaxy leans on you.
+• A step-by-step training, beginner protection and a Handbook that explains every system.
+• Easy, Standard or Brutal.
 • Single-player and offline: no account, no server, no ads. Your empire saves on your phone and backs up to your iCloud.
 • Free to play. Dark Matter, the premium currency, is earned in play and can also be bought in optional in-app purchases.
-• A home-screen widget for your timers, and a Live Activity that counts down an incoming raid on your Lock Screen and in the Dynamic Island.
-• Text size, colour-blind colours and reduced motion options; synthesized music and sound, and haptics.
+• A home-screen widget, and a Live Activity that counts down an incoming raid on your Lock Screen.
+• Text size, colour-blind colours, reduced motion, synthesized music and haptics.
 
 ## Keywords (100, comma-separated, no spaces)
 space,strategy,4x,empire,fleet,colony,clan,raid,sci-fi,conquest,commander,builder,offline,nemesis
 
 ## What's new (this version)
-First release: your colony on a globe — the Frontier, the Spaceport, the Wilds and the Citadel on the pole — a galaxy map with the Galactic Core at its heart, map events, expeditions, nemesis rivals, and a training for new commanders.
+First release: your colony on a globe, a living galaxy of 249 rivals, the ten-chapter campaign The Long Night with its Pirate Lords, weekly galaxy twists, seasonal festivals, mega-projects, ship refits, the codex, and a training for new commanders.
 
 ## Support URL / Marketing URL
 - Support URL: https://00xjs.github.io/novacore/support.html
