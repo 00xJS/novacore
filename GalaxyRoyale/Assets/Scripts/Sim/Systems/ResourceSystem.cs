@@ -56,6 +56,7 @@ namespace GalaxyRoyale.Sim.Systems
                 supply = (int)Math.Floor(supply * Balance.EnergyBoostFactor);
             supply = (int)Math.Floor(supply * TerraformSystem.EnergyMult(state)); // the Temperate path
             supply = (int)Math.Floor(supply * MegaprojectSystem.EnergyMult(state)); // the Dyson Swarm
+            supply = (int)Math.Floor(supply * TwistSystem.EnergyMult(state)); // Fusion Week
 
             float factor = demand <= supply ? 1f : (float)supply / demand;
             return new EnergyBalance(supply, demand, factor);

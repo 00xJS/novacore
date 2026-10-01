@@ -33,12 +33,30 @@ namespace GalaxyRoyale.Sim.Systems
         public static float CampLootMult(GameState s) => (Is(s, TwistKind.PirateUprising) ? 1.5f : 1f) * FestivalSystem.CampLootMult;
         public static float GatherMult(GameState s) => (Is(s, TwistKind.RichVeins) ? 1.5f : 1f) * FestivalSystem.GatherMult;
         public static float ShipTimeMult(GameState s) => (Is(s, TwistKind.ShipwrightsWeek) ? 0.7f : 1f) * FestivalSystem.ShipTimeMult;
-        public static float BuildTimeMult(GameState s) => Is(s, TwistKind.BuildersBoom) ? 0.8f : 1f;
+        public static float BuildTimeMult(GameState s) => Is(s, TwistKind.BuildersBoom) ? 0.8f : Is(s, TwistKind.GoldenHour) ? 0.9f : 1f;
         public static float ResearchTimeMult(GameState s) => (Is(s, TwistKind.ScholarsWeek) ? 0.75f : 1f) * FestivalSystem.ResearchTimeMult;
-        public static float ProductionMult(GameState s) => (Is(s, TwistKind.SolarMaximum) ? 1.2f : 1f) * FestivalSystem.ProductionMult;
+        public static float ProductionMult(GameState s) =>
+            (Is(s, TwistKind.SolarMaximum) ? 1.2f : Is(s, TwistKind.GoldenHour) ? 1.1f : 1f) * FestivalSystem.ProductionMult;
         public static float SalvageMult(GameState s) => Is(s, TwistKind.SalvageStorm) ? 2f : 1f;
         public static float LordRewardMult(GameState s) => Is(s, TwistKind.HuntersMoon) ? 1.5f : 1f;
         public static float SupplyIntervalMult(GameState s) => Is(s, TwistKind.SupplySurge) ? 0.5f : 1f;
+        // The second batch (weeks 11-20).
+        public static float EnergyMult(GameState s) => Is(s, TwistKind.FusionWeek) ? 1.25f : 1f;
+        /// <summary>Rivals' chance to roll a raid (BotSystem; the player's tick is the galaxy's).</summary>
+        public static double RaidChanceMult(int tick) => KindAt(tick) == TwistKind.Ceasefire ? 0.5 : 1.0;
+        public static double MarketMult(GameState s) => Is(s, TwistKind.TradeWinds) ? 1.15 : 1.0;
+        public static float RadarLeadMult(GameState s) => Is(s, TwistKind.ClearSkies) ? 2f : 1f;
+
+        /// <summary>The week's share of a research effect (joins ResearchSystem.EffectTotal).</summary>
+        public static float EffectTotal(GameState s, TechEffectKind kind) => KindAt(s.Tick) switch
+        {
+            TwistKind.WarDrums when kind == TechEffectKind.AtkMult => 0.15f,
+            TwistKind.IronHulls when kind == TechEffectKind.HpMult => 0.15f,
+            TwistKind.DeepHolds when kind == TechEffectKind.CargoMult => 0.30f,
+            TwistKind.VaultWeek when kind == TechEffectKind.ShieldCapMult => 0.50f,
+            TwistKind.TrainingWeek when kind == TechEffectKind.XpMult => 0.50f,
+            _ => 0f,
+        };
 
         /// <summary>Per tick (cheap): announce the week's twist once, and under the
         /// Hunter's Moon send a beaten lord back at once.</summary>

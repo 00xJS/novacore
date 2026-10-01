@@ -85,7 +85,7 @@ namespace GalaxyRoyale.Sim.Systems
         /// <summary>1 <paramref name="sell"/> buys this much <paramref name="buy"/> at the
         /// posted prices (before the fee and your trade's own impact).</summary>
         public static double Rate(GameState state, ResourceId sell, ResourceId buy) =>
-            Price(state, sell) / Price(state, buy);
+            Price(state, sell) / Price(state, buy) * TwistSystem.MarketMult(state); // Trade Winds
 
         public readonly struct Quote
         {

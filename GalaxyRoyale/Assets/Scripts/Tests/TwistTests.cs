@@ -21,14 +21,38 @@ namespace GalaxyRoyale.Sim.Tests
         }
 
         [Test]
-        public void TheFirstWeekIsPlain_ThenANewTwistEveryWeek_ForTenWeeks()
+        public void TheFirstWeekIsPlain_ThenANewTwistEveryWeek_ForTwentyWeeks_ThenItStartsOver()
         {
             Assert.AreEqual(TwistKind.None, TwistSystem.At(0).Kind);
             Assert.AreEqual(TwistKind.None, TwistSystem.At(Week - 1).Kind);
             var seen = new HashSet<TwistKind>();
             for (int w = 1; w <= Twists.Rotation.Count; w++) Assert.IsTrue(seen.Add(TwistSystem.At(w * Week).Kind));
-            Assert.AreEqual(10, seen.Count);
-            Assert.AreEqual(TwistSystem.At(Week).Kind, TwistSystem.At((Twists.Rotation.Count + 1) * Week).Kind, "then it repeats");
+            Assert.AreEqual(20, seen.Count);
+            Assert.AreEqual(TwistKind.FusionWeek, TwistSystem.At(11 * Week).Kind, "the second batch from week 11 (day 77)");
+            Assert.AreEqual(TwistKind.LowGravity, TwistSystem.At(21 * Week).Kind, "then back to the first, the weeks counting on");
+            Assert.AreEqual(TwistSystem.At(13 * Week).Kind, TwistSystem.At(33 * Week).Kind);
+        }
+
+        [Test]
+        public void TheSecondBatch_BendsItsRules()
+        {
+            var s = GameState.CreateNewGame(42, testMode: false);
+            s.Buildings[BuildingId.PowerPlant].Level = 5;
+            s.Tick = 0;
+            float atk = ResearchSystem.AtkMult(s), hp = ResearchSystem.HpMult(s), cargo = ResearchSystem.CargoMult(s);
+            int power = ResourceSystem.GetEnergyBalance(s).Supply;
+            double rate = MarketSystem.Rate(s, ResourceId.Gold, ResourceId.Helium);
+            s.Tick = WeekOf(TwistKind.WarDrums) * Week;
+            Assert.AreEqual(atk + 0.15f, ResearchSystem.AtkMult(s), 1e-4);
+            s.Tick = WeekOf(TwistKind.IronHulls) * Week;
+            Assert.AreEqual(hp + 0.15f, ResearchSystem.HpMult(s), 1e-4);
+            s.Tick = WeekOf(TwistKind.DeepHolds) * Week;
+            Assert.AreEqual(cargo + 0.30f, ResearchSystem.CargoMult(s), 1e-4);
+            s.Tick = WeekOf(TwistKind.FusionWeek) * Week;
+            Assert.Greater(ResourceSystem.GetEnergyBalance(s).Supply, power);
+            Assert.AreEqual(0.5, TwistSystem.RaidChanceMult(WeekOf(TwistKind.Ceasefire) * Week));
+            s.Tick = WeekOf(TwistKind.TradeWinds) * Week;
+            Assert.Greater(MarketSystem.Rate(s, ResourceId.Gold, ResourceId.Helium), rate * 1.1);
         }
 
         [Test]
