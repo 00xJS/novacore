@@ -25,7 +25,8 @@ namespace GalaxyRoyale.Sim.Systems
         /// inside (map events, 2026-09-30).</summary>
         public static int WarnLeadSeconds(GameState state) =>
             EventSites.RadarBlind(state) ? 0
-            : (int)System.Math.Round(WarnLeadSeconds(Level(state)) * ObservatorySystem.RadarLeadMult(state));
+            : (int)System.Math.Round(WarnLeadSeconds(Level(state)) * ObservatorySystem.RadarLeadMult(state)
+                * TwistSystem.RadarLeadMult(state)); // Clear Skies
 
         public static int DetailTier(int radarLevel) =>
             radarLevel < 1 ? 0

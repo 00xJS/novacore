@@ -918,7 +918,8 @@ namespace GalaxyRoyale.Sim.Bots
             // A clan at war rolls hotter ("war fever").
             var myClan = galaxy.FindClan(bot.ClanId);
             double fever = myClan != null && myClan.WarWithClanId != 0 ? ClanSystem.WarFever : 1.0;
-            if (rng() >= personality.Aggression * AggressionRollMult * fever) return; // stand down
+            double truce = TwistSystem.RaidChanceMult(rollTick); // Ceasefire (weekly twists)
+            if (rng() >= personality.Aggression * AggressionRollMult * fever * truce) return; // stand down
 
             var fleet = CombatFleetOf(bot.State, RaidCommitFraction);
             if (CombatResolver.FleetCount(fleet) < 8) return; // no worthwhile fleet yet

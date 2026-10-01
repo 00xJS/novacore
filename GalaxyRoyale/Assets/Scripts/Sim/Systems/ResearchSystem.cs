@@ -127,7 +127,8 @@ namespace GalaxyRoyale.Sim.Systems
             }
             // The Citadel (2026-09-30): relics on display and the Terraformer's path.
             return sum + CommanderSystem.EffectTotal(state, kind) + RelicSystem.EffectTotal(state, kind)
-                + TerraformSystem.EffectTotal(state, kind) + MegaprojectSystem.EffectTotal(state, kind);
+                + TerraformSystem.EffectTotal(state, kind) + MegaprojectSystem.EffectTotal(state, kind)
+                + TwistSystem.EffectTotal(state, kind);
         }
 
         /// <summary>Summed magnitude of techs whose effect is scoped to one hull.</summary>

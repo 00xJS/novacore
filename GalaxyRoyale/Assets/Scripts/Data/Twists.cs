@@ -1,8 +1,10 @@
 // Weekly galaxy twists (late-game content, user-approved 2026-09-30). From the
 // second week on, every galaxy week bends one rule for everyone, rivals too:
-// faster fleets, richer fields, quicker shipyards. Ten of them in a fixed
-// order, so a new colony meets a new one each week for ten weeks, on top of
-// the two-week event rotation. TwistSystem applies them.
+// faster fleets, richer fields, quicker shipyards. Twenty of them in a fixed
+// order: the first batch covers weeks 1-10, a second batch (user request,
+// 2026-09-30: the cadence run found days 77-90 quiet once the first ten
+// repeated) covers weeks 11-20, then the cycle starts over from the first,
+// the week count running on. TwistSystem applies them.
 using System.Collections.Generic;
 
 namespace GalaxyRoyale.Data
@@ -11,6 +13,9 @@ namespace GalaxyRoyale.Data
     {
         None, LowGravity, PirateUprising, RichVeins, ShipwrightsWeek, BuildersBoom,
         ScholarsWeek, SolarMaximum, SalvageStorm, HuntersMoon, SupplySurge,
+        // The second batch (weeks 11-20).
+        FusionWeek, WarDrums, IronHulls, DeepHolds, VaultWeek, TrainingWeek, Ceasefire,
+        TradeWinds, GoldenHour, ClearSkies,
     }
 
     public sealed class TwistDef
@@ -64,6 +69,37 @@ namespace GalaxyRoyale.Data
             new TwistDef { Kind = TwistKind.SupplySurge, Name = "Supply Surge",
                 Effect = "Supply drops land twice as often",
                 Flavor = "Command is emptying its depots. Keep an eye on the drop zone." },
+            // ---- the second batch: weeks 11-20 ----
+            new TwistDef { Kind = TwistKind.FusionWeek, Name = "Fusion Week",
+                Effect = "Power Plants put out 25% more",
+                Flavor = "A fresh fuel shipment is running every reactor in the galaxy hot." },
+            new TwistDef { Kind = TwistKind.WarDrums, Name = "War Drums",
+                Effect = "Every commander's fleets hit 15% harder",
+                Flavor = "Something has the whole galaxy itching for a fight. Pirates included in the targets." },
+            new TwistDef { Kind = TwistKind.IronHulls, Name = "Iron Hulls",
+                Effect = "Every commander's ships are 15% tougher",
+                Flavor = "Cheap armour plate is everywhere. Fleets are coming home with fewer holes." },
+            new TwistDef { Kind = TwistKind.DeepHolds, Name = "Deep Holds",
+                Effect = "Fleets carry 30% more cargo",
+                Flavor = "New stowage rigs are in every shipyard. Fill them up." },
+            new TwistDef { Kind = TwistKind.VaultWeek, Name = "Vault Week",
+                Effect = "Warehouses shield 50% more",
+                Flavor = "Every colony is reinforcing its vaults. Raiders are going to find slim pickings." },
+            new TwistDef { Kind = TwistKind.TrainingWeek, Name = "Training Week",
+                Effect = "Commanders earn 50% more experience",
+                Flavor = "The academies are open to every officer this week." },
+            new TwistDef { Kind = TwistKind.Ceasefire, Name = "Ceasefire",
+                Effect = "Rivals raid half as often",
+                Flavor = "The clans have called a truce. It won't hold everywhere, but it'll hold most places." },
+            new TwistDef { Kind = TwistKind.TradeWinds, Name = "Trade Winds",
+                Effect = "The galactic market pays 15% more on every trade",
+                Flavor = "Merchants are flooding the lanes. Sell what you've piled up." },
+            new TwistDef { Kind = TwistKind.GoldenHour, Name = "Golden Hour",
+                Effect = "+10% production and construction 10% faster",
+                Flavor = "Everything just seems to work this week. Make the most of it." },
+            new TwistDef { Kind = TwistKind.ClearSkies, Name = "Clear Skies",
+                Effect = "Radar sees raids coming twice as early",
+                Flavor = "Not a cloud of dust between here and the rim. Nothing sneaks up on anyone." },
         };
 
         public static TwistDef Def(TwistKind kind)
