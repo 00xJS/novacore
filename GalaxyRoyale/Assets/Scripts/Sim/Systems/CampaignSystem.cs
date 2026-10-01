@@ -47,8 +47,9 @@ namespace GalaxyRoyale.Sim.Systems
             if (Current(s) is not { } ch) return "The saga is complete";
             int cc = s.Buildings[BuildingId.CommandCenter].Level;
             if (cc < ch.UnlockCc) return $"Opens at Command Center {ch.UnlockCc}";
+            // A TESTING game (App Review, quick looks) skips the waiting: CC levels only.
             int at = ch.UnlockDay * Day;
-            if (s.Tick < at) return $"Opens in {FmtLeft(at - s.Tick)}";
+            if (!s.TestMode && s.Tick < at) return $"Opens in {FmtLeft(at - s.Tick)}";
             return null;
         }
 

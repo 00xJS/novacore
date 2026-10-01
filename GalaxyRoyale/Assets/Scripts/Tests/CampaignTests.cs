@@ -80,6 +80,16 @@ namespace GalaxyRoyale.Sim.Tests
         }
 
         [Test]
+        public void ATestingGame_SkipsTheWait_ButNotTheCommandCenter()
+        {
+            var s = GameState.CreateNewGame(42, testMode: true);
+            s.Buildings[BuildingId.CommandCenter].Level = 4;
+            Assert.IsNotNull(CampaignSystem.Blocker(s));
+            s.Buildings[BuildingId.CommandCenter].Level = 5;
+            Assert.IsNull(CampaignSystem.Blocker(s), "chapter 1 opens at once in a TESTING game");
+        }
+
+        [Test]
         public void Objectives_CountFromTheChaptersStart()
         {
             var (s, engine, _) = Colony(cc: 5, day: 2);
